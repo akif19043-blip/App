@@ -14,7 +14,7 @@ from mathutils import Vector
 from lib import kit
 
 
-def setup(samples=24, resolution=(720, 480), background='#8fb6d8',
+def setup(samples=24, resolution=(560, 380), background='#8fb6d8',
           ground='#b9975b', sun_energy=3.0):
     scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
@@ -24,6 +24,8 @@ def setup(samples=24, resolution=(720, 480), background='#8fb6d8',
     scene.render.resolution_x, scene.render.resolution_y = resolution
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = 'PNG'
+    scene.render.image_settings.color_mode = 'RGB'      # no alpha to store
+    scene.render.image_settings.compression = 100
     scene.view_settings.view_transform = 'Filmic' if 'Filmic' in [
         t.identifier for t in
         scene.view_settings.bl_rna.properties['view_transform'].enum_items

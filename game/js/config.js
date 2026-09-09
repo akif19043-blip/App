@@ -84,6 +84,37 @@ export const CAMERA = {
   speedFovBoost: 12,          // extra degrees of FOV at top speed
 };
 
+/** Free-roam handling. The highway mode does not use these. */
+export const DRIVE = {
+  maxSteerAngle: 0.55,        // radians of front-wheel lock at low speed
+  steerAtSpeed: 0.30,         // fraction of that lock left at high speed
+  steerLerp: 9.0,
+  bodyRoll: 0.55,             // lean multiplier, times steer times speed
+  reverseAccel: 6.0,
+  reverseTopSpeed: 9.0,
+  cameraDistance: 8.6,
+  cameraHeight: 4.3,          // a little high, so cross traffic is visible
+  cameraLookAhead: 10,
+  cameraLookHeight: 1.2,
+  cameraLerp: 4.2,
+  cameraTurnLead: 0.35,       // how far the camera swings toward the turn
+};
+
+/** City map: what lives on the streets. */
+export const CITY = {
+  trafficCars: 22,
+  trafficSpeed: [11, 19],     // m/s -- town speeds, not motorway speeds
+  trafficKeepRadius: 300,     // respawn once this far from the player
+  trafficSpawnRadius: [55, 190],
+  coins: 150,
+  coinHeight: 1.0,
+  pickupRadius: 3.0,
+  lampsAtIntersections: true,
+  missionPay: [140, 380],
+  missionArriveRadius: 7.0,
+  fogRange: [90, 420],
+};
+
 /**
  * Playable cars. `model` is the Blender asset name; `paint` recolours the
  * shared CarPaint material at load time.

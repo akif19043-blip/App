@@ -72,6 +72,23 @@ html, body {
 .chip__label { font-size: 11px; letter-spacing: 0.09em; color: var(--muted); }
 .chip strong { font-size: 16px; }
 .chip--score strong { color: var(--accent); }
+.chip--target strong { color: var(--good); }
+.chip__unit { font-size: 10px; color: var(--muted); }
+.chip.is-hidden { display: none; }
+
+/* Minimap: the whole city grid at a glance, top-right under the pause key. */
+.minimap {
+  position: absolute;
+  right: var(--pad);
+  top: calc(var(--pad-top) + 52px);
+  width: 108px;
+  height: 108px;
+  border-radius: 14px;
+  border: 1px solid var(--panel-edge);
+  background: rgba(10, 14, 20, 0.5);
+  backdrop-filter: blur(6px);
+}
+.minimap.is-hidden { display: none; }
 
 .icon-button {
   margin-left: auto;
@@ -299,6 +316,17 @@ html, body {
   color: #180d06;
 }
 .button--ghost { background: transparent; color: var(--muted); }
+.button small {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+  text-transform: none;
+}
+.button-row { display: flex; gap: 10px; }
+.button-row .button { flex: 1; }
 .button:disabled { opacity: 0.4; }
 
 .hint { margin: 4px 0 0; font-size: 11px; color: var(--muted); }
@@ -409,4 +437,5 @@ html, body {
   .hud__speed { bottom: calc(var(--pad-bottom) + 96px); }
   .hud__speed strong { font-size: 34px; }
   .hud__nitro { bottom: calc(var(--pad-bottom) + 154px); width: 104px; }
+  .minimap { width: 88px; height: 88px; top: calc(var(--pad-top) + 46px); }
 }

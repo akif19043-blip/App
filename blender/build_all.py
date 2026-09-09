@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy                                                   # noqa: E402
 from mathutils import Vector                                 # noqa: E402
 
-from lib import kit, palette, props, render, road, vehicles   # noqa: E402
+from lib import city, kit, palette, props, render, road, vehicles  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_DIR = os.path.join(ROOT, 'game', 'assets', 'models')
@@ -40,6 +40,11 @@ ASSETS = (
     + [(n, props, 'prop') for n in ('palm', 'cactus', 'rock', 'mesa',
                                     'lamp', 'billboard', 'cone')]
     + [(n, props, 'pickup') for n in ('coin', 'nitro')]
+    + [(n, city, 'city') for n in ('city_ground', 'desert_floor',
+                                   'city_wall')]
+    + [(n, city, 'block') for n in ('block_downtown', 'block_lowrise',
+                                    'block_park', 'block_industrial')]
+    + [('beacon', city, 'pickup')]
 )
 
 
@@ -122,6 +127,7 @@ def main():
             'laneCenters': [round(v, 3) for v in road.lane_centers()],
             'guardrailTile': road.GUARDRAIL_TILE,
         },
+        'city': city.manifest(),
         'models': {},
     }
 

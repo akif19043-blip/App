@@ -1,3 +1,10 @@
 __pycache__/
 *.pyc
 .DS_Store
+node_modules/
+package-lock.json
+
+# Individual model previews are regenerable (npm run assets:preview);
+# only the combined contact sheet is committed.
+docs/previews/*.png
+!docs/previews/contact_sheet.png

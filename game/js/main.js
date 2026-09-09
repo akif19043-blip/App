@@ -1,9 +1,11 @@
 /**
- * Entry point: wires the modules together and runs the frame loop.
+ * Entry point: loads the assets, owns the renderer and camera, and switches
+ * between the two game modes.
  *
- * Game states are deliberately explicit ('loading' | 'menu' | 'playing' |
- * 'paused' | 'over'); the loop keeps rendering in every one of them so the
- * menus sit over a live scene rather than a frozen frame.
+ * Each mode ("city" free roam, "highway" score attack) owns a THREE.Scene and
+ * everything in it, so switching is just a matter of which scene gets drawn.
+ * Modes are built the first time they are played, which keeps the initial
+ * load to one city.
  */
 
 import * as THREE from 'three';
@@ -12,36 +14,42 @@ import * as assets from './assets.js';
 import * as audio from './audio.js';
 import * as input from './input.js';
 import * as save from './save.js';
+import { CitySession } from './city.js';
+import { HighwaySession } from './highway.js';
 import { Hud } from './hud.js';
-import { Pickups } from './pickups.js';
-import { Player } from './player.js';
-import { Traffic } from './traffic.js';
-import { World } from './world.js';
-import { CAMERA, CARS, PLAY, SCORE, TRAFFIC, WORLD } from './config.js';
+import { Minimap } from './minimap.js';
+import { CAMERA, CARS } from './config.js';
 
 const MODELS = [
-  'road', 'ground', 'guardrail', 'barrier',
+  // city
+  'city_ground', 'desert_floor', 'city_wall', 'beacon',
+  'block_downtown', 'block_lowrise', 'block_park', 'block_industrial',
+  // vehicles
   'car_sport', 'car_muscle', 'car_super',
   'traffic_sedan', 'traffic_hatch', 'traffic_suv',
   'traffic_truck', 'traffic_bus',
+  // highway
+  'road', 'ground', 'guardrail', 'barrier',
   'palm', 'cactus', 'rock', 'mesa', 'lamp', 'billboard', 'cone',
   'coin', 'nitro',
 ];
 
-const MAX_FRAME = 1 / 20;        // clamp dt so a stall cannot teleport the car
+const MAX_FRAME = 1 / 20;    // clamp dt so a stall cannot teleport the car
 
 class Game {
   constructor() {
     this.state = 'loading';
     this.clock = new THREE.Clock();
     this.time = 0;
-    this.run = null;
+    this.mode = 'city';
+    this.sessions = {};
+    this.bankTimer = 0;
   }
 
   async boot() {
     save.load();
     this.hud = new Hud({
-      onPlay: () => this.startRun(),
+      onPlay: (mode) => this.startRun(mode),
       onPause: () => this.pause(),
       onResume: () => this.resume(),
       onQuit: () => this.toMenu(),
@@ -57,16 +65,10 @@ class Game {
       this.hud.setProgress(done, total, name);
     });
 
-    this.world = new World(this.scene, this.renderer);
-    this.world.build(Math.random() < 0.5 ? 'dusk' : 'day');
-
-    this.lanes = assets.manifest.road.laneCenters;
-    this.roadHalfWidth = assets.manifest.road.edgeX;
-
-    this.player = new Player(this.scene, this.world);
-    this.equip(this.currentCar());
-    this.traffic = new Traffic(this.scene, this.world, this.lanes);
-    this.pickups = new Pickups(this.scene, this.lanes);
+    this.timeOfDay = Math.random() < 0.5 ? 'dusk' : 'day';
+    this.session = this.ensureSession('city');
+    this.minimap = new Minimap(document.getElementById('minimap'),
+                               assets.manifest.city);
 
     input.init({
       surface: document.getElementById('surface'),
@@ -82,7 +84,6 @@ class Game {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && this.state === 'playing') this.pause();
     });
-    // Audio has to be created from a gesture; the first tap anywhere does it.
     const unlock = () => {
       audio.unlock();
       audio.setEnabled(save.get().settings.sound);
@@ -106,8 +107,7 @@ class Game {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
 
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(CAMERA.fovPortrait, 1, 0.5, 900);
+    this.camera = new THREE.PerspectiveCamera(CAMERA.fovPortrait, 1, 0.5, 1800);
     this.camera.position.set(0, CAMERA.height, CAMERA.distance);
     this.resize();
   }
@@ -118,8 +118,19 @@ class Game {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.baseFov = height > width ? CAMERA.fovPortrait : CAMERA.fovLandscape;
-    this.camera.fov = this.baseFov;
     this.camera.updateProjectionMatrix();
+    if (this.minimap) this.minimap.resize();
+  }
+
+  ensureSession(mode) {
+    if (!this.sessions[mode]) {
+      const Session = mode === 'city' ? CitySession : HighwaySession;
+      const session = new Session(this.renderer, this.hud);
+      session.build(this.timeOfDay);
+      session.poseCar(this.currentCar());
+      this.sessions[mode] = session;
+    }
+    return this.sessions[mode];
   }
 
   currentCar() {
@@ -128,65 +139,35 @@ class Game {
   }
 
   equip(car) {
-    this.player.setCar(car);
-    if (this.state === 'menu') this.poseForMenu();
-  }
-
-  /** Park the car in shot so the menu has something to look at. */
-  poseForMenu() {
-    this.player.reset();
-    this.player.group.position.set(this.lanes[1], 0, 0);
-    this.player.x = this.lanes[1];
-    this.menuAngle = 0.6;
-    this.updateMenuCamera(0);
-  }
-
-  /**
-   * Slow orbit around the parked car behind the menu. The camera aims below
-   * the car so it rides high in frame, clear of the bottom-anchored panel.
-   */
-  updateMenuCamera(dt) {
-    this.menuAngle = (this.menuAngle || 0) + dt * 0.16;
-    const centre = this.lanes[1];
-    const radius = 9.6;
-    this.camera.position.set(
-      centre + Math.sin(this.menuAngle) * radius,
-      2.9 + Math.sin(this.menuAngle * 0.7) * 0.4,
-      Math.cos(this.menuAngle) * radius);
-    this.camera.lookAt(centre, -0.7, 0);
-    if (Math.abs(this.camera.fov - this.baseFov) > 0.05) {
-      this.camera.fov += (this.baseFov - this.camera.fov) * 0.1;
-      this.camera.updateProjectionMatrix();
-    }
+    Object.values(this.sessions).forEach((session) => session.poseCar(car));
   }
 
   toMenu() {
+    if (this.mode === 'city' && this.session && this.session.stats) {
+      this.bankCityEarnings();
+    }
     this.state = 'menu';
     audio.stopEngine();
     input.reset();
-    this.traffic?.reset();
-    this.pickups?.reset(0);
-    this.poseForMenu();
+    this.session.poseCar(this.currentCar());
     this.hud.show('menu');
   }
 
-  startRun() {
+  startRun(mode) {
+    this.mode = mode || this.mode;
+    this.session = this.ensureSession(this.mode);
     audio.unlock();
     audio.setEnabled(save.get().settings.sound);
-    this.player.setCar(this.currentCar());
-    // start in a lane rather than astride the centre line
-    this.player.start(this.lanes[this.lanes.length - 2]);
-    this.traffic.reset();
-    this.pickups.reset(0);
+
+    this.session.start(this.currentCar());
     input.reset();
     input.recentreTilt();
+    this.banked = 0;
+    this.bankTimer = 0;
 
-    this.run = {
-      score: 0, coins: 0, overtakes: 0, nearMisses: 0, distance: 0,
-    };
     this.state = 'playing';
+    this.hud.setMode(this.mode);
     this.hud.showPlaying();
-    this.hud.updateHud(this.hudState());
     audio.startEngine();
   }
 
@@ -195,6 +176,7 @@ class Game {
     this.state = 'paused';
     audio.stopEngine();
     input.reset();
+    if (this.mode === 'city') this.bankCityEarnings();
     this.hud.show('paused');
   }
 
@@ -216,29 +198,30 @@ class Game {
     if (!granted) this.hud.toast('Bu cihazda eğim desteği yok');
   }
 
-  endRun() {
-    this.state = 'over';
-    audio.stopEngine();
-    const previousBest = save.get().best;
-    save.addCoins(this.run.coins);
-    save.recordRun(this.run.score, this.run.distance);
-    this.hud.showGameOver({
-      score: this.run.score,
-      distance: this.run.distance,
-      coins: this.run.coins,
-      isBest: this.run.score > previousBest,
-    });
+  /** Free roam has no run end, so pay out as we go. */
+  bankCityEarnings() {
+    const session = this.sessions.city;
+    if (!session || !session.stats) return;
+    const owed = session.stats.coins - (this.banked || 0);
+    if (owed <= 0) return;
+    save.addCoins(owed);
+    this.banked = session.stats.coins;
+    this.hud.refreshMenu();
   }
 
-  hudState() {
-    return {
-      kmh: this.player.kmh,
-      score: this.run ? this.run.score : 0,
-      coins: this.run ? this.run.coins : 0,
-      distance: this.player.distance,
-      nitro: this.player.nitro,
-      boosting: this.player.boosting,
-    };
+  endHighwayRun() {
+    this.state = 'over';
+    audio.stopEngine();
+    const run = this.session.run;
+    const previousBest = save.get().best;
+    save.addCoins(run.coins);
+    save.recordRun(run.score, run.distance);
+    this.hud.showGameOver({
+      score: run.score,
+      distance: run.distance,
+      coins: run.coins,
+      isBest: run.score > previousBest,
+    });
   }
 
   frame(now) {
@@ -248,123 +231,62 @@ class Game {
 
     if (this.state === 'playing') this.update(dt);
     else if (this.state === 'over') this.updateAfterCrash(dt);
-    else if (this.state === 'menu' || this.state === 'garage') {
-      this.updateMenuCamera(dt);
-    }
+    else this.session.poseForMenu(dt, this.camera, this.baseFov);
 
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.session.scene, this.camera);
   }
 
   update(dt) {
     const controls = input.sample();
-    // `autopilot` is a test hook: automated runs steer through this so the
-    // real input path stays untouched.
-    if (typeof this.autopilot === 'number') controls.steer = this.autopilot;
-    if (this.autobrake) { controls.brake = true; controls.throttle = 0; }
-    if (input.consumeNitro()) this.player.requestBoost();
-
-    const travelled = this.player.update(dt, controls, this.roadHalfWidth);
-    if (this.player.scraping) audio.scrape();
-
-    const difficulty = Math.min(1,
-      this.player.distance / TRAFFIC.densityRampMetres);
-
-    const events = this.traffic.update(dt, this.player.z, this.player.x,
-                                       this.player.size.width * 0.5, difficulty);
-    const picked = this.pickups.update(dt, this.player.z, this.player.x,
-                                       this.time);
-
-    // --- scoring -----------------------------------------------------------
-    const speedBonus = 1 + Math.max(0,
-      (this.player.speed - SCORE.speedBonusFrom) / SCORE.speedBonusFrom);
-    this.run.score += travelled * SCORE.perMetre * speedBonus;
-    this.run.score += events.overtakes * SCORE.overtake;
-    this.run.score += events.nearMisses * SCORE.nearMiss;
-    this.run.overtakes += events.overtakes;
-    this.run.nearMisses += events.nearMisses;
-    this.run.coins += picked.coins * SCORE.coinValue;
-    this.run.distance = this.player.distance;
-    if (events.nearMisses) {
-      audio.nearMiss();
-      this.hud.toast('Kıl payı! +' + events.nearMisses * SCORE.nearMiss, 0.9);
-    }
-    if (picked.nitro) {
-      this.player.addNitro(picked.nitro * PLAY.nitroPerPickup);
-      this.hud.toast('Nitro dolduruldu!', 1.0);
+    // `testInput` is a hook for automated runs: they drive by overriding the
+    // sampled controls, so the real input path stays exactly as a player uses it.
+    if (this.testInput) Object.assign(controls, this.testInput);
+    if (input.consumeNitro()) {
+      if (this.mode === 'city') this.session.car.requestBoost();
+      else this.session.requestBoost();
     }
 
-    this.world.update(this.player.z);
-    if (this.collides()) {
-      this.player.crash();
-      this.endRun();
+    const state = this.session.update(dt, controls, this.time);
+    this.session.updateCamera(dt, this.camera);
+    this.applyFov(dt);
+    this.hud.updateHud(state);
+
+    if (this.mode === 'city') {
+      this.minimap.draw(this.session.car, this.session.coins,
+                        this.session.mission, this.session.traffic.cars);
+      this.bankTimer += dt;
+      if (this.bankTimer > 8) {
+        this.bankTimer = 0;
+        this.bankCityEarnings();
+      }
+    } else if (this.session.over) {
+      this.endHighwayRun();
     }
 
-    audio.updateEngine(controls.throttle, this.player.speedRatio,
-                       this.player.boosting);
-    this.updateCamera(dt);
-    this.hud.updateHud(this.hudState());
-    this.maybeRebase();
+    audio.updateEngine(controls.throttle,
+                       this.mode === 'city'
+                         ? this.session.car.speedRatio
+                         : this.session.player.speedRatio,
+                       state.boosting);
   }
 
   updateAfterCrash(dt) {
-    this.player.update(dt, { steer: 0, throttle: 0, brake: true },
-                       this.roadHalfWidth);
-    this.world.update(this.player.z);
-    this.updateCamera(dt);
+    const state = this.session.update(dt, { steer: 0, throttle: 0, brake: true },
+                                      this.time);
+    this.session.updateCamera(dt, this.camera);
+    this.hud.updateHud(state);
   }
 
-  collides() {
-    const me = this.player.box;
-    for (const car of this.traffic.active) {
-      const position = car.holder.position;
-      if (Math.abs(position.z - me.z) >= (car.size.length + me.length) * 0.5) {
-        continue;
-      }
-      if (Math.abs(position.x - me.x) < (car.size.width + me.width) * 0.5) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  updateCamera(dt) {
-    const player = this.player;
-    const follow = 1 - Math.exp(-CAMERA.lerp * dt);
-    const targetX = player.x * 0.72;
-
-    // Follow distance is held exactly. Smoothing z as well would leave the
-    // camera trailing by speed/lerp metres -- 14 m at top speed -- which
-    // shrinks the car and steals the sense of pace at the worst moment.
-    this.camera.position.z = player.z + CAMERA.distance;
-    this.camera.position.x += (targetX - this.camera.position.x) * follow;
-    this.camera.position.y += (CAMERA.height - this.camera.position.y) * follow;
-
-    if (player.shake > 0.001) {
-      const amount = player.shake * 0.35;
-      this.camera.position.x += (Math.random() - 0.5) * amount;
-      this.camera.position.y += (Math.random() - 0.5) * amount;
-    }
-
-    this.camera.lookAt(player.x * 0.85, CAMERA.lookHeight,
-                       player.z - CAMERA.lookAhead);
-
-    const fov = this.baseFov + CAMERA.speedFovBoost * player.speedRatio
-      + (player.boosting ? 5 : 0);
+  applyFov(dt) {
+    const ratio = this.mode === 'city'
+      ? this.session.car.speedRatio : this.session.player.speedRatio;
+    const boosting = this.mode === 'city'
+      ? this.session.car.boosting : this.session.player.boosting;
+    const fov = this.baseFov + CAMERA.speedFovBoost * ratio + (boosting ? 5 : 0);
     if (Math.abs(this.camera.fov - fov) > 0.05) {
       this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 3);
       this.camera.updateProjectionMatrix();
     }
-  }
-
-  /** Keep world coordinates small so long runs stay free of float jitter. */
-  maybeRebase() {
-    if (this.player.z > -WORLD.rebaseAt) return;
-    const offset = this.player.z;
-    this.player.rebase(offset);
-    this.traffic.rebase(offset);
-    this.pickups.rebase(offset);
-    this.world.rebase(offset);
-    this.camera.position.z -= offset;
   }
 }
 

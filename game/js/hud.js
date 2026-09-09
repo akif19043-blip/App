@@ -20,6 +20,10 @@ export class Hud {
       this.el[name] = document.getElementById('screen-' + name);
     });
     this.el.hud = document.getElementById('hud');
+    this.el.chipScore = document.getElementById('chip-score');
+    this.el.chipTarget = document.getElementById('chip-target');
+    this.el.target = document.getElementById('hud-target');
+    this.el.minimap = document.getElementById('minimap');
     this.el.controls = document.getElementById('controls');
     this.el.speed = document.getElementById('hud-speed');
     this.el.score = document.getElementById('hud-score');
@@ -51,7 +55,8 @@ export class Hud {
       });
     };
 
-    tap('btn-play', () => this.handlers.onPlay());
+    tap('btn-play-city', () => this.handlers.onPlay('city'));
+    tap('btn-play-highway', () => this.handlers.onPlay('highway'));
     tap('btn-garage', () => this.showGarage());
     tap('btn-settings', () => this.show('settings'));
     tap('btn-garage-back', () => this.show('menu'));
@@ -59,7 +64,7 @@ export class Hud {
     tap('btn-pause', () => this.handlers.onPause());
     tap('btn-resume', () => this.handlers.onResume());
     tap('btn-quit', () => this.handlers.onQuit());
-    tap('btn-retry', () => this.handlers.onPlay());
+    tap('btn-retry', () => this.handlers.onPlay(this.mode));
     tap('btn-over-menu', () => this.handlers.onQuit());
 
     this.bindToggle('toggle-sound', 'sound', (value) => {
@@ -90,6 +95,18 @@ export class Hud {
   setTiltState(enabled) {
     if (this.el['toggle-tilt']) this.el['toggle-tilt'].checked = enabled;
     save.setSetting('tilt', enabled);
+  }
+
+  /**
+   * Free roam and the traffic racer want different readouts: a distance to the
+   * next delivery and a map, versus a score.
+   */
+  setMode(mode) {
+    this.mode = mode;
+    const city = mode === 'city';
+    this.el.chipScore.classList.toggle('is-hidden', city);
+    this.el.chipTarget.classList.toggle('is-hidden', !city);
+    this.el.minimap.classList.toggle('is-hidden', !city);
   }
 
   show(name) {
@@ -191,9 +208,14 @@ export class Hud {
 
   updateHud(state) {
     this.el.speed.textContent = state.kmh;
-    this.el.score.textContent = formatNumber(state.score);
     this.el.coins.textContent = formatNumber(state.coins);
     this.el.distance.textContent = formatNumber(Math.round(state.distance));
+    if (state.score !== undefined) {
+      this.el.score.textContent = formatNumber(state.score);
+    }
+    if (state.target !== undefined) {
+      this.el.target.textContent = formatNumber(state.target);
+    }
     this.el.nitroFill.style.transform = `scaleX(${state.nitro.toFixed(3)})`;
     this.el.nitroButton.classList.toggle('is-ready', state.nitro > 0.1);
     this.el.nitroButton.classList.toggle('is-firing', state.boosting);

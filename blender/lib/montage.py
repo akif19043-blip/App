@@ -48,10 +48,15 @@ def contact_sheet(paths, out_path, columns=5, shrink=2, gap=6,
         sheet[y:y + tile.shape[0], x:x + tile.shape[1]] = tile
 
     height, width = sheet.shape[:2]
-    out = bpy.data.images.new('contact_sheet', width, height, alpha=True)
+    out = bpy.data.images.new('contact_sheet', width, height, alpha=False)
     out.pixels = sheet[::-1].ravel().tolist()
     out.filepath_raw = out_path
     out.file_format = 'PNG'
-    out.save()
+    # RGB at full compression: this file is committed, the tiles are not.
+    settings = bpy.context.scene.render.image_settings
+    settings.file_format = 'PNG'
+    settings.color_mode = 'RGB'
+    settings.compression = 100
+    out.save(quality=100)
     bpy.data.images.remove(out)
     return out_path

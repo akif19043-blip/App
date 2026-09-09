@@ -17,7 +17,7 @@ const DEFAULTS = {
   owned: ['sport'],
   settings: {
     sound: true,
-    autoThrottle: true,
+    autoThrottle: false,   // free roam wants a real throttle you can lift off
     tilt: false,
   },
 };

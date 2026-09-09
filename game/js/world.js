@@ -1,5 +1,6 @@
 /**
- * The endless highway: sky, lighting, recycled road tiles and roadside props.
+ * The endless highway used by the traffic-racer mode: recycled road tiles and
+ * roadside props.
  *
  * The player drives toward -Z, so "ahead" is a smaller z. Nothing is ever
  * created during play -- tiles and scenery are pooled at startup and moved
@@ -8,22 +9,8 @@
 
 import * as THREE from 'three';
 import * as assets from './assets.js';
+import * as environment from './environment.js';
 import { WORLD, SCENERY } from './config.js';
-
-const TIME_OF_DAY = {
-  dusk: {
-    top: '#1d2b52', horizon: '#f0a35e', ground: '#6b5340',
-    sun: '#ffb066', sunIntensity: 2.9,
-    hemiSky: '#ffd9a8', hemiGround: '#6b5340', hemiIntensity: 1.25,
-    fogNear: 60, fogFar: 280,
-  },
-  day: {
-    top: '#2f74c0', horizon: '#cfe3f2', ground: '#7d6647',
-    sun: '#fff3d8', sunIntensity: 2.6,
-    hemiSky: '#bcd8f0', hemiGround: '#7d6647', hemiIntensity: 1.0,
-    fogNear: 75, fogFar: 280,
-  },
-};
 
 const SCENERY_KINDS = [
   { model: 'palm', weight: 3, scale: [0.9, 1.25], near: 13, far: 40 },
@@ -45,48 +32,16 @@ export class World {
     this.lamps = [];
     this.props = [];
     this.mesas = [];
-    this.preset = TIME_OF_DAY.dusk;
-    this.rng = Math.random;
-    this.shadowTexture = makeShadowTexture();
+    this.preset = environment.preset('dusk');
   }
 
   /** Build sky, light and every pooled object. Called once. */
   build(timeOfDay = 'dusk') {
-    this.preset = TIME_OF_DAY[timeOfDay] || TIME_OF_DAY.dusk;
-    this.applySky();
-    this.applyLights();
+    this.preset = environment.preset(timeOfDay);
+    environment.applySky(this.scene, this.renderer, this.preset);
+    environment.applyLights(this.scene, this.preset);
     this.buildRoad();
     this.buildScenery();
-  }
-
-  applySky() {
-    const preset = this.preset;
-    const texture = makeSkyTexture(preset);
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    pmrem.compileEquirectangularShader();
-    const environment = pmrem.fromEquirectangular(texture).texture;
-
-    this.scene.background = texture;
-    this.scene.environment = environment;      // metals need something to see
-    this.scene.fog = new THREE.Fog(new THREE.Color(preset.horizon),
-                                   preset.fogNear, preset.fogFar);
-    pmrem.dispose();
-    this.skyTexture = texture;
-    this.environmentTexture = environment;
-  }
-
-  applyLights() {
-    const preset = this.preset;
-    const sun = new THREE.DirectionalLight(new THREE.Color(preset.sun),
-                                           preset.sunIntensity);
-    sun.position.set(-60, 80, -40);
-    this.scene.add(sun);
-    this.sun = sun;
-
-    const hemi = new THREE.HemisphereLight(new THREE.Color(preset.hemiSky),
-                                           new THREE.Color(preset.hemiGround),
-                                           preset.hemiIntensity);
-    this.scene.add(hemi);
   }
 
   buildRoad() {
@@ -223,21 +178,8 @@ export class World {
     });
   }
 
-  /** A soft dark ellipse to ground a vehicle without a real shadow pass. */
   makeShadow(width, length) {
-    const geometry = new THREE.PlaneGeometry(width * 1.5, length * 1.15);
-    const material = new THREE.MeshBasicMaterial({
-      map: this.shadowTexture,
-      transparent: true,
-      opacity: 0.42,
-      depthWrite: false,
-      color: 0x000000,
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = 0.02;
-    mesh.renderOrder = -1;
-    return mesh;
+    return environment.makeShadow(width, length);
   }
 }
 
@@ -265,46 +207,3 @@ function pickWeighted(list) {
 function lerp(a, b, t) {
   return a + (b - a) * t;
 }
-
-/**
- * Vertical gradient used both as the visible sky and, through PMREM, as the
- * environment map. Without it every metallic material renders black.
- */
-function makeSkyTexture(preset) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 16;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0.00, preset.top);
-  gradient.addColorStop(0.42, preset.top);
-  gradient.addColorStop(0.50, preset.horizon);
-  gradient.addColorStop(0.56, preset.horizon);
-  gradient.addColorStop(1.00, preset.ground);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.mapping = THREE.EquirectangularReflectionMapping;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.needsUpdate = true;
-  return texture;
-}
-
-function makeShadowTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 64;
-  canvas.height = 64;
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
-  gradient.addColorStop(0, 'rgba(0,0,0,0.85)');
-  gradient.addColorStop(0.55, 'rgba(0,0,0,0.45)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 64, 64);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
-
-export { TIME_OF_DAY };

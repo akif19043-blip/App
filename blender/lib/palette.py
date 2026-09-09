@@ -35,10 +35,8 @@ def build():
                            emission='#ff9d1c', emission_strength=3.0),
         # road
         'Asphalt':    dict(color='#34393f', metallic=0.00, roughness=0.82),
-        'LineWhite':  dict(color='#e8ecef', roughness=0.55,
-                           emission='#cfd6da', emission_strength=0.6),
-        'LineYellow': dict(color='#d9a52f', roughness=0.55,
-                           emission='#b8892a', emission_strength=0.5),
+        'LineWhite':  dict(color='#e8ecef', roughness=0.55),
+        'LineYellow': dict(color='#d9a52f', roughness=0.55),
         'Shoulder':   dict(color='#3a3227', metallic=0.00, roughness=0.90),
         'Concrete':   dict(color='#8b9199', metallic=0.00, roughness=0.75),
         # scenery
@@ -54,6 +52,18 @@ def build():
                            emission='#1b5c94', emission_strength=0.8),
         'Cone':       dict(color='#e2571f', roughness=0.60,
                            emission='#c9430f', emission_strength=0.5),
+        # city
+        'Kerb':       dict(color='#6f757c', metallic=0.00, roughness=0.80),
+        'Sidewalk':   dict(color='#9aa0a6', metallic=0.00, roughness=0.82),
+        'BuildingA':  dict(color='#c2b09a', metallic=0.00, roughness=0.78),
+        'BuildingB':  dict(color='#8d9cab', metallic=0.05, roughness=0.70),
+        'BuildingC':  dict(color='#a86f61', metallic=0.00, roughness=0.80),
+        'Window':     dict(color='#1b2836', metallic=0.55, roughness=0.16,
+                           emission='#ffcf8a', emission_strength=0.45),
+        'Roof':       dict(color='#4a5058', metallic=0.10, roughness=0.85),
+        'Grass':      dict(color='#4e7d3f', metallic=0.00, roughness=0.88),
+        'Beacon':     dict(color='#8ef06a', roughness=0.25,
+                           emission='#a6ff7a', emission_strength=3.5),
         # pickups
         'Gold':       dict(color='#ffc233', metallic=0.90, roughness=0.22,
                            emission='#ffae1a', emission_strength=1.6),
