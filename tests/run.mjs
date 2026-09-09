@@ -42,7 +42,9 @@ function findChromium() {
 const CHROME = findChromium();
 if (CHROME) console.log('using chromium at ' + CHROME);
 
-mkdirSync(join(ROOT, 'docs', 'screens'), { recursive: true });
+// Suites screenshot as they go; these are run artefacts, not docs.
+const SHOT_DIR = join(ROOT, '.test-shots');
+mkdirSync(SHOT_DIR, { recursive: true });
 
 const server = spawn('python3', [join(ROOT, 'tools', 'serve.py'), String(PORT)],
                      { cwd: ROOT, stdio: 'ignore' });
@@ -65,7 +67,7 @@ function runSuite(name) {
     env: {
       ...process.env,
       GAME_URL: URL,
-      SHOT_DIR: join(ROOT, 'docs', 'screens'),
+      SHOT_DIR,
       ...(CHROME ? { CHROME_PATH: CHROME } : {}),
     },
   });

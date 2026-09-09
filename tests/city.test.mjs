@@ -11,7 +11,7 @@
  */
 
 import { chromium } from 'playwright';
-const SHOTS = process.env.SHOT_DIR || 'docs/screens';
+const SHOTS = process.env.SHOT_DIR || '.test-shots';
 const problems = [];
 const browser = await chromium.launch({
   executablePath: process.env.CHROME_PATH || undefined,

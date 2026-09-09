@@ -4,6 +4,9 @@ __pycache__/
 node_modules/
 package-lock.json
 
+# Screenshots written by test runs
+.test-shots/
+
 # Individual model previews are regenerable (npm run assets:preview);
 # only the combined contact sheet is committed.
 docs/previews/*.png
