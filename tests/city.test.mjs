@@ -60,6 +60,128 @@ check('accelerates forward along -Z', drive.straight.dz < -20 && Math.abs(drive.
 check('steering changes heading', Math.abs(drive.headingChange) > 1.0, drive.headingChange+' rad');
 await page.screenshot({ path: SHOTS+'/c2-drive.png' });
 
+// Steering direction. Getting this backwards is invisible in a headless
+// screenshot but ruins the game, so it is pinned: from heading 0 (facing -Z)
+// a full right lock must curve the car toward +X, with the front wheels
+// pointing that way too.
+const steering = await page.evaluate(() => {
+  const c = game.session.car;
+  const out = {};
+  for (const [name, steer] of [['right', 1], ['left', -1]]) {
+    c.place(0, 0, 0);
+    c.speed = 20;
+    for (let i = 0; i < 90; i++) {
+      game.testInput = { steer, throttle: 1, brake: false };
+      game.update(1/60);
+    }
+    out[name] = { x: +c.x.toFixed(2), wheel: +c.wheels.front[0].rotation.y.toFixed(2) };
+  }
+  return out;
+});
+console.log('   steering:', JSON.stringify(steering));
+check('steering right goes right', steering.right.x > 1 && steering.left.x < -1);
+check('front wheels point where the car turns',
+      steering.right.wheel < 0 && steering.left.wheel > 0);
+
+// Signals: the phase table must cycle, and both axes must never be green at
+// the same time.
+const signals = await page.evaluate(() => {
+  const s = game.session.signals;
+  s.set(0, 0);
+  const seen = new Set();
+  let bothGreen = 0;
+  for (let i = 0; i < 60 * 60; i++) {
+    s.update(1/60);
+    seen.add(s.index);            // two phases are both all-red, so index it
+    if (s.isGreen('x') && s.isGreen('z')) bothGreen += 1;
+  }
+  const lit = Object.entries(s.materials.x)
+    .filter(([, m]) => m.emissiveIntensity > 1).map(([name]) => name);
+  return { phases: seen.size, bothGreen, lampsFound: Object.keys(s.materials.x).length
+    + Object.keys(s.materials.z).length, litOnX: lit };
+});
+console.log('   signals:', JSON.stringify(signals));
+check('all six signal lamps were found', signals.lampsFound === 6);
+check('the signal cycle visits every phase', signals.phases === 6);
+check('the two axes are never green together', signals.bothGreen === 0);
+check('exactly one lamp is lit per axis', signals.litOnX.length === 1);
+
+// Traffic behaviour over three simulated minutes: obeys reds, takes turns,
+// and -- the one that really matters -- never ends up inside a block.
+const behaviour = await page.evaluate(() => {
+  const s = game.session, half = s.city.block / 2;
+  let worst = -99, turning = 0, stopped = 0, moving = 0;
+  for (let i = 0; i < 60 * 180; i++) {
+    game.testInput = { steer: 0, throttle: 0, brake: true };
+    game.update(1/60);
+    if (i % 5) continue;
+    for (const car of s.traffic.cars) {
+      if (car.turn) turning += 1;
+      if (car.speed < 0.4) stopped += 1; else moving += 1;
+      const [bx, bz] = s.collider.blockCentre(car.holder.position.x,
+                                              car.holder.position.z);
+      const penetration = Math.min(half - Math.abs(car.holder.position.x - bx),
+                                   half - Math.abs(car.holder.position.z - bz));
+      if (penetration > worst) worst = penetration;
+    }
+  }
+  return { worst: +worst.toFixed(2), turning, stopped, moving };
+});
+console.log('   traffic over 3 minutes:', JSON.stringify(behaviour));
+check('no traffic car ever enters a block', behaviour.worst <= 0,
+      behaviour.worst + ' m from a kerb at the closest');
+check('traffic queues at red lights', behaviour.stopped > 100, behaviour.stopped+'');
+check('traffic takes turns at junctions', behaviour.turning > 50, behaviour.turning+'');
+
+// Reversing swings the camera round to the front of the car.
+const reverse = await page.evaluate(() => {
+  const s = game.session, c = s.car;
+  s.reverseBlend = 0;
+  c.place(s.city.streetLines[3] + s.city.laneOffsets[0], 60, 0);
+  c.speed = 0;
+  const settle = (steps, brake) => {
+    for (let i = 0; i < steps; i++) {
+      game.testInput = { steer: 0, throttle: 0, brake };
+      game.update(1/60);
+      s.updateCamera(1/60, game.camera);
+    }
+  };
+  settle(120, false);             // let the chase camera catch up first
+  const early = game.camera.position.z - c.z;
+  settle(240, true);              // now hold the brake into reverse
+  return { speed: +c.speed.toFixed(1), blend: +s.reverseBlend.toFixed(2),
+           early: +early.toFixed(1), late: +(game.camera.position.z - c.z).toFixed(1) };
+});
+console.log('   reverse camera:', JSON.stringify(reverse));
+check('braking past a stop reverses the car', reverse.speed < -2);
+check('the camera swings to the front when reversing',
+      reverse.early > 0 && reverse.late < 0, JSON.stringify(reverse));
+
+// The delivery pointer only appears when the beacon is off screen, and points
+// the right way when it does.
+const arrow = await page.evaluate(() => {
+  const s = game.session, c = s.car;
+  s.reverseBlend = 0;
+  c.place(0, 0, 0);
+  c.speed = 0;
+  for (let i = 0; i < 40; i++) s.updateCamera(0.05, game.camera);
+  game.camera.updateMatrixWorld();
+  const at = (x, z) => {
+    s.mission = { x, z, pay: 100 };
+    const marker = game.targetMarker(s.mission);
+    return { visible: marker.visible,
+             angle: marker.visible ? Math.round(marker.angle) : null };
+  };
+  return { behind: at(0, 200), ahead: at(0, -60),
+           left: at(-200, 0), right: at(200, 0) };
+});
+console.log('   delivery pointer:', JSON.stringify(arrow));
+check('pointer hides while the beacon is on screen', !arrow.ahead.visible);
+check('pointer shows and aims correctly when off screen',
+      arrow.behind.visible && Math.abs(arrow.behind.angle) === 180
+      && arrow.left.angle === -90 && arrow.right.angle === 90,
+      JSON.stringify(arrow));
+
 const perf = await page.evaluate(() => {
   const s = game.session, c = s.car;
   c.place(s.city.streetLines[3] + s.city.laneOffsets[0], 150, 0);

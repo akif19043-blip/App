@@ -64,6 +64,21 @@ def build():
         'Grass':      dict(color='#4e7d3f', metallic=0.00, roughness=0.88),
         'Beacon':     dict(color='#8ef06a', roughness=0.25,
                            emission='#a6ff7a', emission_strength=3.5),
+        # Traffic signals. One material per lamp per axis, shared by every
+        # post on the map: the game switches the whole city by setting
+        # emissiveIntensity on these six, with no per-instance cloning.
+        'SignalX_Red':   dict(color='#3a0d0a', roughness=0.30,
+                              emission='#ff2a18', emission_strength=1.0),
+        'SignalX_Amber': dict(color='#3a2408', roughness=0.30,
+                              emission='#ffa41c', emission_strength=1.0),
+        'SignalX_Green': dict(color='#0b3a16', roughness=0.30,
+                              emission='#3cff72', emission_strength=1.0),
+        'SignalZ_Red':   dict(color='#3a0d0a', roughness=0.30,
+                              emission='#ff2a18', emission_strength=1.0),
+        'SignalZ_Amber': dict(color='#3a2408', roughness=0.30,
+                              emission='#ffa41c', emission_strength=1.0),
+        'SignalZ_Green': dict(color='#0b3a16', roughness=0.30,
+                              emission='#3cff72', emission_strength=1.0),
         # pickups
         'Gold':       dict(color='#ffc233', metallic=0.90, roughness=0.22,
                            emission='#ffae1a', emission_strength=1.6),

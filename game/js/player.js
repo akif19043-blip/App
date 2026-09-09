@@ -199,7 +199,8 @@ export class Player {
     this.wheelRoll -= (this.speed / Math.max(this.wheelRadius, 0.1)) * dt;
     for (const wheel of this.wheels.all) wheel.rotation.x = this.wheelRoll;
     for (const wheel of this.wheels.front) {
-      wheel.rotation.y = this.steer * PLAY.wheelTurnMax;
+      // A wheel's own forward is -Z, so steering right is a negative yaw.
+      wheel.rotation.y = -this.steer * PLAY.wheelTurnMax;
     }
 
     if (this.boostFlames) {

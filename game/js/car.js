@@ -160,8 +160,21 @@ export class Car {
 
     this.x = nextX;
     this.z = nextZ;
+    this.reportTyres(input);
     this.applyTransform(dt);
     return Math.abs(this.speed) * dt;
+  }
+
+  /** Squeal when the tyres are working: hard braking, or a fast tight corner. */
+  reportTyres(input) {
+    const fast = Math.abs(this.speed);
+    const cornering = Math.abs(this.steerAngle) * fast;
+    const braking = input.brake && fast > 14 ? (fast - 14) / 24 : 0;
+    const sliding = cornering > DRIVE.squealFrom
+      ? (cornering - DRIVE.squealFrom) / 6 : 0;
+    const intensity = Math.min(1, Math.max(braking, sliding));
+    if (intensity > 0.05) audio.screech(intensity);
+    this.squeal = intensity;
   }
 
   updateSpeed(dt, input) {
@@ -205,8 +218,11 @@ export class Car {
       * Math.min(1, DRIVE.steerLerp * dt);
 
     if (Math.abs(this.speed) > 0.05) {
+      // Positive steer means right. Heading 0 faces -Z, and rotation.y maps a
+      // heading h to the forward vector (-sin h, 0, -cos h) -- so turning
+      // right, toward +X, means the heading has to DECREASE.
       const rate = (this.speed / this.wheelbase) * Math.tan(this.steerAngle);
-      this.heading += rate * dt;
+      this.heading -= rate * dt;
     }
   }
 
@@ -220,7 +236,8 @@ export class Car {
 
     this.wheelRoll -= (this.speed / Math.max(this.wheelRadius, 0.1)) * dt;
     for (const wheel of this.wheels.all) wheel.rotation.x = this.wheelRoll;
-    for (const wheel of this.wheels.front) wheel.rotation.y = this.steerAngle;
+    // Same sign convention as the heading: the wheel's own forward is -Z.
+    for (const wheel of this.wheels.front) wheel.rotation.y = -this.steerAngle;
 
     if (this.flare) {
       this.flare.visible = this.boosting;

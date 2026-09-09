@@ -24,6 +24,7 @@ export class Hud {
     this.el.chipTarget = document.getElementById('chip-target');
     this.el.target = document.getElementById('hud-target');
     this.el.minimap = document.getElementById('minimap');
+    this.el.arrow = document.getElementById('target-arrow');
     this.el.controls = document.getElementById('controls');
     this.el.speed = document.getElementById('hud-speed');
     this.el.score = document.getElementById('hud-score');
@@ -107,6 +108,7 @@ export class Hud {
     this.el.chipScore.classList.toggle('is-hidden', city);
     this.el.chipTarget.classList.toggle('is-hidden', !city);
     this.el.minimap.classList.toggle('is-hidden', !city);
+    if (!city) this.setTargetArrow({ visible: false });
   }
 
   show(name) {
@@ -204,6 +206,20 @@ export class Hud {
       }
       this.el.garageList.appendChild(card);
     });
+  }
+
+  /**
+   * Place the off-screen delivery pointer.
+   * @param {{visible:boolean,x:number,y:number,angle:number}} marker
+   */
+  setTargetArrow(marker) {
+    const arrow = this.el.arrow;
+    if (!arrow) return;
+    arrow.classList.toggle('is-visible', marker.visible);
+    if (!marker.visible) return;
+    arrow.style.transform =
+      `translate(${marker.x.toFixed(1)}px, ${marker.y.toFixed(1)}px)`
+      + ` rotate(${marker.angle.toFixed(1)}deg)`;
   }
 
   updateHud(state) {

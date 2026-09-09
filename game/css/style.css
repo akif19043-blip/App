@@ -155,6 +155,23 @@ html, body {
   color: var(--muted);
 }
 
+/* Points at the delivery whenever the beacon itself is off screen. */
+.target-arrow {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  color: var(--good);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+.target-arrow.is-visible { opacity: 0.92; }
+
 #toast {
   position: fixed;
   left: 50%;

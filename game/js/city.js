@@ -16,6 +16,7 @@ import * as assets from './assets.js';
 import * as audio from './audio.js';
 import * as environment from './environment.js';
 import { Car } from './car.js';
+import { Signals } from './signals.js';
 import { CITY, DRIVE, TRAFFIC_COLORS, TRAFFIC_MODELS } from './config.js';
 
 const MAP_SEED = 1337;
@@ -95,18 +96,47 @@ export class CityCollider {
 // --------------------------------------------------------------------------- 
 
 /**
- * City traffic: cars driving in the right-hand lanes of the street grid.
+ * City traffic.
  *
- * They hold their street and never turn, which keeps them out of the buildings
- * without needing a junction AI, and recycle to a street near the player once
- * they get too far away.
+ * Cars hold a lane, obey the junction signals, queue behind whoever is in
+ * front of them, and take the occasional turn at a green light. A turn is
+ * driven along a real quarter-circle arc and only ever ends on a valid lane of
+ * the crossing street, which is what keeps them out of the buildings without
+ * any collision testing.
  */
+
+const RIGHT_RADIUS = 3.0;
+const LEFT_RADIUS = 12.0;
+const TURN_SPEED = 7.5;
+const STOP_LINE_INSET = 1.4;      // metres back from the kerb line
+const COMFORT_DECEL = 4.0;
+const ACCEL = 3.2;
+const FOLLOW_GAP = 3.0;
+
+/** Unit forward vector for a lane direction. */
+function forwardOf(axis, dir) {
+  return axis === 'x' ? { x: dir, z: 0 } : { x: 0, z: dir };
+}
+
+/** 90 degrees clockwise from `f` in world terms: the driver's right. */
+function rightOf(f) {
+  return { x: -f.z, z: f.x };
+}
+
+/** rotation.y for a forward vector, matching the models' -Z facing. */
+function headingOf(f) {
+  return Math.atan2(-f.x, -f.z);
+}
+
 class CityTraffic {
   constructor(scene, city, random) {
     this.scene = scene;
     this.city = city;
     this.random = random;
     this.cars = [];
+    this.inner = Math.min(...city.laneOffsets);
+    this.outer = Math.max(...city.laneOffsets);
+    this.stopInset = city.street / 2 + STOP_LINE_INSET;
 
     const models = TRAFFIC_MODELS.light.concat(TRAFFIC_MODELS.heavy);
     for (let i = 0; i < CITY.trafficCars; i += 1) {
@@ -124,12 +154,21 @@ class CityTraffic {
         holder, size, model,
         wheels: assets.wheels(mesh),
         wheelRadius: size.length > 6 ? 0.5 : 0.32,
-        axis: 'x', dir: 1, line: 0, lane: 2.25, along: 0, speed: 12, roll: 0,
+        axis: 'x', dir: 1, line: 0, lane: this.inner, along: 0,
+        cruise: 12, speed: 12, roll: 0,
+        plan: null, planLine: null, turn: null,
       });
     }
   }
 
-  /** Put a car on a random street, `distance` metres from (x, z). */
+  /** World position implied by a car's lane state. */
+  worldOf(car) {
+    return car.axis === 'x'
+      ? { x: car.along, z: car.line + car.dir * car.lane }
+      : { x: car.line - car.dir * car.lane, z: car.along };
+  }
+
+  /** Put a car on a random street, well away from (x, z). */
   respawn(car, x, z) {
     const lines = this.city.streetLines;
     const [lo, hi] = CITY.trafficSpawnRadius;
@@ -137,8 +176,7 @@ class CityTraffic {
       const axis = this.random() < 0.5 ? 'x' : 'z';
       const dir = this.random() < 0.5 ? 1 : -1;
       const line = lines[Math.floor(this.random() * lines.length)];
-      const lane = this.city.laneOffsets[
-        Math.floor(this.random() * this.city.laneOffsets.length)];
+      const lane = this.random() < 0.5 ? this.inner : this.outer;
       const along = (axis === 'x' ? x : z)
         + (this.random() < 0.5 ? -1 : 1) * (lo + this.random() * (hi - lo));
       if (Math.abs(along) > this.city.halfExtent - 20) continue;
@@ -148,8 +186,12 @@ class CityTraffic {
       car.line = line;
       car.lane = lane;
       car.along = along;
-      car.speed = CITY.trafficSpeed[0]
+      car.cruise = CITY.trafficSpeed[0]
         + this.random() * (CITY.trafficSpeed[1] - CITY.trafficSpeed[0]);
+      car.speed = car.cruise;
+      car.turn = null;
+      car.plan = null;
+      car.planLine = null;
       this.applyTransform(car);
       return true;
     }
@@ -157,33 +199,188 @@ class CityTraffic {
   }
 
   applyTransform(car) {
-    if (car.axis === 'x') {
-      car.holder.position.set(car.along, 0, car.line + car.dir * car.lane);
-      car.holder.rotation.y = car.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
-    } else {
-      car.holder.position.set(car.line - car.dir * car.lane, 0, car.along);
-      car.holder.rotation.y = car.dir > 0 ? Math.PI : 0;
-    }
+    const at = this.worldOf(car);
+    car.holder.position.set(at.x, 0, at.z);
+    car.holder.rotation.y = headingOf(forwardOf(car.axis, car.dir));
   }
 
   reset(x, z) {
     for (const car of this.cars) this.respawn(car, x, z);
   }
 
-  update(dt, x, z) {
+  /** Coordinate of the next junction ahead, along the car's own axis. */
+  nextCrossing(car) {
+    let best = null;
+    for (const line of this.city.streetLines) {
+      const ahead = (line - car.along) * car.dir;
+      if (ahead > 0 && (best === null || ahead < best.ahead)) {
+        best = { line, ahead };
+      }
+    }
+    return best;
+  }
+
+  /** Decide once per junction whether this car will turn there. */
+  planFor(car, crossing) {
+    if (!crossing || car.planLine === crossing.line) return;
+    car.planLine = crossing.line;
+    const roll = this.random();
+    if (car.lane === this.outer && roll < 0.35) car.plan = 'right';
+    else if (car.lane === this.inner && roll < 0.25) car.plan = 'left';
+    else car.plan = null;
+  }
+
+  /** Where along the street a planned turn begins. */
+  turnEntry(car) {
+    if (!car.plan || car.planLine === null) return null;
+    return car.plan === 'right'
+      ? car.planLine - car.dir * (this.outer + RIGHT_RADIUS)
+      : car.planLine + car.dir * (this.inner - LEFT_RADIUS);
+  }
+
+  /**
+   * Speed this car is allowed right now: the lower of its cruise, what the
+   * signal ahead permits, and what the car in front permits.
+   */
+  allowedSpeed(car, signals) {
+    let allowed = car.turn ? Math.min(car.cruise, TURN_SPEED) : car.cruise;
+
+    const crossing = this.nextCrossing(car);
+    if (!car.turn && crossing && signals) {
+      const state = signals.stateFor(car.axis);
+      const toStop = crossing.ahead - this.stopInset;
+      // An amber is only worth stopping for if there is room to stop.
+      const mustStop = state === 'red'
+        || (state === 'amber' && toStop > car.speed * 0.9);
+      if (mustStop && toStop > -1.0) {
+        allowed = Math.min(allowed,
+          Math.sqrt(2 * COMFORT_DECEL * Math.max(0, toStop)));
+      }
+    }
+
+    const leader = this.leaderFor(car);
+    if (leader) {
+      const gap = leader.gap - (car.size.length + leader.car.size.length) * 0.5;
+      allowed = Math.min(allowed,
+        Math.max(0, leader.car.speed + (gap - FOLLOW_GAP) * 1.1));
+    }
+    return Math.max(0, allowed);
+  }
+
+  leaderFor(car) {
+    let best = null;
+    for (const other of this.cars) {
+      if (other === car || other.turn) continue;
+      if (other.axis !== car.axis || other.dir !== car.dir) continue;
+      if (other.line !== car.line || other.lane !== car.lane) continue;
+      const gap = (other.along - car.along) * car.dir;
+      if (gap > 0 && gap < 26 && (!best || gap < best.gap)) {
+        best = { car: other, gap };
+      }
+    }
+    return best;
+  }
+
+  /** Begin a quarter-circle turn onto the crossing street. */
+  startTurn(car) {
+    const sign = car.plan === 'right' ? 1 : -1;
+    const radius = car.plan === 'right' ? RIGHT_RADIUS : LEFT_RADIUS;
+    const lane = car.plan === 'right' ? this.outer : this.inner;
+
+    const forward = forwardOf(car.axis, car.dir);
+    const right = rightOf(forward);
+    const at = this.worldOf(car);
+    const centre = {
+      x: at.x + sign * radius * right.x,
+      z: at.z + sign * radius * right.z,
+    };
+    const exitForward = { x: sign * right.x, z: sign * right.z };
+    const exitRight = rightOf(exitForward);
+    const exit = {
+      x: centre.x - sign * radius * exitRight.x,
+      z: centre.z - sign * radius * exitRight.z,
+    };
+
+    const axis = car.axis === 'x' ? 'z' : 'x';
+    const dir = axis === 'x' ? exitForward.x : exitForward.z;
+    const speed = Math.min(car.cruise, TURN_SPEED);
+
+    car.turn = {
+      centre,
+      radius,
+      a0: Math.atan2(at.z - centre.z, at.x - centre.x),
+      sweep: sign * Math.PI / 2,
+      t: 0,
+      duration: (radius * Math.PI / 2) / Math.max(speed, 2),
+      exit: {
+        axis, dir, line: car.planLine, lane,
+        along: axis === 'x' ? exit.x : exit.z,
+      },
+    };
+    car.plan = null;
+    car.speed = speed;
+  }
+
+  advanceTurn(car, dt) {
+    const turn = car.turn;
+    turn.t += dt;
+    const t = Math.min(1, turn.t / turn.duration);
+    const angle = turn.a0 + turn.sweep * t;
+
+    car.holder.position.set(
+      turn.centre.x + Math.cos(angle) * turn.radius, 0,
+      turn.centre.z + Math.sin(angle) * turn.radius);
+    // Tangent to the arc, in the direction of travel.
+    const sign = Math.sign(turn.sweep);
+    car.holder.rotation.y = headingOf({
+      x: -Math.sin(angle) * sign,
+      z: Math.cos(angle) * sign,
+    });
+
+    if (t < 1) return;
+    Object.assign(car, turn.exit);
+    car.turn = null;
+    car.planLine = null;
+    this.applyTransform(car);
+  }
+
+  update(dt, x, z, signals) {
     const edge = this.city.halfExtent - 6;
+
     for (const car of this.cars) {
-      car.along += car.dir * car.speed * dt;
+      const target = this.allowedSpeed(car, signals);
+      const rate = target > car.speed ? ACCEL : COMFORT_DECEL * 1.6;
+      car.speed += Math.max(-rate * dt, Math.min(rate * dt, target - car.speed));
+      car.speed = Math.max(0, car.speed);
+
       car.roll -= (car.speed / car.wheelRadius) * dt;
       for (const wheel of car.wheels.all) wheel.rotation.x = car.roll;
+
+      if (car.turn) {
+        this.advanceTurn(car, dt);
+      } else {
+        car.along += car.dir * car.speed * dt;
+        const crossing = this.nextCrossing(car);
+        this.planFor(car, crossing);
+
+        const entry = this.turnEntry(car);
+        if (entry !== null && (car.along - entry) * car.dir >= 0) {
+          // Only turn on a green; otherwise carry straight on through.
+          if (signals && signals.isGreen(car.axis)) {
+            car.along = entry;
+            this.startTurn(car);
+          } else {
+            car.plan = null;
+          }
+        }
+        if (!car.turn) this.applyTransform(car);
+      }
 
       const dx = car.holder.position.x - x;
       const dz = car.holder.position.z - z;
       if (Math.abs(car.along) > edge
           || dx * dx + dz * dz > CITY.trafficKeepRadius ** 2) {
         this.respawn(car, x, z);
-      } else {
-        this.applyTransform(car);
       }
     }
   }
@@ -212,6 +409,7 @@ export class CitySession {
     this.random = makeRandom(MAP_SEED);
     this.lookTarget = new THREE.Vector3();
     this.menuAngle = 0.4;
+    this.reverseBlend = 0;
     this.stats = { coins: 0, collected: 0, deliveries: 0, distance: 0 };
   }
 
@@ -228,6 +426,7 @@ export class CitySession {
     this.buildBlocks();
     this.buildWalls();
     this.buildLamps();
+    this.buildSignals();
     this.buildCoins();
     this.buildBeacon();
 
@@ -293,6 +492,24 @@ export class CitySession {
         this.scene.add(lamp);
       }
     }
+  }
+
+  /**
+   * A signal post on one corner of every junction. They all share the six lamp
+   * materials, so `Signals` drives the whole city through the first instance.
+   */
+  buildSignals() {
+    const inset = this.city.street / 2 + 1.5;
+    let first = null;
+    for (const lx of this.city.streetLines) {
+      for (const lz of this.city.streetLines) {
+        const post = assets.instance('traffic_light');
+        post.position.set(lx - inset, 0, lz - inset);
+        this.scene.add(post);
+        if (!first) first = post;
+      }
+    }
+    this.signals = new Signals(first);
   }
 
   /** Coins strung along the driving lanes, so following a street pays. */
@@ -375,7 +592,8 @@ export class CitySession {
     const travelled = this.car.update(dt, controls, this.collider);
     this.stats.distance += travelled;
 
-    this.traffic.update(dt, this.car.x, this.car.z);
+    this.signals.update(dt);
+    this.traffic.update(dt, this.car.x, this.car.z, this.signals);
     this.resolveTrafficContact();
     this.collectCoins(time);
     this.checkMission();
@@ -461,9 +679,17 @@ export class CitySession {
     const car = this.car;
     const follow = 1 - Math.exp(-DRIVE.cameraLerp * dt);
 
+    // Reversing swings the camera round to the front of the car so you can
+    // see where you are backing into. Eased, so it arcs round instead of
+    // snapping through the car.
+    const wantReverse = car.speed < -1.2 ? 1 : 0;
+    this.reverseBlend += (wantReverse - this.reverseBlend)
+      * Math.min(1, dt * DRIVE.reverseCameraLerp);
+
     // Sit behind the nose, swung a little into the corner so you can see
     // where the car is going rather than where it has been.
-    const swing = car.heading + car.steerAngle * DRIVE.cameraTurnLead;
+    const swing = car.heading + car.steerAngle * DRIVE.cameraTurnLead
+      + Math.PI * this.reverseBlend;
     const desiredX = car.x + Math.sin(swing) * DRIVE.cameraDistance;
     const desiredZ = car.z + Math.cos(swing) * DRIVE.cameraDistance;
 
@@ -481,7 +707,8 @@ export class CitySession {
       camera.position.y += (Math.random() - 0.5) * car.shake * 0.4;
     }
 
-    const ahead = car.forward().multiplyScalar(DRIVE.cameraLookAhead);
+    const reach = DRIVE.cameraLookAhead * (1 - 1.6 * this.reverseBlend);
+    const ahead = car.forward().multiplyScalar(reach);
     this.lookTarget.lerp(
       new THREE.Vector3(car.x + ahead.x, DRIVE.cameraLookHeight, car.z + ahead.z),
       Math.min(1, dt * 6));

@@ -172,6 +172,46 @@ export function scrape() {
   blip({ type: 'square', from: 320, to: 260, duration: 0.10, gain: 0.06 });
 }
 
+let lastScreech = 0;
+
+/**
+ * Tyre scrub. Called every frame while the tyres are complaining; it rate
+ * limits itself so a long slide is a run of overlapping bursts rather than
+ * one per frame.
+ *
+ * @param {number} intensity 0..1
+ */
+export function screech(intensity) {
+  if (!ctx || !enabled) return;
+  const t = now();
+  if (t - lastScreech < 0.22) return;
+  lastScreech = t;
+
+  const duration = 0.42;
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i += 1) {
+    const fade = 1 - i / data.length;
+    data[i] = (Math.random() * 2 - 1) * fade;
+  }
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(1500 + intensity * 900, t);
+  filter.frequency.linearRampToValueAtTime(950, t + duration);
+  filter.Q.value = 7;
+
+  const amp = ctx.createGain();
+  amp.gain.setValueAtTime(0.0001, t);
+  amp.gain.exponentialRampToValueAtTime(0.03 + intensity * 0.10, t + 0.06);
+  amp.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+
+  source.connect(filter).connect(amp).connect(master);
+  source.start(t);
+}
+
 export function uiTap() {
   blip({ type: 'square', from: 520, to: 720, duration: 0.06, gain: 0.07 });
 }

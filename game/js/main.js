@@ -22,7 +22,7 @@ import { CAMERA, CARS } from './config.js';
 
 const MODELS = [
   // city
-  'city_ground', 'desert_floor', 'city_wall', 'beacon',
+  'city_ground', 'desert_floor', 'city_wall', 'beacon', 'traffic_light',
   'block_downtown', 'block_lowrise', 'block_park', 'block_industrial',
   // vehicles
   'car_sport', 'car_muscle', 'car_super',
@@ -43,6 +43,7 @@ class Game {
     this.time = 0;
     this.mode = 'city';
     this.sessions = {};
+    this.projected = new THREE.Vector3();
     this.bankTimer = 0;
   }
 
@@ -254,6 +255,7 @@ class Game {
     if (this.mode === 'city') {
       this.minimap.draw(this.session.car, this.session.coins,
                         this.session.mission, this.session.traffic.cars);
+      this.hud.setTargetArrow(this.targetMarker(this.session.mission));
       this.bankTimer += dt;
       if (this.bankTimer > 8) {
         this.bankTimer = 0;
@@ -268,6 +270,42 @@ class Game {
                          ? this.session.car.speedRatio
                          : this.session.player.speedRatio,
                        state.boosting);
+  }
+
+  /**
+   * Where to draw the delivery pointer.
+   *
+   * The beacon is projected into screen space; while it is on screen the
+   * player can just look at it, so the arrow only appears once the target
+   * leaves the view -- clamped to the screen edge and rotated to point at it.
+   * Points behind the camera project mirrored, hence the flip.
+   */
+  targetMarker(mission) {
+    if (!mission) return { visible: false };
+    const point = this.projected.set(mission.x, 2.5, mission.z).project(this.camera);
+    const behind = point.z > 1;
+    let x = behind ? -point.x : point.x;
+    let y = behind ? -point.y : point.y;
+
+    const edge = 0.86;
+    if (!behind && Math.abs(x) < edge && Math.abs(y) < edge) {
+      return { visible: false };
+    }
+
+    const scale = Math.max(Math.abs(x), Math.abs(y)) || 1;
+    x /= scale;
+    y /= scale;
+
+    const margin = 34;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    return {
+      visible: true,
+      x: Math.min(width - margin, Math.max(margin, (x * 0.5 + 0.5) * width)),
+      y: Math.min(height - margin, Math.max(margin, (-y * 0.5 + 0.5) * height)),
+      // The arrow art points up; CSS rotation is clockwise.
+      angle: Math.atan2(x, y) * 180 / Math.PI,
+    };
   }
 
   updateAfterCrash(dt) {

@@ -280,6 +280,46 @@ def build_city_wall(P):
     return kit.join(parts, 'CityWall')
 
 
+def build_traffic_light(P):
+    """
+    One signal post carrying two heads: one seen by traffic travelling along
+    X, one by traffic along Z.
+
+    Each lamp is a single cylinder pushed right through its housing, so it
+    reads as lit from both approaches at once and the post costs three lamp
+    meshes per axis instead of six. The lamp materials are shared across every
+    post on the map, which is what lets the game switch the whole city's
+    signals by touching six materials.
+    """
+    height = 5.6
+    parts = [
+        kit.cylinder('base', 0.26, 0.3, axis='Z', location=(0, 0, 0.15),
+                     segments=8, material=P['Trim']),
+        kit.cylinder('pole', 0.12, height, axis='Z',
+                     location=(0, 0, height / 2.0), segments=8,
+                     material=P['Trim']),
+        kit.box('housing_x', (0.30, 0.34, 1.12), (0, 0, 5.05), P['Trim']),
+        kit.box('housing_z', (0.34, 0.30, 1.12), (0, 0, 3.80), P['Trim']),
+        kit.box('visor_x', (0.36, 0.40, 0.06), (0, 0, 5.64), P['Trim']),
+        kit.box('visor_z', (0.40, 0.36, 0.06), (0, 0, 4.39), P['Trim']),
+    ]
+
+    # Lamps for traffic running along X: discs facing +/-X.
+    for n, lamp in enumerate(('Red', 'Amber', 'Green')):
+        parts.append(kit.cylinder(
+            'lamp_x_%s' % lamp, 0.115, 0.40, axis='X',
+            location=(0, 0, 5.41 - n * 0.36), segments=10,
+            material=P['SignalX_%s' % lamp]))
+    # Lamps for traffic running along Z: discs facing +/-Z (Blender's +/-Y).
+    for n, lamp in enumerate(('Red', 'Amber', 'Green')):
+        parts.append(kit.cylinder(
+            'lamp_z_%s' % lamp, 0.115, 0.40, axis='Y',
+            location=(0, 0, 4.16 - n * 0.36), segments=10,
+            material=P['SignalZ_%s' % lamp]))
+
+    return kit.join(parts, 'TrafficLight')
+
+
 def build_beacon(P):
     """Mission marker: a glowing pad with a column the game spins."""
     parts = [
@@ -300,6 +340,7 @@ BUILDERS = {
     'block_park': build_block_park,
     'block_industrial': build_block_industrial,
     'beacon': build_beacon,
+    'traffic_light': build_traffic_light,
     'desert_floor': build_desert_floor,
     'city_wall': build_city_wall,
 }

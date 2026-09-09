@@ -98,6 +98,8 @@ export const DRIVE = {
   cameraLookHeight: 1.2,
   cameraLerp: 4.2,
   cameraTurnLead: 0.35,       // how far the camera swings toward the turn
+  reverseCameraLerp: 3.0,     // how fast it swings round when reversing
+  squealFrom: 6.0,            // steerAngle * speed above which tyres protest
 };
 
 /** City map: what lives on the streets. */

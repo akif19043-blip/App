@@ -6,7 +6,7 @@
  * of leaving players on a stale mix of new code and old models.
  */
 
-const CACHE = 'asfalt-firtinasi-615892f2ebde';
+const CACHE = 'asfalt-firtinasi-b7bcc32794f9';
 const ASSETS = [
   "./",
   "assets/icon-192.png",
@@ -39,6 +39,7 @@ const ASSETS = [
   "assets/models/rock.glb",
   "assets/models/traffic_bus.glb",
   "assets/models/traffic_hatch.glb",
+  "assets/models/traffic_light.glb",
   "assets/models/traffic_sedan.glb",
   "assets/models/traffic_suv.glb",
   "assets/models/traffic_truck.glb",
@@ -58,6 +59,7 @@ const ASSETS = [
   "js/pickups.js",
   "js/player.js",
   "js/save.js",
+  "js/signals.js",
   "js/traffic.js",
   "js/world.js",
   "manifest.webmanifest",
