@@ -1,0 +1,20 @@
+{
+  "name": "Asfalt Fırtınası",
+  "short_name": "Asfalt",
+  "description": "Telefon için 3B trafik yarışı. Tüm modeller Blender'da üretildi.",
+  "lang": "tr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0b0e13",
+  "theme_color": "#12161d",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png",
+      "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png",
+      "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png",
+      "purpose": "maskable" }
+  ]
+}

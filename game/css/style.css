@@ -1,0 +1,412 @@
+/*
+ * Phone-first UI. Everything is sized in vmin/rem so the same layout works
+ * from a small portrait phone to a desktop window, and the safe-area insets
+ * keep the controls clear of notches and home indicators.
+ */
+
+:root {
+  --ink: #f2f5f8;
+  --muted: #94a2b3;
+  --panel: rgba(16, 21, 29, 0.92);
+  --panel-edge: rgba(255, 255, 255, 0.10);
+  --accent: #ff8a3d;
+  --accent-2: #35d0ff;
+  --good: #4ade80;
+  --pad: max(14px, env(safe-area-inset-left));
+  --pad-bottom: max(16px, env(safe-area-inset-bottom));
+  --pad-top: max(14px, env(safe-area-inset-top));
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0e13;
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* Transparent layer that catches drag-to-steer without blocking buttons. */
+#surface { position: fixed; inset: 0; z-index: 1; }
+
+/* ----------------------------------------------------------------- HUD --- */
+
+#hud {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  padding: var(--pad-top) var(--pad) var(--pad-bottom);
+}
+#hud.is-visible { opacity: 1; }
+
+.hud__row--top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(10, 14, 20, 0.55);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(6px);
+  font-variant-numeric: tabular-nums;
+}
+.chip__label { font-size: 11px; letter-spacing: 0.09em; color: var(--muted); }
+.chip strong { font-size: 16px; }
+.chip--score strong { color: var(--accent); }
+
+.icon-button {
+  margin-left: auto;
+  pointer-events: auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-edge);
+  background: rgba(10, 14, 20, 0.55);
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.hud__speed {
+  position: absolute;
+  left: var(--pad);
+  bottom: calc(var(--pad-bottom) + 128px);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+.hud__speed strong {
+  font-size: 46px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.9;
+}
+.hud__speed span { font-size: 13px; color: var(--muted); }
+.hud__distance {
+  position: absolute;
+  top: 100%;
+  left: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.hud__nitro {
+  position: absolute;
+  right: var(--pad);
+  bottom: calc(var(--pad-bottom) + 190px);
+  width: 120px;
+  text-align: right;
+}
+.hud__nitro-track {
+  height: 9px;
+  border-radius: 99px;
+  background: rgba(10, 14, 20, 0.6);
+  border: 1px solid var(--panel-edge);
+  overflow: hidden;
+}
+.hud__nitro-fill {
+  height: 100%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg, #1c9fd0, var(--accent-2));
+  transition: transform 120ms linear;
+}
+.hud__nitro-label {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+#toast {
+  position: fixed;
+  left: 50%;
+  top: 22%;
+  transform: translate(-50%, -6px);
+  z-index: 4;
+  padding: 8px 16px;
+  border-radius: 99px;
+  background: rgba(255, 138, 61, 0.16);
+  border: 1px solid rgba(255, 138, 61, 0.5);
+  color: #ffd6b3;
+  font-weight: 700;
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+#toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+/* ------------------------------------------------------------ controls --- */
+
+#controls {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0 var(--pad) var(--pad-bottom);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+#controls.is-visible { opacity: 1; pointer-events: none; }
+#controls.is-visible .control { pointer-events: auto; }
+
+.control-cluster { display: flex; gap: 12px; align-items: flex-end; }
+.control-cluster--right { flex-direction: column; align-items: flex-end; }
+.control-row { display: flex; gap: 12px; }
+
+.control {
+  --size: 74px;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 22px;
+  border: 1px solid var(--panel-edge);
+  background: rgba(14, 19, 27, 0.62);
+  backdrop-filter: blur(8px);
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  transition: transform 90ms ease, background 90ms ease;
+}
+.control.is-active { transform: scale(0.94); background: rgba(255, 255, 255, 0.16); }
+.control.is-hidden { display: none; }
+
+.control--steer { --size: 82px; font-size: 26px; }
+.control--brake { font-size: 14px; letter-spacing: 0.06em; }
+.control--gas {
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  background: rgba(74, 222, 128, 0.16);
+  border-color: rgba(74, 222, 128, 0.45);
+}
+.control--nitro {
+  --size: 62px;
+  margin-bottom: 12px;
+  font-size: 20px;
+  line-height: 1;
+  flex-direction: column;
+  opacity: 0.45;
+  border-color: rgba(53, 208, 255, 0.35);
+}
+.control--nitro small { font-size: 8px; letter-spacing: 0.12em; }
+.control--nitro.is-ready {
+  opacity: 1;
+  background: rgba(53, 208, 255, 0.18);
+  border-color: rgba(53, 208, 255, 0.7);
+}
+.control--nitro.is-firing {
+  background: rgba(53, 208, 255, 0.45);
+  box-shadow: 0 0 22px rgba(53, 208, 255, 0.55);
+}
+
+/* ------------------------------------------------------------- screens --- */
+
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: none;
+  place-items: center;
+  padding: calc(var(--pad-top) + 8px) var(--pad) calc(var(--pad-bottom) + 8px);
+  background: radial-gradient(120% 90% at 50% 0%,
+              rgba(9, 12, 18, 0.18), rgba(6, 8, 12, 0.82));
+  backdrop-filter: blur(2px);
+  overflow-y: auto;
+}
+.screen.is-visible { display: grid; }
+
+.panel {
+  width: min(420px, 100%);
+  padding: 26px 22px;
+  border-radius: 22px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+.panel--wide { width: min(560px, 100%); }
+.panel h2 { margin: 0 0 4px; font-size: 20px; letter-spacing: 0.10em; }
+.panel__head { display: flex; align-items: center; justify-content: space-between; }
+.panel__head h2 { margin: 0; }
+
+.logo {
+  margin: 0 0 6px;
+  font-size: clamp(30px, 9vw, 44px);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: 0.02em;
+  background: linear-gradient(100deg, #ffb066, var(--accent) 40%, #ff5f6d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.logo span { display: block; font-size: 0.56em; letter-spacing: 0.30em; }
+
+.stat-row {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  margin-bottom: 6px;
+}
+.stat-row div { display: flex; flex-direction: column; gap: 2px; }
+.stat-row strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); font-size: 11px; letter-spacing: 0.12em; }
+
+.button {
+  appearance: none;
+  border: 1px solid var(--panel-edge);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink);
+  padding: 15px 18px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  transition: transform 90ms ease, filter 90ms ease;
+}
+.button:active { transform: scale(0.98); }
+.button--primary {
+  background: linear-gradient(100deg, var(--accent), #ff5f6d);
+  border-color: transparent;
+  color: #180d06;
+}
+.button--ghost { background: transparent; color: var(--muted); }
+.button:disabled { opacity: 0.4; }
+
+.hint { margin: 4px 0 0; font-size: 11px; color: var(--muted); }
+
+.loading-track {
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+#loading-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 160ms ease;
+}
+
+/* -------------------------------------------------------------- garage --- */
+
+.garage-list { display: flex; flex-direction: column; gap: 10px; }
+
+.car-card {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--panel-edge);
+  background: rgba(255, 255, 255, 0.04);
+  text-align: left;
+}
+.car-card.is-selected { border-color: var(--accent); background: rgba(255, 138, 61, 0.10); }
+.car-card.is-locked { opacity: 0.75; }
+.car-card__swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--paint);
+  box-shadow: inset 0 -8px 14px rgba(0, 0, 0, 0.35);
+}
+.car-card h3 { margin: 0; font-size: 15px; }
+.car-card__tag { margin: 2px 0 6px; font-size: 11px; color: var(--muted); }
+.car-card__stats { margin: 0; display: flex; flex-direction: column; gap: 3px; }
+.stat { display: grid; grid-template-columns: 62px 1fr; align-items: center; gap: 6px; }
+.stat dt { font-size: 10px; color: var(--muted); }
+.stat dd { margin: 0; height: 5px; border-radius: 99px; background: rgba(255,255,255,0.10); }
+.stat dd span { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
+.car-card__action {
+  border: 1px solid var(--panel-edge);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.car-card__action:disabled { opacity: 0.45; }
+
+/* ------------------------------------------------------------ settings --- */
+
+.switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-edge);
+  font-size: 14px;
+}
+.switch input { width: 44px; height: 26px; accent-color: var(--accent); }
+
+.result {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 4px 0 8px;
+}
+.result div {
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-edge);
+}
+.result dt { font-size: 10px; letter-spacing: 0.12em; color: var(--muted); }
+.result dd { margin: 4px 0 0; font-size: 20px; font-weight: 800; }
+#over-banner.is-record { color: var(--good); }
+
+/* Portrait: drop the menu panel to the bottom so the hero car has the top
+   half of the screen to itself. */
+@media (orientation: portrait) {
+  #screen-menu, #screen-over { align-items: end; }
+}
+
+/* Landscape phones: shorter panels, controls tucked to the corners. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .panel { padding: 18px; gap: 9px; }
+  .logo { font-size: clamp(24px, 7vh, 34px); }
+  .button { padding: 11px 16px; }
+  .control { --size: 62px; }
+  .control--steer { --size: 66px; }
+  /* Clear the shorter control cluster: steer pads are 66px, the nitro
+     column is 62 + 12 + 62. */
+  .hud__speed { bottom: calc(var(--pad-bottom) + 96px); }
+  .hud__speed strong { font-size: 34px; }
+  .hud__nitro { bottom: calc(var(--pad-bottom) + 154px); width: 104px; }
+}

@@ -1,0 +1,235 @@
+/**
+ * Screens and the in-run HUD.
+ *
+ * This module owns every DOM read and write in the game; the simulation
+ * modules never touch the document. It exposes plain callbacks so main.js
+ * decides what a button means.
+ */
+
+import * as save from './save.js';
+import * as audio from './audio.js';
+import { CARS } from './config.js';
+
+const SCREENS = ['loading', 'menu', 'garage', 'settings', 'paused', 'over'];
+
+export class Hud {
+  constructor(handlers) {
+    this.handlers = handlers;
+    this.el = {};
+    SCREENS.forEach((name) => {
+      this.el[name] = document.getElementById('screen-' + name);
+    });
+    this.el.hud = document.getElementById('hud');
+    this.el.controls = document.getElementById('controls');
+    this.el.speed = document.getElementById('hud-speed');
+    this.el.score = document.getElementById('hud-score');
+    this.el.coins = document.getElementById('hud-coins');
+    this.el.distance = document.getElementById('hud-distance');
+    this.el.nitroFill = document.getElementById('hud-nitro-fill');
+    this.el.nitroButton = document.getElementById('btn-nitro');
+    this.el.gas = document.getElementById('btn-gas');
+    this.el.toast = document.getElementById('toast');
+    this.el.progress = document.getElementById('loading-bar');
+    this.el.progressLabel = document.getElementById('loading-label');
+    this.el.garageList = document.getElementById('garage-list');
+    this.el.menuBest = document.getElementById('menu-best');
+    this.el.menuCoins = document.getElementById('menu-coins');
+    this.el.garageCoins = document.getElementById('garage-coins');
+
+    this.toastTimer = 0;
+    this.bindButtons();
+  }
+
+  bindButtons() {
+    const tap = (id, fn) => {
+      const node = document.getElementById(id);
+      if (!node) return;
+      node.addEventListener('click', (event) => {
+        event.preventDefault();
+        audio.uiTap();
+        fn();
+      });
+    };
+
+    tap('btn-play', () => this.handlers.onPlay());
+    tap('btn-garage', () => this.showGarage());
+    tap('btn-settings', () => this.show('settings'));
+    tap('btn-garage-back', () => this.show('menu'));
+    tap('btn-settings-back', () => this.show('menu'));
+    tap('btn-pause', () => this.handlers.onPause());
+    tap('btn-resume', () => this.handlers.onResume());
+    tap('btn-quit', () => this.handlers.onQuit());
+    tap('btn-retry', () => this.handlers.onPlay());
+    tap('btn-over-menu', () => this.handlers.onQuit());
+
+    this.bindToggle('toggle-sound', 'sound', (value) => {
+      audio.setEnabled(value);
+    });
+    this.bindToggle('toggle-throttle', 'autoThrottle', (value) => {
+      this.handlers.onAutoThrottle(value);
+      this.refreshControls();
+    });
+    this.bindToggle('toggle-tilt', 'tilt', (value) => {
+      this.handlers.onTilt(value);
+    });
+  }
+
+  bindToggle(id, key, apply) {
+    const node = document.getElementById(id);
+    if (!node) return;
+    const settings = save.get().settings;
+    node.checked = !!settings[key];
+    node.addEventListener('change', () => {
+      save.setSetting(key, node.checked);
+      apply(node.checked);
+    });
+    this.el[id] = node;
+  }
+
+  /** Tilt can be refused by the OS; reflect the real state back to the box. */
+  setTiltState(enabled) {
+    if (this.el['toggle-tilt']) this.el['toggle-tilt'].checked = enabled;
+    save.setSetting('tilt', enabled);
+  }
+
+  show(name) {
+    SCREENS.forEach((key) => {
+      if (this.el[key]) this.el[key].classList.toggle('is-visible', key === name);
+    });
+    const playing = name === null;
+    this.el.hud.classList.toggle('is-visible', playing);
+    this.el.controls.classList.toggle('is-visible', playing);
+    if (name === 'menu') this.refreshMenu();
+    this.current = name;
+  }
+
+  showPlaying() {
+    this.show(null);
+    this.refreshControls();
+  }
+
+  refreshControls() {
+    const auto = save.get().settings.autoThrottle;
+    if (this.el.gas) this.el.gas.classList.toggle('is-hidden', auto);
+  }
+
+  refreshMenu() {
+    const profile = save.get();
+    this.el.menuBest.textContent = formatNumber(profile.best);
+    this.el.menuCoins.textContent = formatNumber(profile.coins);
+  }
+
+  setProgress(done, total, name) {
+    const ratio = total ? done / total : 0;
+    this.el.progress.style.width = Math.round(ratio * 100) + '%';
+    this.el.progressLabel.textContent = name
+      ? `${name} (${done}/${total})` : 'Hazırlanıyor…';
+  }
+
+  showGarage() {
+    this.renderGarage();
+    this.show('garage');
+  }
+
+  renderGarage() {
+    const profile = save.get();
+    this.el.garageCoins.textContent = formatNumber(profile.coins);
+    this.el.garageList.innerHTML = '';
+
+    CARS.forEach((car) => {
+      const owned = save.owns(car.id);
+      const selected = profile.selectedCar === car.id;
+      const card = document.createElement('article');
+      card.className = 'car-card'
+        + (selected ? ' is-selected' : '')
+        + (owned ? '' : ' is-locked');
+
+      card.innerHTML = `
+        <div class="car-card__swatch" style="--paint:${car.paint}"></div>
+        <div class="car-card__body">
+          <h3>${car.name}</h3>
+          <p class="car-card__tag">${car.tagline}</p>
+          <dl class="car-card__stats">
+            ${statBar('Hız', car.topSpeed / 90)}
+            ${statBar('İvme', car.accel / 16)}
+            ${statBar('Yol tutuş', car.handling / 1.3)}
+          </dl>
+        </div>
+        <button class="car-card__action" type="button"></button>
+      `;
+
+      const action = card.querySelector('.car-card__action');
+      if (selected) {
+        action.textContent = 'SEÇİLİ';
+        action.disabled = true;
+      } else if (owned) {
+        action.textContent = 'SEÇ';
+        action.addEventListener('click', () => {
+          audio.uiTap();
+          save.selectCar(car.id);
+          this.handlers.onSelectCar(car);
+          this.renderGarage();
+        });
+      } else {
+        action.textContent = `${formatNumber(car.price)} 🪙`;
+        action.disabled = profile.coins < car.price;
+        action.addEventListener('click', () => {
+          audio.uiTap();
+          if (save.buy(car)) {
+            save.selectCar(car.id);
+            this.handlers.onSelectCar(car);
+            this.toast(`${car.name} garajında!`);
+          } else {
+            this.toast('Yeterli jetonun yok');
+          }
+          this.renderGarage();
+        });
+      }
+      this.el.garageList.appendChild(card);
+    });
+  }
+
+  updateHud(state) {
+    this.el.speed.textContent = state.kmh;
+    this.el.score.textContent = formatNumber(state.score);
+    this.el.coins.textContent = formatNumber(state.coins);
+    this.el.distance.textContent = formatNumber(Math.round(state.distance));
+    this.el.nitroFill.style.transform = `scaleX(${state.nitro.toFixed(3)})`;
+    this.el.nitroButton.classList.toggle('is-ready', state.nitro > 0.1);
+    this.el.nitroButton.classList.toggle('is-firing', state.boosting);
+  }
+
+  showGameOver(result) {
+    document.getElementById('over-score').textContent =
+      formatNumber(Math.round(result.score));
+    document.getElementById('over-distance').textContent =
+      formatNumber(Math.round(result.distance)) + ' m';
+    document.getElementById('over-coins').textContent =
+      formatNumber(result.coins);
+    document.getElementById('over-best').textContent =
+      formatNumber(save.get().best);
+    const banner = document.getElementById('over-banner');
+    banner.textContent = result.isBest ? 'YENİ REKOR!' : 'ÇARPTIN!';
+    banner.classList.toggle('is-record', !!result.isBest);
+    this.show('over');
+  }
+
+  toast(message, seconds = 1.8) {
+    this.el.toast.textContent = message;
+    this.el.toast.classList.add('is-visible');
+    clearTimeout(this.toastHandle);
+    this.toastHandle = setTimeout(() => {
+      this.el.toast.classList.remove('is-visible');
+    }, seconds * 1000);
+  }
+}
+
+function statBar(label, ratio) {
+  const width = Math.max(4, Math.min(100, Math.round(ratio * 100)));
+  return `<div class="stat"><dt>${label}</dt>
+    <dd><span style="width:${width}%"></span></dd></div>`;
+}
+
+function formatNumber(value) {
+  return Math.round(value).toLocaleString('tr-TR');
+}
