@@ -118,8 +118,13 @@ class Game {
     const height = window.innerHeight;
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
-    this.baseFov = height > width ? CAMERA.fovPortrait : CAMERA.fovLandscape;
+    const portrait = height > width;
+    this.baseFov = portrait ? CAMERA.fovPortrait : CAMERA.fovLandscape;
+    this.rigScale = portrait ? 1 : CAMERA.landscapeRigScale;
     this.camera.updateProjectionMatrix();
+    for (const session of Object.values(this.sessions)) {
+      session.rigScale = this.rigScale;
+    }
     if (this.minimap) this.minimap.resize();
   }
 
@@ -127,6 +132,7 @@ class Game {
     if (!this.sessions[mode]) {
       const Session = mode === 'city' ? CitySession : HighwaySession;
       const session = new Session(this.renderer, this.hud);
+      session.rigScale = this.rigScale || 1;
       session.build(this.timeOfDay);
       session.poseCar(this.currentCar());
       this.sessions[mode] = session;

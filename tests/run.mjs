@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = process.env.PORT || 8123;
 const URL = `http://localhost:${PORT}`;
-const SUITES = ['city.test.mjs', 'highway.test.mjs'];
+const SUITES = ['city.test.mjs', 'highway.test.mjs', 'layout.test.mjs'];
 
 /**
  * Find a Chromium to drive.

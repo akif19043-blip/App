@@ -442,17 +442,64 @@ html, body {
   #screen-menu, #screen-over { align-items: end; }
 }
 
-/* Landscape phones: shorter panels, controls tucked to the corners. */
-@media (orientation: landscape) and (max-height: 480px) {
-  .panel { padding: 18px; gap: 9px; }
-  .logo { font-size: clamp(24px, 7vh, 34px); }
-  .button { padding: 11px 16px; }
-  .control { --size: 62px; }
-  .control--steer { --size: 66px; }
-  /* Clear the shorter control cluster: steer pads are 66px, the nitro
-     column is 62 + 12 + 62. */
+/* ---------------------------------------------------------- landscape --- */
+/*
+ * Landscape phones are wide and short: the panels have to lay out sideways
+ * rather than stack, or the garage runs off the bottom of the screen.
+ */
+@media (orientation: landscape) and (max-height: 560px) {
+  .panel {
+    padding: 16px 18px;
+    gap: 8px;
+    max-height: calc(100dvh - 2 * var(--pad-top));
+    overflow-y: auto;
+  }
+  .panel--wide { width: min(760px, 100%); }
+  .logo { font-size: clamp(22px, 7vh, 34px); margin-bottom: 2px; }
+  .button { padding: 11px 16px; font-size: 14px; }
+  .button small { font-size: 9px; }
+  .hint { font-size: 10px; }
+
+  /* Menu: identity on the left, the things you press on the right. */
+  #screen-menu .panel {
+    width: min(680px, 100%);
+    display: grid;
+    grid-template-columns: 1fr 1.05fr;
+    gap: 8px 20px;
+    align-content: center;
+  }
+  #screen-menu .logo,
+  #screen-menu .stat-row { grid-column: 1; margin-bottom: 0; text-align: left; }
+  #screen-menu .stat-row { justify-content: flex-start; gap: 22px; }
+  #screen-menu .button,
+  #screen-menu .button-row { grid-column: 2; }
+  #screen-menu .hint { grid-column: 1 / -1; margin-top: 2px; }
+
+  /* Garage: two cards side by side instead of a tall stack. */
+  .garage-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .car-card { grid-template-columns: 32px 1fr; padding: 9px; gap: 9px; }
+  .car-card__swatch { width: 30px; height: 30px; border-radius: 9px; }
+  .car-card h3 { font-size: 13px; }
+  .car-card__tag { margin: 1px 0 4px; font-size: 10px; }
+  .stat { grid-template-columns: 52px 1fr; }
+  .car-card__action { grid-column: 1 / -1; padding: 7px 10px; font-size: 11px; }
+
+  /* Result tiles in one row so the buttons stay on screen. */
+  .result { grid-template-columns: repeat(4, 1fr); gap: 7px; }
+  .result div { padding: 7px; }
+  .result dd { font-size: 16px; }
+  .switch { padding: 9px 12px; font-size: 13px; }
+
+  /* Controls hug the bottom corners, where the thumbs already are. */
+  .control { --size: 64px; border-radius: 18px; }
+  .control--steer { --size: 70px; }
+  .control--nitro { --size: 56px; margin-bottom: 10px; }
   .hud__speed { bottom: calc(var(--pad-bottom) + 96px); }
   .hud__speed strong { font-size: 34px; }
-  .hud__nitro { bottom: calc(var(--pad-bottom) + 154px); width: 104px; }
+  .hud__nitro { bottom: calc(var(--pad-bottom) + 150px); width: 100px; }
   .minimap { width: 88px; height: 88px; top: calc(var(--pad-top) + 46px); }
 }

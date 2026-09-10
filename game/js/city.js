@@ -410,6 +410,7 @@ export class CitySession {
     this.lookTarget = new THREE.Vector3();
     this.menuAngle = 0.4;
     this.reverseBlend = 0;
+    this.rigScale = 1;
     this.stats = { coins: 0, collected: 0, deliveries: 0, distance: 0 };
   }
 
@@ -690,12 +691,14 @@ export class CitySession {
     // where the car is going rather than where it has been.
     const swing = car.heading + car.steerAngle * DRIVE.cameraTurnLead
       + Math.PI * this.reverseBlend;
-    const desiredX = car.x + Math.sin(swing) * DRIVE.cameraDistance;
-    const desiredZ = car.z + Math.cos(swing) * DRIVE.cameraDistance;
+    const distance = DRIVE.cameraDistance * this.rigScale;
+    const desiredX = car.x + Math.sin(swing) * distance;
+    const desiredZ = car.z + Math.cos(swing) * distance;
 
     camera.position.x += (desiredX - camera.position.x) * follow;
     camera.position.z += (desiredZ - camera.position.z) * follow;
-    camera.position.y += (DRIVE.cameraHeight - camera.position.y) * follow;
+    camera.position.y +=
+      (DRIVE.cameraHeight * this.rigScale - camera.position.y) * follow;
 
     // Keep the camera out of the buildings it would otherwise clip through.
     const clear = this.collider.resolve(camera.position.x, camera.position.z, 1.1);

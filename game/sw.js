@@ -6,7 +6,7 @@
  * of leaving players on a stale mix of new code and old models.
  */
 
-const CACHE = 'asfalt-firtinasi-b7bcc32794f9';
+const CACHE = 'asfalt-firtinasi-27b1442dc8ee';
 const ASSETS = [
   "./",
   "assets/icon-192.png",

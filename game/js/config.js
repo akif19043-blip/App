@@ -80,7 +80,8 @@ export const CAMERA = {
   lookHeight: 1.1,
   lerp: 5.5,
   fovPortrait: 68,
-  fovLandscape: 56,
+  fovLandscape: 50,
+  landscapeRigScale: 0.88,    // chase distance/height multiplier in landscape
   speedFovBoost: 12,          // extra degrees of FOV at top speed
 };
 

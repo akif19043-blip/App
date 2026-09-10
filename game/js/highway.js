@@ -22,6 +22,7 @@ export class HighwaySession {
     this.hud = hud;
     this.scene = new THREE.Scene();
     this.menuAngle = 0.6;
+    this.rigScale = 1;
     this.over = false;
   }
 
@@ -137,9 +138,10 @@ export class HighwaySession {
     // Follow distance is held exactly. Smoothing z as well would leave the
     // camera trailing by speed/lerp metres -- 14 m at top speed -- which
     // shrinks the car and steals the sense of pace at the worst moment.
-    camera.position.z = player.z + CAMERA.distance;
+    camera.position.z = player.z + CAMERA.distance * this.rigScale;
     camera.position.x += (targetX - camera.position.x) * follow;
-    camera.position.y += (CAMERA.height - camera.position.y) * follow;
+    camera.position.y +=
+      (CAMERA.height * this.rigScale - camera.position.y) * follow;
 
     if (player.shake > 0.001) {
       const amount = player.shake * 0.35;

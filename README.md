@@ -34,6 +34,15 @@ Sonra telefonun ve bilgisayarın aynı Wi-Fi ağındayken, betiğin yazdırdığ
 
 Bilgisayarda denemek için `http://localhost:8000` yeterli.
 
+**Dikey de yatay da oynanır.** Telefonu çevirdiğinde arayüz kendini yeniden
+diziyor: yatayda menü iki sütuna geçiyor, garaj kartları yan yana geliyor,
+kumandalar alt köşelere yerleşiyor ve kamera biraz yaklaşıp görüş açısını
+daraltıyor — kısa ekranda araba küçük kalmasın diye. Zorunlu bir yön yok,
+istediğin gibi tut.
+
+![Yatayda şehir](docs/screens/6-landscape-city.png)
+![Yatayda menü](docs/screens/9-landscape-menu.png)
+
 ### Kontroller
 
 | | Dokunmatik | Klavye |
@@ -104,6 +113,11 @@ doğru yönü göstermesi; kaldırım/duvar çarpışması; jeton ve teslimat d�
 ödeme yapması; kazancın profile yazılması; otoyol modunda skor, sollama ve
 kıl payı bonusları ile 12 km sonrası koordinat sıfırlama; ve çizim çağrısı
 sayısının telefon için makul kalması.
+
+Ayrı bir düzen testi (`tests/layout.test.mjs`) altı ekran boyutunda — küçük
+telefon, telefon dikey, telefon yatay, büyük telefon yatay, tablet dikey,
+tablet yatay — her ekranın taşmadan sığdığını, kumanda tuşlarının ekran içinde
+kaldığını ve gösterge alanlarıyla çakışmadığını doğruluyor.
 
 ## Nasıl çalışıyor (kısa notlar)
 
