@@ -81,6 +81,12 @@ export class Hud {
     this.bindToggle('toggle-tilt', 'tilt', (value) => {
       this.handlers.onTilt(value);
     });
+    this.bindToggle('toggle-shadows', 'shadows', (value) => {
+      this.handlers.onShadows(value);
+    });
+    this.bindToggle('toggle-lefthanded', 'leftHanded', (value) => {
+      this.handlers.onLeftHanded(value);
+    });
   }
 
   bindToggle(id, key, apply) {

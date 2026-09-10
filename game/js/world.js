@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import * as assets from './assets.js';
 import * as environment from './environment.js';
-import { WORLD, SCENERY } from './config.js';
+import { SCENERY, SHADOWS, WORLD } from './config.js';
 
 const SCENERY_KINDS = [
   { model: 'palm', weight: 3, scale: [0.9, 1.25], near: 13, far: 40 },
@@ -39,7 +39,7 @@ export class World {
   build(timeOfDay = 'dusk') {
     this.preset = environment.preset(timeOfDay);
     environment.applySky(this.scene, this.renderer, this.preset);
-    environment.applyLights(this.scene, this.preset);
+    this.sun = environment.applyLights(this.scene, this.preset, SHADOWS).sun;
     this.buildRoad();
     this.buildScenery();
   }
@@ -52,12 +52,13 @@ export class World {
 
     for (let i = 0; i < count; i += 1) {
       const z = WORLD.behindDistance - i * tileLength;
-      const road = assets.instance('road');
+      const road = environment.shadowRole(assets.instance('road'), 'receive');
       road.position.z = z;
       this.scene.add(road);
       this.tiles.push(road);
 
-      const ground = assets.instance('ground');
+      const ground = environment.shadowRole(
+        assets.instance('ground'), 'receive');
       ground.position.z = z;
       this.scene.add(ground);
       this.groundTiles.push(ground);
@@ -71,7 +72,8 @@ export class World {
     for (let i = 0; i < railCount; i += 1) {
       const z = WORLD.behindDistance - i * railTile;
       for (const side of [-1, 1]) {
-        const rail = assets.instance('guardrail');
+        const rail = environment.shadowRole(
+          assets.instance('guardrail'), 'cast');
         rail.position.set(side * railX, 0, z);
         this.scene.add(rail);
         this.rails.push(rail);
@@ -82,7 +84,7 @@ export class World {
     const lampCount = Math.ceil(span / SCENERY.lampSpacing) + 2;
     this.lampSpan = lampCount * SCENERY.lampSpacing;
     for (let i = 0; i < lampCount; i += 1) {
-      const lamp = assets.instance('lamp');
+      const lamp = environment.shadowRole(assets.instance('lamp'), 'cast');
       lamp.position.set(-(this.road.edgeX + 2.6), 0,
                         WORLD.behindDistance - i * SCENERY.lampSpacing);
       lamp.rotation.y = Math.PI;      // crane the arm out over the road
@@ -123,7 +125,7 @@ export class World {
       entry.current = null;
     }
     const kind = pickWeighted(SCENERY_KINDS);
-    const model = assets.instance(kind.model);
+    const model = environment.shadowRole(assets.instance(kind.model), 'cast');
     const scale = lerp(kind.scale[0], kind.scale[1], Math.random());
     model.scale.setScalar(scale);
     model.rotation.y = Math.random() * Math.PI * 2;
@@ -148,7 +150,8 @@ export class World {
   }
 
   /** Recycle everything that has fallen behind the player. */
-  update(playerZ) {
+  update(playerZ, playerX = 0) {
+    environment.followSun(this.sun, playerX, playerZ);
     const behind = playerZ + WORLD.behindDistance;
     recycle(this.tiles, behind, this.tileSpan);
     recycle(this.groundTiles, behind, this.tileSpan);

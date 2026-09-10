@@ -9,6 +9,7 @@
 const COLORS = {
   ground: 'rgba(10, 14, 20, 0.72)',
   block: 'rgba(150, 162, 176, 0.35)',
+  open: 'rgba(120, 200, 150, 0.34)',
   blockEdge: 'rgba(200, 212, 226, 0.18)',
   coin: '#ffc233',
   traffic: 'rgba(210, 220, 230, 0.75)',
@@ -18,12 +19,30 @@ const COLORS = {
 };
 
 export class Minimap {
-  constructor(canvas, city) {
+  /**
+   * Two views, toggled by tapping the map: 'follow' zooms in on the car, which
+   * is what you want while driving, and 'full' shows the whole city, which is
+   * what you want to decide where to go next.
+   */
+  constructor(canvas, city, span = 220) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.city = city;
+    this.span = span;
+    this.mode = 'follow';
+    this.origin = { x: 0, z: 0 };
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.resize();
+  }
+
+  setMode(mode) {
+    this.mode = mode === 'full' ? 'full' : 'follow';
+    this.resize();
+    return this.mode;
+  }
+
+  toggle() {
+    return this.setMode(this.mode === 'full' ? 'follow' : 'full');
   }
 
   resize() {
@@ -34,17 +53,25 @@ export class Minimap {
     this.canvas.height = size * this.dpr;
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     // world metres -> minimap pixels, with a small margin
-    this.scale = (size - 8) / this.city.extent;
+    const across = this.mode === 'full' ? this.city.extent : this.span;
+    this.scale = (size - 8) / across;
     this.centre = size / 2;
   }
 
   toScreen(x, z) {
-    return [this.centre + x * this.scale, this.centre + z * this.scale];
+    return [this.centre + (x - this.origin.x) * this.scale,
+            this.centre + (z - this.origin.z) * this.scale];
+  }
+
+  /** Which blocks the car can drive into, by blockCenters index. */
+  setOpenBlocks(flags) {
+    this.openBlocks = flags;
   }
 
   draw(car, coins, mission, traffic) {
     const ctx = this.ctx;
     const size = this.size;
+    this.origin = this.mode === 'full' ? { x: 0, z: 0 } : { x: car.x, z: car.z };
     ctx.clearRect(0, 0, size, size);
 
     ctx.fillStyle = COLORS.ground;
@@ -55,11 +82,14 @@ export class Minimap {
     ctx.fillStyle = COLORS.block;
     ctx.strokeStyle = COLORS.blockEdge;
     ctx.lineWidth = 0.5;
-    for (const [x, z] of this.city.blockCenters) {
+    this.city.blockCenters.forEach(([x, z], index) => {
       const [sx, sy] = this.toScreen(x, z);
+      // car parks are drivable, so they read as open ground, not building
+      ctx.fillStyle = this.openBlocks && this.openBlocks[index]
+        ? COLORS.open : COLORS.block;
       ctx.fillRect(sx - side / 2, sy - side / 2, side, side);
       ctx.strokeRect(sx - side / 2, sy - side / 2, side, side);
-    }
+    });
 
     ctx.fillStyle = COLORS.coin;
     for (const coin of coins) {
@@ -77,8 +107,13 @@ export class Minimap {
     }
 
     if (mission) {
-      const [mx, my] = this.toScreen(mission.x, mission.z);
+      let [mx, my] = this.toScreen(mission.x, mission.z);
       const [px, py] = this.toScreen(car.x, car.z);
+      // Zoomed in the target is usually outside the frame; pin it to the edge
+      // so the dashed line still points the way.
+      const pad = 5;
+      mx = Math.min(size - pad, Math.max(pad, mx));
+      my = Math.min(size - pad, Math.max(pad, my));
       ctx.strokeStyle = 'rgba(142, 240, 106, 0.45)';
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);

@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 
 import * as assets from './assets.js';
+import * as environment from './environment.js';
 import * as audio from './audio.js';
 import { Pickups } from './pickups.js';
 import { Player } from './player.js';
@@ -60,7 +61,7 @@ export class HighwaySession {
     if (this.over) {
       this.player.update(dt, { steer: 0, throttle: 0, brake: true },
                          this.roadHalfWidth);
-      this.world.update(this.player.z);
+      this.world.update(this.player.z, this.player.x);
       return this.hudState();
     }
 
@@ -92,7 +93,7 @@ export class HighwaySession {
       this.hud.toast('Nitro dolduruldu!', 1.0);
     }
 
-    this.world.update(this.player.z);
+    this.world.update(this.player.z, this.player.x);
     if (this.collides()) {
       this.player.crash();
       this.over = true;

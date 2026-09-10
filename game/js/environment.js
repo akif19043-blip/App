@@ -46,13 +46,31 @@ export function applySky(scene, renderer, settings, fogRange) {
   return { texture, environment };
 }
 
-export function applyLights(scene, settings) {
+/** Direction the sun comes from, normalised. */
+export const SUN_DIRECTION = new THREE.Vector3(48, 92, 62).normalize();
+
+export function applyLights(scene, settings, shadows) {
   const sun = new THREE.DirectionalLight(new THREE.Color(settings.sun),
                                          settings.sunIntensity);
   // High and behind the default camera heading, so the cars the player looks
   // at are lit rather than silhouetted.
-  sun.position.set(48, 92, 62);
+  sun.position.copy(SUN_DIRECTION).multiplyScalar(120);
   scene.add(sun);
+  scene.add(sun.target);
+
+  // A directional light shadows the whole scene, which would need an enormous
+  // map. Instead the shadow camera is a tight box that follows the car, so a
+  // 1024px map covers the street you are actually on at useful resolution.
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(shadows.mapSize, shadows.mapSize);
+  sun.shadow.camera.near = 1;
+  sun.shadow.camera.far = 400;
+  sun.shadow.camera.left = -shadows.extent;
+  sun.shadow.camera.right = shadows.extent;
+  sun.shadow.camera.top = shadows.extent;
+  sun.shadow.camera.bottom = -shadows.extent;
+  sun.shadow.bias = -0.0012;
+  sun.shadow.normalBias = 0.04;
 
   const hemi = new THREE.HemisphereLight(new THREE.Color(settings.hemiSky),
                                          new THREE.Color(settings.hemiGround),
@@ -61,7 +79,46 @@ export function applyLights(scene, settings) {
   return { sun, hemi };
 }
 
+/** Keep the shadow box centred on the action. */
+export function followSun(sun, x, z) {
+  if (!sun) return;
+  sun.target.position.set(x, 0, z);
+  sun.target.updateMatrixWorld();
+  sun.position.set(x + SUN_DIRECTION.x * 120,
+                   SUN_DIRECTION.y * 120,
+                   z + SUN_DIRECTION.z * 120);
+}
+
+/**
+ * Mark what takes part in the shadow pass.
+ *
+ * `mode` is 'cast', 'receive' or 'both'. Anything left unmarked is skipped by
+ * the shadow pass entirely, which is how the cost is kept down: the road and
+ * pavements only receive, the scenery only casts.
+ */
+export function shadowRole(object, mode) {
+  const cast = mode === 'cast' || mode === 'both';
+  const receive = mode === 'receive' || mode === 'both';
+  object.traverse((node) => {
+    if (!node.isMesh) return;
+    node.castShadow = cast;
+    node.receiveShadow = receive;
+  });
+  return object;
+}
+
 let shadowTexture = null;
+const blobs = [];
+let blobsEnabled = true;
+
+/**
+ * Show or hide every blob shadow at once. They are the stand-in for real
+ * shadows, so when the shadow pass is on they would just double up.
+ */
+export function setBlobShadows(enabled) {
+  blobsEnabled = enabled;
+  for (const blob of blobs) blob.visible = enabled;
+}
 
 /** A soft dark ellipse that grounds a vehicle without a real shadow pass. */
 export function makeShadow(width, length, opacity = 0.42) {
@@ -78,6 +135,8 @@ export function makeShadow(width, length, opacity = 0.42) {
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.y = 0.02;
   mesh.renderOrder = -1;
+  mesh.visible = blobsEnabled;
+  blobs.push(mesh);
   return mesh;
 }
 

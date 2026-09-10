@@ -9,7 +9,7 @@ klasöründeki Python betikleri arabaları, şehri, yolu ve nesneleri kurar ve
 
 | Mod | Ne yapıyorsun |
 |---|---|
-| **Serbest Sürüş** | Izgara düzenli bir şehirde istediğin gibi gez. Trafik ışıklı kavşaklar, kırmızıda kuyruğa giren ve dönüş yapan trafik, kaldırımlarda yürüyen insanlar. Jeton topla, **süreli teslimatları** yetiştir (zamanında varırsan bonus), hedef ekran dışındayken kenardaki ok yön gösterir. |
+| **Serbest Sürüş** | Izgara düzenli bir şehirde istediğin gibi gez. Trafik ışıklı kavşaklar, kırmızıda kuyruğa giren ve dönüş yapan trafik, kaldırımlarda yürüyen insanlar, **girip dolaşabildiğin otoparklar**. Jeton topla, **süreli teslimatları** yetiştir (zamanında varırsan bonus), hedef ekran dışındayken kenardaki ok yön gösterir. |
 | **Trafik Yarışı** | Sonsuz otoyolda trafiği yararak skor topla. Sıyırarak geçmek ekstra puan. |
 
 Kazandığın jetonlarla garajdan yeni araba alır, arabana **motor / şanzıman /
@@ -19,6 +19,8 @@ donanımını ve rengini hatırlar; ilerleme telefonda kayıtlı kalır.
 ![Menü](docs/screens/1-menu.png)
 ![Şehirde sürüş](docs/screens/2-city-day.png)
 ![Işıklı kavşak](docs/screens/3-city-junction.png)
+![Otopark](docs/screens/10-car-park.png)
+![Gölgeler](docs/screens/11-shadows.png)
 ![Şehir merkezi](docs/screens/4-city-downtown.png)
 ![Garaj](docs/screens/7-garage.png)
 ![Trafik yarışı](docs/screens/5-highway.png)
@@ -56,8 +58,10 @@ istediğin gibi tut.
 | Oyun kolu | — | sol çubuk direksiyon, RT gaz, LT fren, X nitro |
 | Duraklat | ⏸ | — |
 
-Ayarlardan **otomatik gaz** (gaz pedalı olmadan sürekli hızlanma) ve
-**eğerek sürme** (jiroskop) açılabilir.
+Ayarlardan **otomatik gaz**, **eğerek sürme** (jiroskop), **gölgeler** (eski
+telefonlarda kapatılabilir) ve **solak düzeni** (kumandalar yer değiştirir)
+ayarlanabilir. Mini haritaya dokununca yakın görünüm ile bütün şehir arasında
+geçiş yapar.
 
 ## Depo düzeni
 
@@ -98,7 +102,7 @@ boyutlarını, şerit konumlarını ve şehir ızgarasını bu dosyadan okur —
 oynanış her zaman gerçekten üretilmiş geometriyle aynı sayıları kullanır, kodda
 ikinci bir kopya tutulmaz.
 
-Toplam: 31 model, ~28.000 üçgen, ~2,9 MB.
+Toplam: 32 model, ~31.000 üçgen, ~3,0 MB.
 
 ## Test
 
@@ -120,7 +124,10 @@ hiç inmemesi ve yürümesi; garajda takılan parçanın ilgili değeri artırı
 parayı düşürmesi ve kaydedilmesi; parası yetmeyenin parça alamaması; teslimat
 süresinin kuş uçuşu değil sokak mesafesine göre hesaplanması ve zamanında
 varışın bonus ödemesi; oyun kolunun gerçek girdi yolundan arabayı sürmesi; ve
-çizim çağrısı sayısının telefon için makul kalması.
+otoparka girilebilmesi ama diğer adaların kapalı kalması ve otopark içindeki
+engellerin arabayı durdurması; gölgelerin açılıp kapanması ve gölge kutusunun
+arabayı takip etmesi; mini haritanın yakınlaşması; ve çizim çağrısı sayısının
+telefon için makul kalması.
 
 Ayrı bir düzen testi (`tests/layout.test.mjs`) altı ekran boyutunda — küçük
 telefon, telefon dikey, telefon yatay, büyük telefon yatay, tablet dikey,
@@ -143,6 +150,18 @@ kendi içlerinde birleştirilmiştir.
 **Metaller için ortam haritası şart.** Sahnedeki gökyüzü, bir canvas gradyanı
 olarak üretilip PMREM'den geçiriliyor ve hem arka plan hem ortam haritası
 olarak kullanılıyor; olmasaydı metalik materyaller simsiyah görünürdü.
+
+**Adaların çarpışma şekli Blender'dan geliyor.** Sıradan adalar tek bir kutu;
+otopark ise engellerini tek tek bildiriyor (duvarlar, park sıraları, büfe).
+Aynı liste hem meshleri yerleştiriyor hem `manifest.json` üzerinden oyuna
+çarpışma olarak gidiyor — yani gördüğün şey ile çarptığın şey aynı.
+
+**Gölgeler dar bir kutuyla çalışıyor.** Yönlü ışık bütün sahneyi
+gölgelendirseydi devasa bir gölge haritası gerekirdi; bunun yerine gölge
+kamerası arabayı takip eden 124 m'lik bir kutu, yani 1024 piksel gerçekten
+bulunduğun sokağa düşüyor. Yol sadece gölge alıyor, dekor sadece gölge
+düşürüyor; işaretlenmeyen hiçbir şey gölge geçişine girmiyor. Toplam maliyet
+~25 çizim çağrısı.
 
 **Bütün şehrin ışıkları altı materyalle yönetiliyor.** Her kavşaktaki direk
 aynı altı lamba materyalini paylaşıyor (eksen başına kırmızı/sarı/yeşil), yani

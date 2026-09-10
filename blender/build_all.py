@@ -43,7 +43,8 @@ ASSETS = (
     + [(n, city, 'city') for n in ('city_ground', 'desert_floor',
                                    'city_wall')]
     + [(n, city, 'block') for n in ('block_downtown', 'block_lowrise',
-                                    'block_park', 'block_industrial')]
+                                    'block_park', 'block_industrial',
+                                    'block_parking')]
     + [(n, city, 'pickup') for n in ('beacon', 'traffic_light',
                                      'pedestrian')]
 )

@@ -7,6 +7,12 @@
  * so the lanes the traffic drives in are the lanes that were modelled.
  */
 
+/** Sun shadows. Off on low-end devices via the settings toggle. */
+export const SHADOWS = {
+  mapSize: 1024,
+  extent: 62,                 // half-size of the shadow box, in metres
+};
+
 export const WORLD = {
   drawDistance: 280,          // metres of road kept alive ahead of the player
   behindDistance: 70,         // metres kept alive behind before recycling
@@ -113,6 +119,7 @@ export const CITY = {
   coinHeight: 1.0,
   pickupRadius: 3.0,
   lampsAtIntersections: true,
+  minimapSpan: 230,           // metres across the zoomed-in minimap
   pedestrians: 14,            // people walking the pavements
   pedestrianRange: 150,       // metres from the player before they are moved
   missionPay: [140, 380],

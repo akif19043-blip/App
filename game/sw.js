@@ -6,7 +6,7 @@
  * of leaving players on a stale mix of new code and old models.
  */
 
-const CACHE = 'asfalt-firtinasi-9445518b772e';
+const CACHE = 'asfalt-firtinasi-920c515572b9';
 const ASSETS = [
   "./",
   "assets/icon-192.png",
@@ -19,6 +19,7 @@ const ASSETS = [
   "assets/models/block_industrial.glb",
   "assets/models/block_lowrise.glb",
   "assets/models/block_park.glb",
+  "assets/models/block_parking.glb",
   "assets/models/cactus.glb",
   "assets/models/car_muscle.glb",
   "assets/models/car_sport.glb",

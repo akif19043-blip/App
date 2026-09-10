@@ -225,6 +225,87 @@ def build_block_park(P):
     return kit.join(parts, 'BlockPark')
 
 
+# Obstacles inside a parking block, in block-local metres: (x, z, halfX, halfZ).
+# The builder places meshes from this list and manifest() ships the same list
+# to the game as collision, so what you can see is exactly what you can hit.
+def parking_layout():
+    half = BLOCK / 2.0
+    edge = half - 0.7
+    wall = 0.7
+    gate = 13.0                     # half-width of the way in, north and south
+    flank = (half - gate) / 2.0
+    return {
+        'walls': [
+            (-edge, 0.0, wall, half),
+            (edge, 0.0, wall, half),
+            (-(gate + flank), -edge, flank, wall),
+            (gate + flank, -edge, flank, wall),
+            (-(gate + flank), edge, flank, wall),
+            (gate + flank, edge, flank, wall),
+        ],
+        'rows': [
+            (-20.0, -8.0, 7.0, 12.0),
+            (20.0, -8.0, 7.0, 12.0),
+            (-20.0, 16.0, 7.0, 9.0),
+        ],
+        'kiosk': [(20.0, 18.0, 6.0, 7.0)],
+    }
+
+
+def parking_shapes():
+    layout = parking_layout()
+    return layout['walls'] + layout['rows'] + layout['kiosk']
+
+
+def build_block_parking(P):
+    """
+    A car park you can actually drive into.
+
+    Every other block is one solid box as far as collision goes; this one ships
+    its obstacles individually, leaving a lane in from the north side and out
+    to the south. The parked cars are simple two-box stand-ins -- at lot
+    distance they read as cars without costing a real vehicle each.
+    """
+    rng = random.Random(505)
+    layout = parking_layout()
+    parts = [
+        kit.box('tarmac', (BLOCK, BLOCK, PAVEMENT * 0.6),
+                (0, 0, PAVEMENT * 0.3), P['Asphalt']),
+    ]
+
+    for (x, z, hx, hz) in layout['walls']:
+        parts.append(kit.box('wall', (hx * 2, hz * 2, 0.75),
+                             (x, z, 0.37), P['Kerb']))
+
+    colours = [P['BuildingC'], P['SignFace'], P['Cone'], P['Sign'],
+               P['BuildingB']]
+    for (x, z, hx, hz) in layout['rows']:
+        # bay markings, then a row of cars parked nose-in along it
+        parts.append(kit.box('bays', (hx * 2, hz * 2, 0.04),
+                             (x, z, 0.06), P['LineWhite']))
+        parts.append(kit.box('bays_fill', (hx * 2 - 0.5, hz * 2 - 0.5, 0.05),
+                             (x, z, 0.065), P['Asphalt']))
+        count = max(2, int(hz * 2 / 2.6))
+        for n in range(count):
+            cz = z - hz + 1.3 + n * 2.6
+            colour = colours[(n + int(x)) % len(colours)]
+            parts.append(kit.box('parked', (4.2, 1.85, 0.72),
+                                 (x, cz, 0.42), colour, bevel=0.06))
+            parts.append(kit.box('parked_cabin', (2.1, 1.6, 0.52),
+                                 (x - 0.2, cz, 1.02), P['Glass'],
+                                 taper=0.82))
+
+    for (x, z, hx, hz) in layout['kiosk']:
+        parts.append(kit.box('kiosk', (hx * 2, hz * 2, 4.2),
+                             (x, z, 2.1 + PAVEMENT), P['BuildingA']))
+        parts.append(kit.box('kiosk_roof', (hx * 2 + 0.8, hz * 2 + 0.8, 0.4),
+                             (x, z, 4.4 + PAVEMENT), P['Roof']))
+        parts.append(kit.box('kiosk_window', (hx * 2 + 0.1, hz * 1.2, 1.2),
+                             (x, z, 2.6 + PAVEMENT), P['Window']))
+
+    return kit.join(parts, 'BlockParking')
+
+
 def build_block_industrial(P):
     """Flat-roofed sheds, silos and stacked containers."""
     rng = random.Random(404)
@@ -379,6 +460,7 @@ BUILDERS = {
     'block_lowrise': build_block_lowrise,
     'block_park': build_block_park,
     'block_industrial': build_block_industrial,
+    'block_parking': build_block_parking,
     'beacon': build_beacon,
     'traffic_light': build_traffic_light,
     'pedestrian': build_pedestrian,
@@ -404,4 +486,12 @@ def manifest():
         'laneOffsets': list(LANE_OFFSETS),
         'streetLines': [round(v, 3) for v in street_lines()],
         'blockCenters': [[round(x, 3), round(z, 3)] for x, z in block_centers()],
+        # Collision for each block type. A solid block is one box covering the
+        # whole footprint; the car park ships its obstacles instead, which is
+        # what makes it driveable.
+        'blockShapes': {
+            'solid': [[0.0, 0.0, BLOCK / 2.0, BLOCK / 2.0]],
+            'block_parking': [[round(v, 3) for v in shape]
+                              for shape in parking_shapes()],
+        },
     }

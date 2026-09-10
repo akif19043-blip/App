@@ -18,7 +18,8 @@ import * as environment from './environment.js';
 import { Car } from './car.js';
 import { Pedestrians } from './pedestrians.js';
 import { Signals } from './signals.js';
-import { CITY, DRIVE, TRAFFIC_COLORS, TRAFFIC_MODELS } from './config.js';
+import { CITY, DRIVE, SHADOWS, TRAFFIC_COLORS, TRAFFIC_MODELS }
+  from './config.js';
 
 const MAP_SEED = 1337;
 
@@ -42,42 +43,68 @@ function makeRandom(seed) {
  * nearest one -- index arithmetic finds it, no list to search.
  */
 export class CityCollider {
-  constructor(city) {
+  /**
+   * @param {object} city    manifest.city
+   * @param {string[]} kinds block kind per entry of city.blockCenters
+   */
+  constructor(city, kinds) {
     this.pitch = city.pitch;
     this.grid = city.grid;
     this.half = city.block / 2;
     this.bound = city.halfExtent - 1.2;
     this.offset = (city.grid - 1) / 2;
+    this.shapes = city.blockShapes || { solid: [[0, 0, this.half, this.half]] };
+    this.kinds = kinds || [];
   }
 
-  blockCentre(x, z) {
+  blockIndex(x, z) {
     const i = Math.min(this.grid - 1, Math.max(0,
       Math.round(x / this.pitch + this.offset)));
     const j = Math.min(this.grid - 1, Math.max(0,
       Math.round(z / this.pitch + this.offset)));
+    return { i, j, index: i * this.grid + j };
+  }
+
+  blockCentre(x, z) {
+    const { i, j } = this.blockIndex(x, z);
     return [(i - this.offset) * this.pitch, (j - this.offset) * this.pitch];
+  }
+
+  /** Obstacles of the nearest block, in block-local metres. */
+  shapesAt(x, z) {
+    const kind = this.kinds[this.blockIndex(x, z).index];
+    return this.shapes[kind] || this.shapes.solid;
   }
 
   /**
    * Push a circle out of whatever it is overlapping.
+   *
+   * Blocks sit on a regular grid, so the only block a point can be inside is
+   * the nearest one -- index arithmetic finds it, no list to search. Most
+   * blocks are a single box; the car park is a handful, which is what lets the
+   * player drive into it.
+   *
    * @returns {{x:number,z:number,hit:boolean,nx:number,nz:number}}
    */
   resolve(x, z, radius) {
     const result = { x, z, hit: false, nx: 0, nz: 0 };
-
     const [bx, bz] = this.blockCentre(x, z);
-    const reach = this.half + radius;
-    const dx = x - bx;
-    const dz = z - bz;
-    if (Math.abs(dx) < reach && Math.abs(dz) < reach) {
+
+    for (const [sx, sz, hx, hz] of this.shapesAt(x, z)) {
+      const cx = bx + sx;
+      const cz = bz + sz;
+      const reachX = hx + radius;
+      const reachZ = hz + radius;
+      const dx = result.x - cx;
+      const dz = result.z - cz;
+      if (Math.abs(dx) >= reachX || Math.abs(dz) >= reachZ) continue;
+
       // eject along whichever axis is least deep -- that is the face it hit
-      const penX = reach - Math.abs(dx);
-      const penZ = reach - Math.abs(dz);
-      if (penX < penZ) {
-        result.x = bx + Math.sign(dx || 1) * reach;
+      if (reachX - Math.abs(dx) < reachZ - Math.abs(dz)) {
+        result.x = cx + Math.sign(dx || 1) * reachX;
         result.nx = Math.sign(dx || 1);
       } else {
-        result.z = bz + Math.sign(dz || 1) * reach;
+        result.z = cz + Math.sign(dz || 1) * reachZ;
         result.nz = Math.sign(dz || 1);
       }
       result.hit = true;
@@ -143,7 +170,8 @@ class CityTraffic {
     for (let i = 0; i < CITY.trafficCars; i += 1) {
       const model = models[i % models.length];
       const colour = TRAFFIC_COLORS[i % TRAFFIC_COLORS.length];
-      const mesh = assets.tintPaint(assets.instance(model), colour);
+      const mesh = environment.shadowRole(
+        assets.tintPaint(assets.instance(model), colour), 'cast');
       const size = assets.footprint(model, 0.9);
 
       const holder = new THREE.Group();
@@ -418,15 +446,24 @@ export class CitySession {
 
   build(timeOfDay) {
     this.city = assets.manifest.city;
-    this.collider = new CityCollider(this.city);
 
     environment.applySky(this.scene, this.renderer,
                          environment.preset(timeOfDay), CITY.fogRange);
-    environment.applyLights(this.scene, environment.preset(timeOfDay));
+    const lights = environment.applyLights(this.scene,
+                                           environment.preset(timeOfDay),
+                                           SHADOWS);
+    this.sun = lights.sun;
 
-    this.scene.add(assets.instance('desert_floor'));
-    this.scene.add(assets.instance('city_ground'));
+    // The ground only receives; nothing about it can cast anything useful.
+    this.scene.add(environment.shadowRole(
+      assets.instance('desert_floor'), 'receive'));
+    this.scene.add(environment.shadowRole(
+      assets.instance('city_ground'), 'receive'));
     this.buildBlocks();
+    // The collider needs to know which kind sits where: most blocks are solid,
+    // the car park is not.
+    this.collider = new CityCollider(this.city,
+                                     this.blocks.map((block) => block.kind));
     this.buildWalls();
     this.buildLamps();
     this.buildSignals();
@@ -452,12 +489,15 @@ export class CitySession {
 
       let kind;
       if (ring < 1) kind = 'block_downtown';
-      else if (ring < 2) kind = roll < 0.55 ? 'block_downtown' : 'block_lowrise';
-      else if (roll < 0.45) kind = 'block_lowrise';
-      else if (roll < 0.75) kind = 'block_park';
-      else kind = 'block_industrial';
+      else if (ring < 2) {
+        kind = roll < 0.5 ? 'block_downtown'
+          : (roll < 0.72 ? 'block_lowrise' : 'block_parking');
+      } else if (roll < 0.38) kind = 'block_lowrise';
+      else if (roll < 0.62) kind = 'block_park';
+      else if (roll < 0.82) kind = 'block_industrial';
+      else kind = 'block_parking';
 
-      const block = assets.instance(kind);
+      const block = environment.shadowRole(assets.instance(kind), 'both');
       block.position.set(x, 0, z);
       block.rotation.y = Math.floor(this.random() * 4) * (Math.PI / 2);
       this.scene.add(block);
@@ -473,11 +513,13 @@ export class CitySession {
     for (let n = 0; n < count; n += 1) {
       const along = start + n * pitch;
       for (const side of [-1, 1]) {
-        const north = assets.instance('city_wall');
+        const north = environment.shadowRole(
+          assets.instance('city_wall'), 'cast');
         north.position.set(along, 0, side * half);
         this.scene.add(north);
 
-        const east = assets.instance('city_wall');
+        const east = environment.shadowRole(
+          assets.instance('city_wall'), 'cast');
         east.position.set(side * half, 0, along);
         east.rotation.y = Math.PI / 2;
         this.scene.add(east);
@@ -490,7 +532,7 @@ export class CitySession {
     const inset = this.city.street / 2 + 1.4;
     for (const lx of this.city.streetLines) {
       for (const lz of this.city.streetLines) {
-        const lamp = assets.instance('lamp');
+        const lamp = environment.shadowRole(assets.instance('lamp'), 'cast');
         lamp.position.set(lx + inset, 0, lz + inset);
         lamp.rotation.y = Math.PI * 0.75;    // crane the arm over the junction
         this.scene.add(lamp);
@@ -507,7 +549,8 @@ export class CitySession {
     let first = null;
     for (const lx of this.city.streetLines) {
       for (const lz of this.city.streetLines) {
-        const post = assets.instance('traffic_light');
+        const post = environment.shadowRole(
+          assets.instance('traffic_light'), 'cast');
         post.position.set(lx - inset, 0, lz - inset);
         this.scene.add(post);
         if (!first) first = post;
@@ -607,6 +650,7 @@ export class CitySession {
     const travelled = this.car.update(dt, controls, this.collider);
     this.stats.distance += travelled;
 
+    environment.followSun(this.sun, this.car.x, this.car.z);
     this.signals.update(dt);
     this.traffic.update(dt, this.car.x, this.car.z, this.signals);
     this.pedestrians.update(dt, this.car.x, this.car.z);

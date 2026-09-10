@@ -330,6 +330,96 @@ check('the gamepad trigger drives the car', pad.right.kmh > 20, pad.right.kmh + 
 check('the gamepad stick steers both ways',
       pad.right.x > 1 && pad.left.x < -1, JSON.stringify(pad));
 
+// Car parks are the one block type you can drive into; everything else stays
+// solid. Both halves matter -- an open block that traps you is worse than none.
+const lots = await page.evaluate(() => {
+  const s = game.session, c = s.car, half = s.city.block / 2;
+  const parks = s.blocks.map((b, i) => ({ ...b, i }))
+    .filter((b) => b.kind === 'block_parking');
+  if (!parks.length) return { parks: 0 };
+
+  const drive = (block, seconds) => {
+    c.place(block.x, block.z - half - 12, Math.PI);   // north of it, facing +Z
+    let inside = 0;
+    for (let i = 0; i < 60 * seconds; i++) {
+      game.testInput = { steer: 0, throttle: 1, brake: false };
+      game.update(1/60);
+      if (Math.abs(c.x - block.x) < half - 1 && Math.abs(c.z - block.z) < half - 1) {
+        inside += 1;
+      }
+    }
+    return inside;
+  };
+
+  const intoPark = drive(parks[0], 12);
+  const solid = s.blocks.find((b) => b.kind !== 'block_parking');
+  const intoSolid = drive(solid, 10);
+
+  // and the obstacles inside the park still stop the car
+  const shapes = s.city.blockShapes.block_parking;
+  let insideObstacle = 0;
+  c.place(parks[0].x, parks[0].z - half + 4, Math.PI);
+  for (let i = 0; i < 60 * 25; i++) {
+    game.testInput = { steer: i % 240 < 120 ? 1 : -1, throttle: 1, brake: false };
+    game.update(1/60);
+    for (const [sx, sz, hx, hz] of shapes) {
+      if (Math.abs(c.x - (parks[0].x + sx)) < hx - 0.2
+          && Math.abs(c.z - (parks[0].z + sz)) < hz - 0.2) insideObstacle += 1;
+    }
+  }
+  return { parks: parks.length, intoPark, intoSolid, insideObstacle };
+});
+console.log('   car parks:', JSON.stringify(lots));
+check('the map has car parks', lots.parks > 0, lots.parks + '');
+check('a car park can be driven into', lots.intoPark > 60, lots.intoPark + ' samples inside');
+check('other blocks stay solid', lots.intoSolid === 0);
+check('obstacles inside the park still stop the car', lots.insideObstacle === 0);
+
+// Shadows: on by default, and the shadow box tracks the car.
+const shadows = await page.evaluate(() => {
+  const s = game.session, c = s.car;
+  game.setShadows(true);
+  c.place(120, -80, 0);
+  for (let i = 0; i < 30; i++) {
+    game.testInput = { steer: 0, throttle: 0, brake: false };
+    game.update(1/60);
+  }
+  const tracking = Math.hypot(s.sun.target.position.x - c.x,
+                              s.sun.target.position.z - c.z);
+  const casters = [];
+  s.car.model.traverse((n) => { if (n.isMesh) casters.push(n.castShadow); });
+  game.setShadows(false);
+  const off = game.renderer.shadowMap.enabled;
+  game.setShadows(true);
+  return { enabled: game.renderer.shadowMap.enabled, off,
+           tracking: +tracking.toFixed(2),
+           carCasts: casters.length > 0 && casters.every(Boolean) };
+});
+console.log('   shadows:', JSON.stringify(shadows));
+check('shadows can be switched off and on', shadows.enabled && !shadows.off);
+check('the shadow box follows the car', shadows.tracking < 1, shadows.tracking + ' m');
+check('the car casts a shadow', shadows.carCasts);
+
+// Minimap: tapping switches between the zoomed view and the whole city.
+const map = await page.evaluate(() => {
+  const m = game.minimap;
+  m.setMode('follow');
+  const near = m.scale;
+  m.setMode('full');
+  const far = m.scale;
+  m.setMode('follow');
+  // in follow mode the car sits in the middle whatever its world position
+  game.session.car.place(180, -140, 0);
+  m.draw(game.session.car, game.session.coins, game.session.mission,
+         game.session.traffic.cars);
+  const [px, py] = m.toScreen(180, -140);
+  return { near: +near.toFixed(4), far: +far.toFixed(4),
+           centred: Math.abs(px - m.centre) < 0.01 && Math.abs(py - m.centre) < 0.01 };
+});
+console.log('   minimap:', JSON.stringify(map));
+check('the minimap zooms in and out', map.near > map.far * 1.5);
+check('the zoomed minimap keeps the car centred', map.centred);
+
 const perf = await page.evaluate(() => {
   const s = game.session, c = s.car;
   c.place(s.city.streetLines[3] + s.city.laneOffsets[0], 150, 0);

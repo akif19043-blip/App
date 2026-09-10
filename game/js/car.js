@@ -41,7 +41,8 @@ export class Car {
       assets.disposeInstance(this.model);
     }
     this.spec = spec;
-    this.model = assets.tintPaint(assets.instance(spec.model), spec.paint);
+    this.model = environment.shadowRole(
+      assets.tintPaint(assets.instance(spec.model), spec.paint), 'cast');
     this.group.add(this.model);
 
     this.wheels = assets.wheels(this.model);

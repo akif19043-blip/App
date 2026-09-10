@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import * as assets from './assets.js';
 import * as audio from './audio.js';
+import * as environment from './environment.js';
 import { PLAY, WORLD } from './config.js';
 
 export class Player {
@@ -29,7 +30,8 @@ export class Player {
       assets.disposeInstance(this.car);
     }
     this.spec = spec;
-    this.car = assets.tintPaint(assets.instance(spec.model), spec.paint);
+    this.car = environment.shadowRole(
+      assets.tintPaint(assets.instance(spec.model), spec.paint), 'cast');
     this.group.add(this.car);
 
     this.wheels = assets.wheels(this.car);

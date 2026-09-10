@@ -172,6 +172,49 @@ export function scrape() {
   blip({ type: 'square', from: 320, to: 260, duration: 0.10, gain: 0.06 });
 }
 
+let ambience = null;
+
+/**
+ * Low city rumble under everything: filtered noise, barely audible on its own,
+ * but the street feels dead without it.
+ */
+export function startAmbience() {
+  if (!ctx || ambience) return;
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < data.length; i += 1) {
+    // brown-ish noise: integrated white noise, which sits low and steady
+    last = (last + (Math.random() * 2 - 1) * 0.06) * 0.985;
+    data[i] = last;
+  }
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 420;
+
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  gain.gain.setTargetAtTime(0.5, now(), 1.2);
+
+  source.connect(filter).connect(gain).connect(master);
+  source.start();
+  ambience = { source, gain };
+}
+
+export function stopAmbience() {
+  if (!ambience) return;
+  const { source, gain } = ambience;
+  gain.gain.setTargetAtTime(0, now(), 0.3);
+  try {
+    source.stop(now() + 1.0);
+  } catch (err) { /* already stopped */ }
+  ambience = null;
+}
+
 let lastScreech = 0;
 
 /**

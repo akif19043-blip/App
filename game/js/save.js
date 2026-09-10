@@ -21,6 +21,8 @@ const DEFAULTS = {
     sound: true,
     autoThrottle: false,   // free roam wants a real throttle you can lift off
     tilt: false,
+    shadows: true,
+    leftHanded: false,
   },
 };
 

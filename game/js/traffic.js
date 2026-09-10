@@ -8,6 +8,7 @@
 
 import * as THREE from 'three';
 import * as assets from './assets.js';
+import * as environment from './environment.js';
 import { PLAY, SCORE, TRAFFIC, TRAFFIC_COLORS, TRAFFIC_MODELS }
   from './config.js';
 
@@ -31,7 +32,8 @@ export class Traffic {
       for (let i = 0; i < POOL_PER_MODEL; i += 1) {
         const color = TRAFFIC_COLORS[colorIndex % TRAFFIC_COLORS.length];
         colorIndex += 1;
-        const mesh = assets.tintPaint(assets.instance(model), color);
+        const mesh = environment.shadowRole(
+          assets.tintPaint(assets.instance(model), color), 'cast');
         const size = assets.footprint(model, PLAY.collisionShrink);
 
         const holder = new THREE.Group();

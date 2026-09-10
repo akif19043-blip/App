@@ -14,17 +14,19 @@ import * as assets from './assets.js';
 import * as audio from './audio.js';
 import * as input from './input.js';
 import * as save from './save.js';
+import * as environment from './environment.js';
 import * as garage from './garage.js';
 import { CitySession } from './city.js';
 import { HighwaySession } from './highway.js';
 import { Hud } from './hud.js';
 import { Minimap } from './minimap.js';
-import { CAMERA, CARS } from './config.js';
+import { CAMERA, CARS, CITY } from './config.js';
 
 const MODELS = [
   // city
   'city_ground', 'desert_floor', 'city_wall', 'beacon', 'traffic_light', 'pedestrian',
   'block_downtown', 'block_lowrise', 'block_park', 'block_industrial',
+  'block_parking',
   // vehicles
   'car_sport', 'car_muscle', 'car_super',
   'traffic_sedan', 'traffic_hatch', 'traffic_suv',
@@ -58,6 +60,8 @@ class Game {
       onSelectCar: () => this.equip(),
       onAutoThrottle: (value) => input.setAutoThrottle(value),
       onTilt: (value) => this.setTilt(value),
+      onShadows: (value) => this.setShadows(value),
+      onLeftHanded: (value) => this.setLeftHanded(value),
     });
     this.hud.show('loading');
 
@@ -69,8 +73,16 @@ class Game {
 
     this.timeOfDay = Math.random() < 0.5 ? 'dusk' : 'day';
     this.session = this.ensureSession('city');
-    this.minimap = new Minimap(document.getElementById('minimap'),
-                               assets.manifest.city);
+    const minimapCanvas = document.getElementById('minimap');
+    this.minimap = new Minimap(minimapCanvas, assets.manifest.city,
+                               CITY.minimapSpan);
+    this.minimap.setOpenBlocks(
+      this.session.blocks.map((block) => block.kind === 'block_parking'));
+    minimapCanvas.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      audio.uiTap();
+      minimapCanvas.classList.toggle('is-full', this.minimap.toggle() === 'full');
+    });
 
     input.init({
       surface: document.getElementById('surface'),
@@ -82,6 +94,8 @@ class Game {
     }, { autoThrottle: save.get().settings.autoThrottle });
 
     audio.setEnabled(save.get().settings.sound);
+    this.setShadows(save.get().settings.shadows !== false);
+    this.setLeftHanded(!!save.get().settings.leftHanded);
     window.addEventListener('resize', () => this.resize());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && this.state === 'playing') this.pause();
@@ -108,6 +122,8 @@ class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.setShadows(save.get().settings.shadows !== false);
 
     this.camera = new THREE.PerspectiveCamera(CAMERA.fovPortrait, 1, 0.5, 1800);
     this.camera.position.set(0, CAMERA.height, CAMERA.distance);
@@ -159,6 +175,7 @@ class Game {
     }
     this.state = 'menu';
     audio.stopEngine();
+    audio.stopAmbience();
     input.reset();
     this.session.poseCar(this.currentCar());
     this.hud.show('menu');
@@ -180,12 +197,14 @@ class Game {
     this.hud.setMode(this.mode);
     this.hud.showPlaying();
     audio.startEngine();
+    if (this.mode === 'city') audio.startAmbience();
   }
 
   pause() {
     if (this.state !== 'playing') return;
     this.state = 'paused';
     audio.stopEngine();
+    audio.stopAmbience();
     input.reset();
     if (this.mode === 'city') this.bankCityEarnings();
     this.hud.show('paused');
@@ -196,6 +215,31 @@ class Game {
     this.state = 'playing';
     this.hud.showPlaying();
     audio.startEngine();
+    if (this.mode === 'city') audio.startAmbience();
+  }
+
+  /**
+   * Real shadows or blob shadows -- never both.
+   *
+   * Switching at runtime changes how materials are compiled, so every one has
+   * to be told to rebuild; the alternative is asking the player to restart.
+   */
+  setShadows(enabled) {
+    this.renderer.shadowMap.enabled = enabled;
+    environment.setBlobShadows(!enabled);
+    for (const session of Object.values(this.sessions)) {
+      session.scene.traverse((node) => {
+        if (!node.isMesh || !node.material) return;
+        const list = Array.isArray(node.material) ? node.material : [node.material];
+        for (const material of list) {
+          if (material) material.needsUpdate = true;
+        }
+      });
+    }
+  }
+
+  setLeftHanded(enabled) {
+    document.body.classList.toggle('is-left-handed', enabled);
   }
 
   async setTilt(enabled) {
@@ -223,6 +267,7 @@ class Game {
   endHighwayRun() {
     this.state = 'over';
     audio.stopEngine();
+    audio.stopAmbience();
     const run = this.session.run;
     const previousBest = save.get().best;
     save.addCoins(run.coins);

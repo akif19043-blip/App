@@ -100,6 +100,8 @@ html, body {
   backdrop-filter: blur(6px);
 }
 .minimap.is-hidden { display: none; }
+.minimap { pointer-events: auto; }          /* tap to switch zoom */
+.minimap.is-full { border-color: rgba(255, 138, 61, 0.55); }
 
 .icon-button {
   margin-left: auto;
@@ -517,6 +519,25 @@ html, body {
 @media (orientation: portrait) {
   #screen-menu, #screen-over { align-items: end; }
 }
+
+/*
+ * Left-handed layout: the whole control side mirrors, and the readouts that
+ * sit above each cluster move with it.
+ */
+body.is-left-handed #controls { flex-direction: row-reverse; }
+body.is-left-handed .control-cluster--right { align-items: flex-start; }
+body.is-left-handed .hud__speed {
+  left: auto;
+  right: var(--pad);
+  text-align: right;
+}
+body.is-left-handed .hud__distance { left: auto; right: 2px; }
+body.is-left-handed .hud__nitro {
+  right: auto;
+  left: var(--pad);
+  text-align: left;
+}
+body.is-left-handed .minimap { right: auto; left: var(--pad); }
 
 /* ---------------------------------------------------------- landscape --- */
 /*

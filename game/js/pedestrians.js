@@ -12,6 +12,7 @@
 
 import * as THREE from 'three';
 import * as assets from './assets.js';
+import * as environment from './environment.js';
 import { CITY } from './config.js';
 
 const SHIRT_COLORS = [
@@ -30,7 +31,7 @@ export class Pedestrians {
     this.people = [];
 
     for (let i = 0; i < CITY.pedestrians; i += 1) {
-      const root = assets.instance('pedestrian');
+      const root = environment.shadowRole(assets.instance('pedestrian'), 'cast');
       assets.tint(root, 'Shirt', SHIRT_COLORS[i % SHIRT_COLORS.length]);
       scene.add(root);
       this.people.push({
