@@ -157,6 +157,14 @@ check('a close pass also counts a near miss',
 check('a close pass is not a collision', pass.state === 'playing');
 
 const perf = await page.evaluate(() => {
+  // A fresh run, driven for a few seconds: the test above parks every traffic
+  // car 4 km away to isolate one overtake, so measuring what it left behind
+  // was measuring an empty road -- one run reported 38 calls.
+  game.startRun('highway');
+  for (let i = 0; i < 60 * 6; i++) {
+    game.testInput = { steer: 0, throttle: 1, brake: false };
+    game.update(1/60);
+  }
   // info.render only holds what the last real animation frame drew, and under
   // software GL that frame can be anything -- render the driving scene once
   // here so the numbers are the ones being claimed.
@@ -165,10 +173,10 @@ const perf = await page.evaluate(() => {
            tris: game.renderer.info.render.triangles };
 });
 console.log('   draw calls', perf.calls, 'triangles', perf.tris);
-// Traffic spawns at random positions, so the count moves between runs -- it
-// sits around 240-330 here. This guards against a regression into the
-// thousands, not against a handful either way.
-check('draw calls stay phone-friendly', perf.calls > 40 && perf.calls < 400,
+// Traffic spawns at random positions, so the count moves between runs. This
+// guards against a regression into the thousands, and against a measurement
+// that has quietly stopped looking at a populated road.
+check('draw calls stay phone-friendly', perf.calls > 90 && perf.calls < 400,
       perf.calls+'');
 
 // Drive past the rebase threshold for real (collisions off) and confirm the

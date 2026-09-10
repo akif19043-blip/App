@@ -53,7 +53,7 @@ async function open(locale = 'tr-TR') {
   const read = (page) => page.evaluate(() => ({
     lang: document.documentElement.lang,
     play: document.querySelector('#btn-play-city span').textContent,
-    garage: document.getElementById('btn-garage').textContent.trim(),
+    garage: document.querySelector('#btn-garage .tile__label').textContent.trim(),
     title: document.title,
   }));
   const turkish = await read(tr);

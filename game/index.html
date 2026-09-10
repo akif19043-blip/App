@@ -127,10 +127,21 @@
 </section>
 
 <section id="screen-menu" class="screen">
-  <div class="panel">
-    <h1 class="logo">DÖRTYOL<span data-i18n="app.tagline">Şehir Sürüşü</span></h1>
-    <!-- Rank first: it is the thing that only goes up, and the bar under it
-         says how close the next one is. -->
+  <!-- Coins and best sit on the glass over the live city, the way a game
+       shows them, rather than inside the panel with everything else. -->
+  <div class="menu-top">
+    <div class="pill"><span aria-hidden="true">🪙</span>
+      <strong id="menu-coins">0</strong></div>
+    <div class="pill"><span class="pill__label" data-i18n="menu.best">EN İYİ</span>
+      <strong id="menu-best">0</strong></div>
+  </div>
+
+  <div class="panel panel--menu">
+    <img class="menu__logo" src="assets/ui/logo.png" width="880" height="440"
+         alt="Dörtyol">
+    <p class="menu__tagline" data-i18n="app.tagline">Şehir Sürüşü</p>
+
+    <!-- Rank: the thing that only goes up, and how close the next one is. -->
     <div class="rank">
       <div class="rank__line">
         <span class="rank__badge" id="menu-rank-id">1</span>
@@ -139,27 +150,35 @@
       </div>
       <div class="rank__track"><div id="menu-rank-fill" class="rank__fill"></div></div>
     </div>
-    <div class="stat-row">
-      <div><span class="muted" data-i18n="menu.best">EN İYİ</span>
-        <strong id="menu-best">0</strong></div>
-      <div><span class="muted" data-i18n="menu.coins">JETON</span>
-        <strong id="menu-coins">0</strong></div>
-    </div>
-    <button id="btn-play-city" class="button button--primary" type="button">
-      <span data-i18n="menu.freeRoam">SERBEST SÜRÜŞ</span>
-      <small data-i18n="menu.freeRoamHint">şehirde istediğin gibi gez</small>
+
+    <button id="btn-play-city" class="plate plate--play" type="button">
+      <i class="plate__icon" aria-hidden="true">🏙️</i>
+      <span class="plate__text">
+        <span data-i18n="menu.freeRoam">SERBEST SÜRÜŞ</span>
+        <small data-i18n="menu.freeRoamHint">şehirde istediğin gibi gez</small>
+      </span>
     </button>
-    <button id="btn-play-highway" class="button" type="button">
-      <span data-i18n="menu.rush">TRAFİK YARIŞI</span>
-      <small data-i18n="menu.rushHint">sonsuz otoyol, skor avı</small>
+    <button id="btn-play-highway" class="plate plate--rush" type="button">
+      <i class="plate__icon" aria-hidden="true">🏁</i>
+      <span class="plate__text">
+        <span data-i18n="menu.rush">TRAFİK YARIŞI</span>
+        <small data-i18n="menu.rushHint">sonsuz otoyol, skor avı</small>
+      </span>
     </button>
-    <div class="button-row">
-      <button id="btn-garage" class="button" type="button"
-              data-i18n="menu.garage">GARAJ</button>
-      <button id="btn-records" class="button button--ghost" type="button"
-              data-i18n="menu.records">KAYITLAR</button>
-      <button id="btn-settings" class="button button--ghost" type="button"
-              data-i18n="menu.settings">AYARLAR</button>
+
+    <div class="tiles">
+      <button id="btn-garage" class="tile" type="button">
+        <i class="tile__icon" aria-hidden="true">🔧</i>
+        <span class="tile__label" data-i18n="menu.garage">GARAJ</span>
+      </button>
+      <button id="btn-records" class="tile" type="button">
+        <i class="tile__icon" aria-hidden="true">🏆</i>
+        <span class="tile__label" data-i18n="menu.records">KAYITLAR</span>
+      </button>
+      <button id="btn-settings" class="tile" type="button">
+        <i class="tile__icon" aria-hidden="true">⚙️</i>
+        <span class="tile__label" data-i18n="menu.settings">AYARLAR</span>
+      </button>
     </div>
     <p class="hint" data-i18n="menu.controlsHint"></p>
   </div>

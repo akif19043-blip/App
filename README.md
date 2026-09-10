@@ -85,7 +85,7 @@ blender/           3B varlık üretimi (Blender'ın bpy modülü)
   lib/road.py      otoyol döşemeleri, bariyer, korkuluk
   lib/props.py     palmiye, kaktüs, kaya, lamba, pano, jeton, nitro
   build_all.py     hepsini üretir, ölçer, manifest.json yazar
-  make_store.py    ikonlar ve mağaza görselleri
+  make_store.py    ikonlar, menü logosu ve mağaza görselleri
 game/              oyunun kendisi (statik site, derleme adımı yok)
   js/              fizik, şehir, trafik, sinyaller, yayalar, polis, kademe,
                    garaj, girdi,
@@ -175,6 +175,16 @@ geçerli bir şeridine denk gelir; bu yüzden binalara girmeleri için ayrıca
 **Gölgeler dar bir kutuyla çalışıyor.** Gölge kamerası arabayı takip eden
 124 m'lik bir kutu, yani 1024 piksel gerçekten bulunduğun sokağa düşer.
 Maliyeti ~25 çizim çağrısı.
+
+**Menü CSS metni değil, üretilmiş bir tabela.** Ana menünün logosu
+Blender'da modellenip saydam arka planla render edilen bir yol tabelası:
+turuncu çerçeve, lacivert yüzey, kabartma harfler, iki direk. Önce tabelayı
+bir dörtyolun üstüne koymuştum — 300 piksele küçülünce yollar "kenarından
+kesilmiş gri bir levha" gibi okundu, direkli tabela ise her boyutta okunuyor.
+Menüdeki düğmeler de düz dikdörtgen değil: her birinin ön yüzünün altında
+sert bir gölge — bir "dudak" — var ve basınca düğme aşağı inip dudak
+kısalıyor, yani basılacak bir kalınlığı oluyor. Aynı davranış oyunun bütün
+düğmelerinde geçerli.
 
 **Yol çizgileri kutu değil, düz dörtgen.** Asfalta boyanan her şerit, durak
 çizgisi ve orta çizgi iki üçgen; kutu olsaydı on iki olurdu. 626 metrelik

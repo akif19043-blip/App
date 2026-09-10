@@ -101,6 +101,71 @@ def title_text(body, location, size, extrude=0.06, align='CENTER'):
     return obj
 
 
+def menu_logo(path, width=880, height=460):
+    """
+    The badge at the top of the main menu.
+
+    A game menu wants a logo, not styled text: something with an edge, a
+    thickness and a light on it. This is a road sign on two posts, rendered
+    on transparency so the live city behind the menu shows through around it.
+
+    An earlier version stood the sign on a crossroads -- what the name means
+    -- and it did not survive being shrunk to 300px: the roads read as a grey
+    slab cropped at the edges of the image rather than as roads. A sign on
+    posts is legible at any size, which is the whole job.
+
+    No tagline in the render: that line is translated, and a logo baked with
+    Turkish in it would be wrong in English.
+    """
+    kit.reset()
+    P = palette.build()
+
+    plate = kit.mat('SignPlate', kit.hex_color(BRAND_NIGHT), metallic=0.30,
+                    roughness=0.42)
+    rim = kit.mat('SignRim', kit.hex_color(BRAND_ORANGE), metallic=0.55,
+                  roughness=0.28)
+    face = kit.mat('SignFaceInk', kit.hex_color('#f4f7fb'), metallic=0.20,
+                   roughness=0.30)
+
+    # The sign stands in the XZ plane facing +Y, which is where the camera is:
+    # the rim sits furthest back, the darker face steps forward out of it, and
+    # the letters stand proud of that again.
+    kit.box('rim', (15.0, 0.55, 4.5), (0, 0.00, 5.4), rim, bevel=0.12)
+    kit.box('plate', (14.2, 0.45, 3.8), (0, 0.12, 5.4), plate, bevel=0.10)
+
+    title = title_text('DÖRTYOL', (0, 0.42, 5.35), 2.15, extrude=0.24)
+    title.data.materials.append(face)
+    # Text lies flat facing +Z. X+90 turns its face to -Y, where the camera
+    # is, and Z+180 keeps it the right way up rather than mirrored -- one
+    # rotation cannot fix both.
+    title.rotation_euler = (math.radians(90), 0, math.radians(180))
+
+    for x in (-5.4, 5.4):
+        kit.cylinder('post', 0.26, 3.6, axis='Z', location=(x, 0, 1.6),
+                     segments=10, material=P['Metal'])
+        kit.box('footing', (1.5, 1.5, 0.42), (x, 0, 0.0), P['Kerb'],
+                bevel=0.06)
+
+    scene = render.setup(samples=96, resolution=(width, height),
+                         background=BRAND_NIGHT, ground=None, sun_energy=4.6)
+    # The shared sun is set up for subjects seen from above; this one faces the
+    # camera, so its front would be the shadow side. Re-aim it to come from
+    # over the camera's right shoulder: a sun rotated -55 about X travels
+    # along -Y and down, which is to say it shines from +Y, where we are.
+    sun = bpy.data.objects.get('Sun')
+    if sun is not None:
+        sun.rotation_euler = (math.radians(-55), 0, math.radians(-25))
+    fill = bpy.data.objects.get('Fill')
+    if fill is not None:
+        fill.location = (-11, 13, 7)
+        fill.rotation_euler = (math.radians(66), 0, math.radians(214))
+    scene.render.film_transparent = True
+    scene.render.image_settings.color_mode = 'RGBA'
+    render.shot(path, focus=(0, 0, 4.3), radius=27.0, elevation=7,
+                azimuth=2, lens=52)
+    print(os.path.relpath(path, ROOT))
+
+
 def feature_graphic(path, width=1024, height=500):
     """
     The 1024x500 banner on the Play listing: the three playable cars on
@@ -171,6 +236,10 @@ def main():
          transparent=True, radius=10.5)
     adaptive_background(os.path.join(STORE, 'adaptive-background.png'))
     feature_graphic(os.path.join(STORE, 'feature-graphic.png'))
+
+    ui = os.path.join(GAME_ASSETS, 'ui')
+    os.makedirs(ui, exist_ok=True)
+    menu_logo(os.path.join(ui, 'logo.png'))
 
 
 if __name__ == '__main__':
