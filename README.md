@@ -9,16 +9,18 @@ klasöründeki Python betikleri arabaları, şehri, yolu ve nesneleri kurar ve
 
 | Mod | Ne yapıyorsun |
 |---|---|
-| **Serbest Sürüş** | Izgara düzenli bir şehirde istediğin gibi gez. Trafik ışıklı kavşaklar, kırmızıda kuyruğa giren ve dönüş yapan trafik. Jeton topla, teslimat görevlerini tamamla; hedef ekran dışındayken kenarda bir ok yön gösterir. |
+| **Serbest Sürüş** | Izgara düzenli bir şehirde istediğin gibi gez. Trafik ışıklı kavşaklar, kırmızıda kuyruğa giren ve dönüş yapan trafik, kaldırımlarda yürüyen insanlar. Jeton topla, **süreli teslimatları** yetiştir (zamanında varırsan bonus), hedef ekran dışındayken kenardaki ok yön gösterir. |
 | **Trafik Yarışı** | Sonsuz otoyolda trafiği yararak skor topla. Sıyırarak geçmek ekstra puan. |
 
-Kazandığın jetonlarla garajdan yeni araba açarsın; ilerleme telefonda kayıtlı
-kalır.
+Kazandığın jetonlarla garajdan yeni araba alır, arabana **motor / şanzıman /
+lastik / fren** takar ve **rengini** değiştirirsin. Her araç kendi
+donanımını ve rengini hatırlar; ilerleme telefonda kayıtlı kalır.
 
 ![Menü](docs/screens/1-menu.png)
 ![Şehirde sürüş](docs/screens/2-city-day.png)
 ![Işıklı kavşak](docs/screens/3-city-junction.png)
 ![Şehir merkezi](docs/screens/4-city-downtown.png)
+![Garaj](docs/screens/7-garage.png)
 ![Trafik yarışı](docs/screens/5-highway.png)
 
 ## Oynamak için
@@ -51,6 +53,7 @@ istediğin gibi tut.
 | Gaz | GAZ | ↑ veya W |
 | Fren / geri vites | FREN (dururken basılı tutarsan geri gider; kamera öne döner) | Boşluk veya ↓ |
 | Nitro | N | Shift |
+| Oyun kolu | — | sol çubuk direksiyon, RT gaz, LT fren, X nitro |
 | Duraklat | ⏸ | — |
 
 Ayarlardan **otomatik gaz** (gaz pedalı olmadan sürekli hızlanma) ve
@@ -62,13 +65,14 @@ Ayarlardan **otomatik gaz** (gaz pedalı olmadan sürekli hızlanma) ve
 blender/           3B varlık üretimi (Blender'ın bpy modülü)
   lib/kit.py       düşük poligonlu modelleme araçları: kesit loft'u, materyal, GLB dışa aktarma
   lib/vehicles.py  3 oynanabilir araba + 5 trafik aracı
-  lib/city.py      şehir: sokak ağı, bina adaları, trafik lambası
+  lib/city.py      şehir: sokak ağı, bina adaları, trafik lambası, yaya
   lib/road.py      otoyol döşemeleri, bariyer, korkuluk
   lib/props.py     palmiye, kaktüs, kaya, lamba, pano, jeton, nitro
   build_all.py     hepsini üretir, ölçer, manifest.json yazar
   make_icons.py    uygulama ikonlarını süper arabadan render eder
 game/              oyunun kendisi (statik site, derleme adımı yok)
-  js/              modüller: fizik, şehir, trafik, girdi, ses, arayüz
+  js/              modüller: fizik, şehir, trafik, sinyaller, yayalar,
+                   garaj/donanım, girdi, ses, arayüz
   assets/models/   üretilen .glb dosyaları + manifest.json
   vendor/three/    three.js (r180, MIT)
 tools/serve.py     yerel sunucu (telefondan bağlanmak için)
@@ -94,7 +98,7 @@ boyutlarını, şerit konumlarını ve şehir ızgarasını bu dosyadan okur —
 oynanış her zaman gerçekten üretilmiş geometriyle aynı sayıları kullanır, kodda
 ikinci bir kopya tutulmaz.
 
-Toplam: 30 model, ~28.000 üçgen, ~2,9 MB.
+Toplam: 31 model, ~28.000 üçgen, ~2,9 MB.
 
 ## Test
 
@@ -111,8 +115,12 @@ adaya girmemesi, kırmızıda kuyruk oluşması ve dönüş yapması; geri vites
 kameranın öne dönmesi; hedef okunun sadece hedef ekran dışındayken çıkması ve
 doğru yönü göstermesi; kaldırım/duvar çarpışması; jeton ve teslimat döngüsünün
 ödeme yapması; kazancın profile yazılması; otoyol modunda skor, sollama ve
-kıl payı bonusları ile 12 km sonrası koordinat sıfırlama; ve çizim çağrısı
-sayısının telefon için makul kalması.
+kıl payı bonusları ile 12 km sonrası koordinat sıfırlama; yayaların kaldırımdan
+hiç inmemesi ve yürümesi; garajda takılan parçanın ilgili değeri artırıp
+parayı düşürmesi ve kaydedilmesi; parası yetmeyenin parça alamaması; teslimat
+süresinin kuş uçuşu değil sokak mesafesine göre hesaplanması ve zamanında
+varışın bonus ödemesi; oyun kolunun gerçek girdi yolundan arabayı sürmesi; ve
+çizim çağrısı sayısının telefon için makul kalması.
 
 Ayrı bir düzen testi (`tests/layout.test.mjs`) altı ekran boyutunda — küçük
 telefon, telefon dikey, telefon yatay, büyük telefon yatay, tablet dikey,
@@ -147,6 +155,12 @@ daire bir yay boyunca ilerliyor ve yayın sonu her zaman karşı sokağın geçe
 bir şeridine denk geliyor — bu yüzden binalara girmeleri için ayrıca çarpışma
 testi gerekmiyor. Testte 3 dakikalık simülasyonda 22 aracın hiçbiri adaya
 girmiyor.
+
+**Yayalar iskeletsiz yürüyor.** Modelde sadece bacaklar ayrı nesne olarak
+duruyor ve pivotları kalçada; oyun bacakları doğrudan sallıyor. Animasyon
+verisi yok, yaya başına dört çizim çağrısı var. Adaların çevresindeki
+kaldırımda yürüdükleri için — arabanın giremediği alan — çarpışma kontrolü de
+gerekmiyor.
 
 **Ses dosyası yok.** Motor sesi iki detune saw osilatör + gürültünün alçak
 geçiren filtreden geçmesiyle, lastik cızırtısı bant geçiren filtreli gürültüyle,

@@ -113,10 +113,36 @@ export const CITY = {
   coinHeight: 1.0,
   pickupRadius: 3.0,
   lampsAtIntersections: true,
+  pedestrians: 14,            // people walking the pavements
+  pedestrianRange: 150,       // metres from the player before they are moved
   missionPay: [140, 380],
+  missionPace: 15,            // m/s the time limit assumes you can average
+  missionGrace: 18,           // seconds on top, for junctions and mistakes
+  missionBonus: 0.6,          // fraction of the fee paid for beating the clock
   missionArriveRadius: 7.0,
   fogRange: [90, 420],
 };
+
+/**
+ * Parts you can fit in the garage. `perLevel` is a fraction added to the base
+ * stat per level, so a level-3 engine is +21% top speed.
+ */
+export const UPGRADES = [
+  { id: 'engine', name: 'Motor', stat: 'topSpeed', perLevel: 0.07,
+    levels: 3, basePrice: 900 },
+  { id: 'gearbox', name: 'Şanzıman', stat: 'accel', perLevel: 0.10,
+    levels: 3, basePrice: 750 },
+  { id: 'tyres', name: 'Lastik', stat: 'handling', perLevel: 0.08,
+    levels: 3, basePrice: 650 },
+  { id: 'brakes', name: 'Fren', stat: 'brakeScale', perLevel: 0.10,
+    levels: 3, basePrice: 500 },
+];
+
+/** Paints available in the garage. */
+export const PAINTS = [
+  '#d33a2c', '#2f6bd8', '#f0b429', '#2f9e5f', '#8a4fd0',
+  '#e2571f', '#1fb6c9', '#e9edf2', '#22262c', '#b4126a',
+];
 
 /**
  * Playable cars. `model` is the Blender asset name; `paint` recolours the

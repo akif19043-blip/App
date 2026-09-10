@@ -48,6 +48,31 @@ await page.waitForFunction(
   () => document.getElementById('screen-menu')?.classList.contains('is-visible'),
   { timeout: 120000 });
 
+// Populate the garage first. Its panel is only as tall as its contents, and
+// those are built on demand -- measuring it empty would prove nothing.
+await page.evaluate(() => {
+  const key = 'kumtepe-racer.profile.v1';
+  const profile = JSON.parse(localStorage.getItem(key) || '{}');
+  profile.coins = 50000;
+  localStorage.setItem(key, JSON.stringify(profile));
+});
+await page.reload({ waitUntil: 'load' });
+await page.waitForFunction(
+  () => document.getElementById('screen-menu')?.classList.contains('is-visible'),
+  { timeout: 120000 });
+await page.click('#btn-garage');
+await page.waitForTimeout(300);
+const populated = await page.evaluate(() => ({
+  cards: document.querySelectorAll('.car-card').length,
+  parts: document.querySelectorAll('.tune__row').length,
+  paints: document.querySelectorAll('.tune__paint').length,
+}));
+check('garage is populated before measuring',
+      populated.cards > 0 && populated.parts > 0 && populated.paints > 0,
+      JSON.stringify(populated));
+await page.click('#btn-garage-back');
+await page.waitForTimeout(150);
+
 // Get into the city so the HUD and controls are live and measurable.
 await page.click('#btn-play-city');
 await page.waitForTimeout(400);

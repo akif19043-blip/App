@@ -79,6 +79,10 @@ def build():
                               emission='#ffa41c', emission_strength=1.0),
         'SignalZ_Green': dict(color='#0b3a16', roughness=0.30,
                               emission='#3cff72', emission_strength=1.0),
+        # pedestrians
+        'Skin':       dict(color='#c98d63', metallic=0.00, roughness=0.72),
+        'Shirt':      dict(color='#3f7fd0', metallic=0.00, roughness=0.75),
+        'Trousers':   dict(color='#2f3540', metallic=0.00, roughness=0.80),
         # pickups
         'Gold':       dict(color='#ffc233', metallic=0.90, roughness=0.22,
                            emission='#ffae1a', emission_strength=1.6),

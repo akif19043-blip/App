@@ -179,9 +179,10 @@ export class Car {
 
   updateSpeed(dt, input) {
     const top = this.topSpeed;
+    const braking = PLAY.brakeDecel * (this.spec.brakeScale || 1);
     if (input.brake) {
       if (this.speed > 0.4) {
-        this.speed -= PLAY.brakeDecel * dt;
+        this.speed -= braking * dt;
       } else {
         // held past a stop: back up
         this.speed = Math.max(-DRIVE.reverseTopSpeed,
@@ -189,7 +190,7 @@ export class Car {
       }
     } else if (input.throttle > 0) {
       if (this.speed < -0.4) {
-        this.speed += PLAY.brakeDecel * dt;          // brake out of reverse
+        this.speed += braking * dt;                  // brake out of reverse
       } else {
         const push = this.spec.accel * input.throttle
           * (this.boosting ? 1.5 : 1)

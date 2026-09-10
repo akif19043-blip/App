@@ -91,25 +91,30 @@ export function footprint(name, shrink) {
 }
 
 /**
- * Recolour the shared CarPaint slot on one instance.
+ * Recolour one named material slot on a single instance.
  *
  * The template's materials are shared by every clone, so the material is
  * cloned before it is touched -- otherwise repainting one taxi would repaint
  * the whole city.
  */
-export function tintPaint(root, color) {
-  const tint = new THREE.Color(color);
+export function tint(root, slot, color) {
+  const wanted = new THREE.Color(color);
   root.traverse((node) => {
     if (!node.isMesh || !node.material) return;
     if (Array.isArray(node.material)) {
       node.material = node.material.map((material) => (
-        material && material.name === PAINT_MATERIAL
-          ? recolour(material, tint) : material));
-    } else if (node.material.name === PAINT_MATERIAL) {
-      node.material = recolour(node.material, tint);
+        material && material.name === slot
+          ? recolour(material, wanted) : material));
+    } else if (node.material.name === slot) {
+      node.material = recolour(node.material, wanted);
     }
   });
   return root;
+}
+
+/** Recolour a vehicle's paint. */
+export function tintPaint(root, color) {
+  return tint(root, PAINT_MATERIAL, color);
 }
 
 function recolour(material, tint) {

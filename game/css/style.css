@@ -74,6 +74,17 @@ html, body {
 .chip--score strong { color: var(--accent); }
 .chip--target strong { color: var(--good); }
 .chip__unit { font-size: 10px; color: var(--muted); }
+.chip__timer {
+  margin-left: 4px;
+  padding-left: 8px;
+  border-left: 1px solid var(--panel-edge);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.chip__timer.is-urgent { color: #ff7a5c; }
+.chip__timer.is-expired { color: var(--muted); text-decoration: line-through; }
 .chip.is-hidden { display: none; }
 
 /* Minimap: the whole city grid at a glance, top-right under the pause key. */
@@ -271,6 +282,7 @@ html, body {
               rgba(9, 12, 18, 0.18), rgba(6, 8, 12, 0.82));
   backdrop-filter: blur(2px);
   overflow-y: auto;
+  touch-action: pan-y;          /* body disables touch scrolling; allow it here */
 }
 .screen.is-visible { display: grid; }
 
@@ -287,6 +299,26 @@ html, body {
   text-align: center;
 }
 .panel--wide { width: min(560px, 100%); }
+
+/*
+ * The garage grows with the cars and the parts fitted to them, so the panel is
+ * capped and the middle scrolls -- that keeps the header and the back button
+ * on screen even on a short phone.
+ */
+#screen-garage .panel {
+  max-height: calc(100dvh - 2 * var(--pad-top));
+  min-height: 0;
+}
+.garage-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px;
+}
 .panel h2 { margin: 0 0 4px; font-size: 20px; letter-spacing: 0.10em; }
 .panel__head { display: flex; align-items: center; justify-content: space-between; }
 .panel__head h2 { margin: 0; }
@@ -405,6 +437,50 @@ html, body {
 }
 .car-card__action:disabled { opacity: 0.45; }
 
+/* Parts and paint for the selected car. */
+.tune { display: flex; flex-direction: column; gap: 7px; text-align: left; }
+.tune__title {
+  margin: 4px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  font-weight: 700;
+}
+.tune__rows { display: flex; flex-direction: column; gap: 5px; }
+.tune__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-edge);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.tune__row.is-disabled { opacity: 0.45; }
+.tune__pips { display: inline-flex; gap: 4px; }
+.tune__pips i {
+  width: 9px;
+  height: 9px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+}
+.tune__pips i.is-on { background: var(--accent); }
+.tune__cost { font-size: 12px; color: var(--muted); font-weight: 700; }
+.tune__paints { display: flex; flex-wrap: wrap; gap: 7px; }
+.tune__paint {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: var(--paint);
+  box-shadow: inset 0 -7px 12px rgba(0, 0, 0, 0.35);
+}
+.tune__paint.is-on { border-color: var(--ink); }
+
 /* ------------------------------------------------------------ settings --- */
 
 .switch {
@@ -487,6 +563,9 @@ html, body {
   .car-card__tag { margin: 1px 0 4px; font-size: 10px; }
   .stat { grid-template-columns: 52px 1fr; }
   .car-card__action { grid-column: 1 / -1; padding: 7px 10px; font-size: 11px; }
+  .tune__rows { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .tune__row { padding: 7px 10px; font-size: 12px; }
+  .tune__paint { width: 26px; height: 26px; }
 
   /* Result tiles in one row so the buttons stay on screen. */
   .result { grid-template-columns: repeat(4, 1fr); gap: 7px; }

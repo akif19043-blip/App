@@ -182,6 +182,154 @@ check('pointer shows and aims correctly when off screen',
       && arrow.left.angle === -90 && arrow.right.angle === 90,
       JSON.stringify(arrow));
 
+// Pedestrians must stay on the pavement -- which is the block footprint the
+// car cannot enter -- so they can never be hit or block traffic.
+const walkers = await page.evaluate(() => {
+  const s = game.session, half = s.city.block / 2;
+  const start = s.pedestrians.people.map((p) => p.root.position.z);
+  let offPavement = 0, minInset = 99, legSwing = 0;
+  for (let i = 0; i < 60 * 30; i++) {
+    game.testInput = { steer: 0, throttle: 0, brake: true };
+    game.update(1/60);
+    if (i % 9) continue;
+    for (const person of s.pedestrians.people) {
+      const dx = Math.abs(person.root.position.x - person.block.x);
+      const dz = Math.abs(person.root.position.z - person.block.z);
+      const inset = half - Math.max(dx, dz);      // distance inside the kerb
+      if (inset < 0) offPavement += 1;
+      if (inset < minInset) minInset = inset;
+      legSwing = Math.max(legSwing, Math.abs(person.legs[0].rotation.x));
+    }
+  }
+  const moved = s.pedestrians.people
+    .filter((p, i) => Math.abs(p.root.position.z - start[i]) > 0.5).length;
+  return { offPavement, minInset: +minInset.toFixed(2), legSwing: +legSwing.toFixed(2),
+           moved, total: s.pedestrians.people.length };
+});
+console.log('   pedestrians:', JSON.stringify(walkers));
+check('pedestrians never step off the pavement', walkers.offPavement === 0,
+      walkers.minInset + ' m inside the kerb at the closest');
+check('pedestrians actually walk', walkers.moved > walkers.total / 2,
+      `${walkers.moved}/${walkers.total} moved`);
+check('their legs swing', walkers.legSwing > 0.2);
+
+// Garage: parts cost money, raise the stat they name, and stick.
+const tuning = await page.evaluate(() => {
+  const key = 'kumtepe-racer.profile.v1';
+  const profile = JSON.parse(localStorage.getItem(key));
+  profile.coins = 50000;
+  profile.upgrades = {};
+  localStorage.setItem(key, JSON.stringify(profile));
+  return null;
+});
+await page.reload({ waitUntil: 'load' });
+await page.waitForFunction(() => document.getElementById('screen-menu')?.classList.contains('is-visible'), { timeout: 120000 });
+await page.click('#btn-garage');
+await page.waitForTimeout(300);
+
+const before = await page.evaluate(() => ({
+  coins: JSON.parse(localStorage.getItem('kumtepe-racer.profile.v1')).coins,
+  topSpeed: game.sessions.city.car.spec.topSpeed,
+  paint: game.sessions.city.car.spec.paint,
+}));
+await page.click('.tune__row[data-part="engine"]');
+await page.waitForTimeout(250);
+await page.click('.tune__paint[data-paint="#2f9e5f"]');
+await page.waitForTimeout(250);
+const after = await page.evaluate(() => ({
+  coins: JSON.parse(localStorage.getItem('kumtepe-racer.profile.v1')).coins,
+  topSpeed: game.sessions.city.car.spec.topSpeed,
+  paint: game.sessions.city.car.spec.paint,
+  level: JSON.parse(localStorage.getItem('kumtepe-racer.profile.v1')).upgrades.sport.engine,
+}));
+console.log('   garage:', JSON.stringify({ before, after }));
+check('an engine part raises top speed', after.topSpeed > before.topSpeed);
+check('the part is paid for', after.coins === before.coins - 900);
+check('the part level is saved', after.level === 1);
+check('paint applies and is saved', after.paint === '#2f9e5f');
+
+// Skint players cannot buy.
+const broke = await page.evaluate(() => {
+  const key = 'kumtepe-racer.profile.v1';
+  const profile = JSON.parse(localStorage.getItem(key));
+  profile.coins = 10;
+  localStorage.setItem(key, JSON.stringify(profile));
+  return null;
+});
+await page.reload({ waitUntil: 'load' });
+await page.waitForFunction(() => document.getElementById('screen-menu')?.classList.contains('is-visible'), { timeout: 120000 });
+await page.click('#btn-garage');
+await page.waitForTimeout(300);
+const locked = await page.evaluate(() =>
+  [...document.querySelectorAll('.tune__row')].every((row) => row.disabled));
+check('parts are not buyable without the money', locked);
+await page.click('#btn-garage-back');
+await page.waitForTimeout(150);
+await page.click('#btn-play-city');
+await page.waitForTimeout(300);
+
+// Deliveries are timed: beat the clock for the bonus, miss it and you do not.
+const timing = await page.evaluate(() => {
+  const s = game.session, c = s.car;
+  // clear the coins so the only money moving is the delivery fee
+  for (const coin of s.coins) { coin.taken = true; coin.object.visible = false; }
+  const first = { ...s.mission };
+  const route = Math.abs(first.x - c.x) + Math.abs(first.z - c.z);
+
+  const before = s.stats.coins;
+  c.place(first.x, first.z + 2, 0);
+  game.update(1/60);
+  const onTime = s.stats.coins - before;
+
+  const second = { ...s.mission };
+  s.mission.left = 0.001;                       // run the clock out
+  game.update(1/60);
+  const mid = s.stats.coins;
+  c.place(s.mission.x, s.mission.z + 2, 0);
+  game.update(1/60);
+  const late = s.stats.coins - mid;
+
+  // put the coins back for the tests that follow
+  s.scatterCoins(s.city.streetLines, s.city.halfExtent - 14);
+  return { route: Math.round(route), limit: +first.limit.toFixed(1),
+           pay: first.pay, bonus: first.bonus, onTime,
+           latePay: second.pay, late, expired: true };
+});
+console.log('   deliveries:', JSON.stringify(timing));
+check('the clock follows the street grid, not the crow',
+      timing.limit > timing.route / 20 && timing.limit < timing.route / 6,
+      `${timing.route} m in ${timing.limit} s`);
+check('beating the clock pays the bonus', timing.onTime === timing.pay + timing.bonus);
+check('missing the clock pays only the fee', timing.late === timing.latePay);
+
+// A gamepad drives the real input path, not a test hook.
+const pad = await page.evaluate(() => {
+  const fake = {
+    connected: true, axes: [1, 0, 0, 0],
+    buttons: Array.from({ length: 8 }, (_, i) => ({
+      pressed: i === 7, value: i === 7 ? 1 : 0,
+    })),
+  };
+  navigator.getGamepads = () => [fake];
+  delete game.testInput;                        // real input only from here
+
+  const c = game.session.car;
+  c.place(0, 0, 0);
+  c.speed = 0;
+  for (let i = 0; i < 90; i++) game.update(1/60);
+  const right = { x: +c.x.toFixed(2), kmh: c.kmh };
+
+  fake.axes[0] = -1;
+  c.place(0, 0, 0);
+  c.speed = 0;
+  for (let i = 0; i < 90; i++) game.update(1/60);
+  return { right, left: { x: +c.x.toFixed(2) } };
+});
+console.log('   gamepad:', JSON.stringify(pad));
+check('the gamepad trigger drives the car', pad.right.kmh > 20, pad.right.kmh + ' km/sa');
+check('the gamepad stick steers both ways',
+      pad.right.x > 1 && pad.left.x < -1, JSON.stringify(pad));
+
 const perf = await page.evaluate(() => {
   const s = game.session, c = s.car;
   c.place(s.city.streetLines[3] + s.city.laneOffsets[0], 150, 0);
@@ -233,26 +381,28 @@ const loop = await page.evaluate(() => {
   const swept = s.stats.collected;
 
   // arrive at the beacon: pathfinding is the player's job, not the test's
+  const start = { coins: s.stats.coins, deliveries: s.stats.deliveries };
   const first = { x: s.mission.x, z: s.mission.z, pay: s.mission.pay };
   c.place(first.x, first.z + 2, 0);
   game.update(1/60);
-  const afterFirst = { coins: s.stats.coins, deliveries: s.stats.deliveries };
+  const paid = s.stats.coins - start.coins;
   const moved = s.mission.x !== first.x || s.mission.z !== first.z;
   c.place(s.mission.x, s.mission.z + 2, 0);
   game.update(1/60);
-  return { swept, pay: first.pay, afterFirst, moved,
-           coins: s.stats.coins, deliveries: s.stats.deliveries };
+  return { swept, pay: first.pay, paid, moved,
+           deliveries: s.stats.deliveries - start.deliveries };
 });
 console.log('   free roam:', JSON.stringify(loop));
 check('coins are collectable while driving', loop.swept > 0, loop.swept+'');
-check('delivery pays out', loop.afterFirst.coins >= loop.pay && loop.afterFirst.deliveries === 1);
+check('delivery pays out', loop.paid >= loop.pay, `${loop.paid} for a ${loop.pay} fee`);
 check('a new delivery is issued', loop.moved && loop.deliveries === 2);
 await page.screenshot({ path: SHOTS+'/c3-city.png' });
 
 // coins are banked to the profile
+const owed = await page.evaluate(() => game.session.stats.coins);
 await page.click('#btn-pause'); await page.waitForTimeout(250);
 const banked = await page.evaluate(() => JSON.parse(localStorage.getItem('kumtepe-racer.profile.v1')).coins);
-check('earnings are banked on pause', banked >= loop.coins, banked+'');
+check('earnings are banked on pause', banked >= owed, `${banked} banked for ${owed} earned`);
 await page.click('#btn-quit'); await page.waitForTimeout(400);
 
 // highway mode still works

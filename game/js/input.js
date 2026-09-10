@@ -30,6 +30,17 @@ let padThrottle = 0;
 let padBrake = false;
 
 const DRAG_RANGE = 110;      // px of travel for full lock
+const STICK_DEADZONE = 0.18;
+
+// Standard-mapping gamepad layout, so a controller works on desktop and on
+// phones that support one.
+const PAD = {
+  steerAxis: 0,
+  throttle: [7, 0],          // right trigger, or A
+  brake: [6, 1],             // left trigger, or B
+  nitro: [2, 5],             // X, or right bumper
+};
+let padNitroWasDown = false;
 
 function pressed(...codes) {
   return codes.some((code) => keys.has(code));
@@ -168,21 +179,64 @@ export function recentreTilt() {
   tiltZero = null;
 }
 
+/** First connected gamepad, or null. */
+function gamepad() {
+  if (!navigator.getGamepads) return null;
+  const pads = navigator.getGamepads();
+  for (const pad of pads) {
+    if (pad && pad.connected && pad.buttons && pad.buttons.length) return pad;
+  }
+  return null;
+}
+
+/** Highest value among a set of buttons, treating triggers as analogue. */
+function buttonValue(pad, indices) {
+  let best = 0;
+  for (const index of indices) {
+    const button = pad.buttons[index];
+    if (!button) continue;
+    const value = typeof button.value === 'number' ? button.value
+      : (button.pressed ? 1 : 0);
+    if (value > best) best = value;
+  }
+  return best;
+}
+
+export function isGamepadConnected() {
+  return gamepad() !== null;
+}
+
 /** Collapse every source into the frame's input state. */
 export function sample() {
+  const pad = gamepad();
+
   let steer = 0;
   if (pressed('ArrowLeft', 'KeyA')) steer -= 1;
   if (pressed('ArrowRight', 'KeyD')) steer += 1;
   if (steer === 0) {
     if (padSteer !== 0) steer = padSteer;
     else if (dragPointer !== null) steer = dragSteer;
-    else if (tiltEnabled) steer = tiltSteer;
+    else if (pad && Math.abs(pad.axes[PAD.steerAxis] || 0) > STICK_DEADZONE) {
+      const raw = pad.axes[PAD.steerAxis];
+      // rescale past the deadzone so small inputs stay usable
+      steer = Math.sign(raw) * (Math.abs(raw) - STICK_DEADZONE)
+        / (1 - STICK_DEADZONE);
+      state.source = 'gamepad';
+    } else if (tiltEnabled) steer = tiltSteer;
   }
 
   let throttle = autoThrottle ? 1 : padThrottle;
   if (pressed('ArrowUp', 'KeyW')) throttle = 1;
+  if (pad) throttle = Math.max(throttle, buttonValue(pad, PAD.throttle));
 
-  const brake = padBrake || pressed('Space', 'ArrowDown', 'KeyS');
+  let brake = padBrake || pressed('Space', 'ArrowDown', 'KeyS');
+  if (pad && buttonValue(pad, PAD.brake) > 0.35) brake = true;
+
+  if (pad) {
+    const nitroDown = buttonValue(pad, PAD.nitro) > 0.5;
+    if (nitroDown && !padNitroWasDown) state.nitroRequested = true;
+    padNitroWasDown = nitroDown;
+  }
 
   state.steer = Math.max(-1, Math.min(1, steer));
   state.throttle = brake ? 0 : throttle;

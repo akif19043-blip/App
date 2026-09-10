@@ -39,6 +39,7 @@
     <div class="chip chip--target" id="chip-target">
       <span class="chip__label">🎯</span>
       <strong id="hud-target">0</strong><span class="chip__unit">m</span>
+      <span id="hud-timer" class="chip__timer">--</span>
     </div>
     <div class="chip chip--coins">
       <span class="chip__label">🪙</span>
@@ -129,7 +130,10 @@
       <div class="chip"><span class="chip__label">🪙</span>
         <strong id="garage-coins">0</strong></div>
     </header>
-    <div id="garage-list" class="garage-list"></div>
+    <div class="garage-scroll">
+      <div id="garage-list" class="garage-list"></div>
+      <div id="garage-tune" class="tune"></div>
+    </div>
     <button id="btn-garage-back" class="button button--ghost" type="button">GERİ</button>
   </div>
 </section>

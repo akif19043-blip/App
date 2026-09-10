@@ -8,7 +8,8 @@
 
 import * as save from './save.js';
 import * as audio from './audio.js';
-import { CARS } from './config.js';
+import * as garage from './garage.js';
+import { CARS, PAINTS } from './config.js';
 
 const SCREENS = ['loading', 'menu', 'garage', 'settings', 'paused', 'over'];
 
@@ -23,6 +24,7 @@ export class Hud {
     this.el.chipScore = document.getElementById('chip-score');
     this.el.chipTarget = document.getElementById('chip-target');
     this.el.target = document.getElementById('hud-target');
+    this.el.timer = document.getElementById('hud-timer');
     this.el.minimap = document.getElementById('minimap');
     this.el.arrow = document.getElementById('target-arrow');
     this.el.controls = document.getElementById('controls');
@@ -37,6 +39,7 @@ export class Hud {
     this.el.progress = document.getElementById('loading-bar');
     this.el.progressLabel = document.getElementById('loading-label');
     this.el.garageList = document.getElementById('garage-list');
+    this.el.garageTune = document.getElementById('garage-tune');
     this.el.menuBest = document.getElementById('menu-best');
     this.el.menuCoins = document.getElementById('menu-coins');
     this.el.garageCoins = document.getElementById('garage-coins');
@@ -164,7 +167,7 @@ export class Hud {
         + (owned ? '' : ' is-locked');
 
       card.innerHTML = `
-        <div class="car-card__swatch" style="--paint:${car.paint}"></div>
+        <div class="car-card__swatch" style="--paint:${garage.paint(car)}"></div>
         <div class="car-card__body">
           <h3>${car.name}</h3>
           <p class="car-card__tag">${car.tagline}</p>
@@ -206,6 +209,73 @@ export class Hud {
       }
       this.el.garageList.appendChild(card);
     });
+
+    this.renderTuning();
+  }
+
+  /**
+   * Parts and paint for the car currently selected. Only shown for a car the
+   * player owns -- there is nothing to fit to a locked one.
+   */
+  renderTuning() {
+    const profile = save.get();
+    const car = CARS.find((entry) => entry.id === profile.selectedCar);
+    const panel = this.el.garageTune;
+    if (!panel) return;
+    if (!car || !save.owns(car.id)) {
+      panel.innerHTML = '';
+      return;
+    }
+
+    const rows = garage.upgradeState(car).map((part) => {
+      const pips = Array.from({ length: part.levels }, (_, i) =>
+        `<i class="${i < part.level ? 'is-on' : ''}"></i>`).join('');
+      const affordable = part.cost !== null && profile.coins >= part.cost;
+      const label = part.cost === null
+        ? 'TAM' : `${formatNumber(part.cost)} 🪙`;
+      return `<button class="tune__row${affordable ? '' : ' is-disabled'}"
+                      type="button" data-part="${part.id}"
+                      ${part.cost === null || !affordable ? 'disabled' : ''}>
+        <span class="tune__name">${part.name}</span>
+        <span class="tune__pips">${pips}</span>
+        <span class="tune__cost">${label}</span>
+      </button>`;
+    }).join('');
+
+    const current = garage.paint(car);
+    const paints = PAINTS.map((color) =>
+      `<button class="tune__paint${color === current ? ' is-on' : ''}"
+               type="button" data-paint="${color}"
+               style="--paint:${color}" aria-label="Renk ${color}"></button>`
+    ).join('');
+
+    panel.innerHTML = `
+      <h3 class="tune__title">${car.name} · DONANIM</h3>
+      <div class="tune__rows">${rows}</div>
+      <h3 class="tune__title">RENK</h3>
+      <div class="tune__paints">${paints}</div>
+    `;
+
+    panel.querySelectorAll('[data-part]').forEach((button) => {
+      button.addEventListener('click', () => {
+        audio.uiTap();
+        if (garage.buyUpgrade(car, button.dataset.part)) {
+          this.handlers.onSelectCar(car);
+          this.toast(`${car.name} yükseltildi!`);
+        } else {
+          this.toast('Yeterli jetonun yok');
+        }
+        this.renderGarage();
+      });
+    });
+    panel.querySelectorAll('[data-paint]').forEach((button) => {
+      button.addEventListener('click', () => {
+        audio.uiTap();
+        garage.setPaint(car, button.dataset.paint);
+        this.handlers.onSelectCar(car);
+        this.renderGarage();
+      });
+    });
   }
 
   /**
@@ -231,6 +301,13 @@ export class Hud {
     }
     if (state.target !== undefined) {
       this.el.target.textContent = formatNumber(state.target);
+    }
+    if (this.el.timer && state.timeLeft !== undefined) {
+      const left = state.timeLeft;
+      this.el.timer.textContent = left === null ? '--' : formatClock(left);
+      this.el.timer.classList.toggle('is-urgent', left !== null && left > 0
+        && left < 10);
+      this.el.timer.classList.toggle('is-expired', left === 0);
     }
     this.el.nitroFill.style.transform = `scaleX(${state.nitro.toFixed(3)})`;
     this.el.nitroButton.classList.toggle('is-ready', state.nitro > 0.1);
@@ -266,6 +343,12 @@ function statBar(label, ratio) {
   const width = Math.max(4, Math.min(100, Math.round(ratio * 100)));
   return `<div class="stat"><dt>${label}</dt>
     <dd><span style="width:${width}%"></span></dd></div>`;
+}
+
+function formatClock(seconds) {
+  const whole = Math.max(0, Math.ceil(seconds));
+  const minutes = Math.floor(whole / 60);
+  return `${minutes}:${String(whole % 60).padStart(2, '0')}`;
 }
 
 function formatNumber(value) {

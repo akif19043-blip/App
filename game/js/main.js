@@ -14,6 +14,7 @@ import * as assets from './assets.js';
 import * as audio from './audio.js';
 import * as input from './input.js';
 import * as save from './save.js';
+import * as garage from './garage.js';
 import { CitySession } from './city.js';
 import { HighwaySession } from './highway.js';
 import { Hud } from './hud.js';
@@ -22,7 +23,7 @@ import { CAMERA, CARS } from './config.js';
 
 const MODELS = [
   // city
-  'city_ground', 'desert_floor', 'city_wall', 'beacon', 'traffic_light',
+  'city_ground', 'desert_floor', 'city_wall', 'beacon', 'traffic_light', 'pedestrian',
   'block_downtown', 'block_lowrise', 'block_park', 'block_industrial',
   // vehicles
   'car_sport', 'car_muscle', 'car_super',
@@ -54,7 +55,7 @@ class Game {
       onPause: () => this.pause(),
       onResume: () => this.resume(),
       onQuit: () => this.toMenu(),
-      onSelectCar: (car) => this.equip(car),
+      onSelectCar: () => this.equip(),
       onAutoThrottle: (value) => input.setAutoThrottle(value),
       onTilt: (value) => this.setTilt(value),
     });
@@ -140,12 +141,15 @@ class Game {
     return this.sessions[mode];
   }
 
+  /** The selected car as it currently drives: base stats plus fitted parts. */
   currentCar() {
     const id = save.get().selectedCar;
-    return CARS.find((car) => car.id === id) || CARS[0];
+    return garage.tunedSpec(CARS.find((car) => car.id === id) || CARS[0]);
   }
 
-  equip(car) {
+  /** Re-fit whatever is selected. Called when the garage changes anything. */
+  equip() {
+    const car = this.currentCar();
     Object.values(this.sessions).forEach((session) => session.poseCar(car));
   }
 

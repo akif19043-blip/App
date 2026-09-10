@@ -320,6 +320,46 @@ def build_traffic_light(P):
     return kit.join(parts, 'TrafficLight')
 
 
+def build_pedestrian(P):
+    """
+    A walker for the pavements.
+
+    Only the legs move, and they are the only parts left as separate objects:
+    their origins sit at the hip so the game can swing them directly, with no
+    skeleton and no animation data. Everything else is welded into one body
+    with two material slots, which keeps a whole pedestrian to four draw calls
+    -- it matters, because a dozen of them are on screen at once.
+
+    `Shirt` is the tintable slot, the way `CarPaint` is for vehicles.
+    """
+    hip, shoulder = 0.84, 1.38
+    body_parts = [
+        kit.box('torso', (0.40, 0.22, 0.58), (0, 0, hip + 0.30), P['Shirt']),
+        kit.box('hips', (0.34, 0.21, 0.16), (0, 0, hip - 0.02), P['Shirt']),
+        kit.box('head', (0.21, 0.21, 0.23), (0, 0, hip + 0.72), P['Skin'],
+                bevel=0.03),
+    ]
+    for sx in (-1.0, 1.0):
+        body_parts.append(kit.box('arm', (0.10, 0.11, 0.56),
+                                  (sx * 0.25, 0.02, shoulder - 0.26),
+                                  P['Shirt']))
+    body = kit.join(body_parts, 'Ped')
+
+    legs = []
+    for side, sx in (('L', -1.0), ('R', 1.0)):
+        leg = kit.box('Leg_%s' % side, (0.15, 0.16, 0.82), (0, 0, 0),
+                      P['Trousers'])
+        kit.move_origin(leg, (0, 0, -0.41))       # pivot at the hip
+        leg.location = (sx * 0.11, 0, hip)
+        legs.append(leg)
+
+    root = kit.empty('Pedestrian')
+    kit.parent(body, root)
+    for leg in legs:
+        kit.parent(leg, root)
+    return root
+
+
 def build_beacon(P):
     """Mission marker: a glowing pad with a column the game spins."""
     parts = [
@@ -341,6 +381,7 @@ BUILDERS = {
     'block_industrial': build_block_industrial,
     'beacon': build_beacon,
     'traffic_light': build_traffic_light,
+    'pedestrian': build_pedestrian,
     'desert_floor': build_desert_floor,
     'city_wall': build_city_wall,
 }

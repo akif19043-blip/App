@@ -15,6 +15,8 @@ const DEFAULTS = {
   runs: 0,
   selectedCar: 'sport',
   owned: ['sport'],
+  upgrades: {},          // carId -> { engine: 0, gearbox: 0, ... }
+  paint: {},             // carId -> '#rrggbb'
   settings: {
     sound: true,
     autoThrottle: false,   // free roam wants a real throttle you can lift off
@@ -38,6 +40,12 @@ export function load() {
                                        parsed.settings || {});
       if (!Array.isArray(profile.owned) || !profile.owned.length) {
         profile.owned = clone(DEFAULTS.owned);
+      }
+      if (!profile.upgrades || typeof profile.upgrades !== 'object') {
+        profile.upgrades = {};
+      }
+      if (!profile.paint || typeof profile.paint !== 'object') {
+        profile.paint = {};
       }
     }
   } catch (err) {
@@ -89,6 +97,26 @@ export function selectCar(carId) {
   profile.selectedCar = carId;
   save();
   return true;
+}
+
+export function upgradeLevel(carId, partId) {
+  const forCar = profile.upgrades[carId];
+  return (forCar && forCar[partId]) || 0;
+}
+
+export function setUpgradeLevel(carId, partId, level) {
+  if (!profile.upgrades[carId]) profile.upgrades[carId] = {};
+  profile.upgrades[carId][partId] = level;
+  return save();
+}
+
+export function paintFor(carId, fallback) {
+  return profile.paint[carId] || fallback;
+}
+
+export function setPaint(carId, color) {
+  profile.paint[carId] = color;
+  return save();
 }
 
 export function setSetting(key, value) {

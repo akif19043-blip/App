@@ -138,7 +138,8 @@ export class Player {
 
     const target = this.topSpeed;
     if (input.brake) {
-      this.speed = Math.max(0, this.speed - PLAY.brakeDecel * dt);
+      this.speed = Math.max(0,
+        this.speed - PLAY.brakeDecel * (this.spec.brakeScale || 1) * dt);
     } else if (input.throttle > 0) {
       const push = this.spec.accel * input.throttle
         * (this.boosting ? 1.6 : 1)

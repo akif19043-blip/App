@@ -83,8 +83,15 @@ def shot(path, focus=(0, 0, 0.8), radius=9.0, elevation=22.0, azimuth=38.0,
     return path
 
 
-def frame(objs, margin=1.30, floor=2.0):
-    """Fit a camera distance and focus point around the given objects."""
+def frame(objs, margin=1.18, lens=52.0, sensor=36.0):
+    """
+    Camera distance and aim point that fit `objs` in shot.
+
+    Works from the bounding *sphere* and the actual vertical field of view, so
+    a tall thin subject frames as well as a long low one. Framing from the
+    bounding box diagonal alone -- as this used to -- quietly cropped anything
+    whose longest axis was vertical.
+    """
     kit.sync()
     lo = Vector((1e9, 1e9, 1e9))
     hi = Vector((-1e9, -1e9, -1e9))
@@ -97,5 +104,13 @@ def frame(objs, margin=1.30, floor=2.0):
             hi = Vector(max(hi[i], world[i]) for i in range(3))
     if lo.x > hi.x:
         return (0.0, 0.0, 1.0), 8.0
-    center = (lo + hi) / 2.0
-    return tuple(center), max((hi - lo).length * margin, floor)
+
+    centre = (lo + hi) / 2.0
+    radius = max((hi - lo).length / 2.0, 0.2)
+
+    scene = bpy.context.scene
+    aspect = scene.render.resolution_x / float(scene.render.resolution_y)
+    sensor_height = sensor / max(aspect, 1e-3)
+    half_fov = math.atan((sensor_height / 2.0) / lens)
+    distance = radius / max(math.sin(half_fov), 1e-3) * margin
+    return tuple(centre), distance

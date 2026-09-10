@@ -16,6 +16,7 @@ import * as assets from './assets.js';
 import * as audio from './audio.js';
 import * as environment from './environment.js';
 import { Car } from './car.js';
+import { Pedestrians } from './pedestrians.js';
 import { Signals } from './signals.js';
 import { CITY, DRIVE, TRAFFIC_COLORS, TRAFFIC_MODELS } from './config.js';
 
@@ -411,7 +412,8 @@ export class CitySession {
     this.menuAngle = 0.4;
     this.reverseBlend = 0;
     this.rigScale = 1;
-    this.stats = { coins: 0, collected: 0, deliveries: 0, distance: 0 };
+    this.stats = { coins: 0, collected: 0, deliveries: 0, onTime: 0,
+                   distance: 0 };
   }
 
   build(timeOfDay) {
@@ -433,6 +435,7 @@ export class CitySession {
 
     this.car = new Car(this.scene);
     this.traffic = new CityTraffic(this.scene, this.city, this.random);
+    this.pedestrians = new Pedestrians(this.scene, this.city, this.random);
   }
 
   /** Towers in the middle, sheds and parks on the outskirts. */
@@ -561,9 +564,18 @@ export class CitySession {
       const distance = Math.hypot(dx, dz);
       if (distance < 120 && attempt < 20) continue;
       const [lo, hi] = CITY.missionPay;
+      const pay = Math.round(lo + this.random() * (hi - lo));
+      // Time the route you can actually drive, not the crow's flight: the
+      // streets are a grid, so the trip is the Manhattan distance. The grace
+      // covers the red lights on the way.
+      const route = Math.abs(dx) + Math.abs(dz);
+      const limit = route / CITY.missionPace + CITY.missionGrace;
       this.mission = {
-        x, z,
-        pay: Math.round(lo + this.random() * (hi - lo)),
+        x, z, pay,
+        bonus: Math.round(pay * CITY.missionBonus),
+        limit,
+        left: limit,
+        expired: false,
       };
       this.beacon.position.set(x, 0, z);
       this.beacon.visible = true;
@@ -582,10 +594,12 @@ export class CitySession {
     this.car.place(line + this.city.laneOffsets[0], 0, 0);
     this.car.nitro = 0.5;
 
-    this.stats = { coins: 0, collected: 0, deliveries: 0, distance: 0 };
+    this.stats = { coins: 0, collected: 0, deliveries: 0, onTime: 0,
+                   distance: 0 };
     this.random = makeRandom(MAP_SEED + 7);
     this.scatterCoins(this.city.streetLines, this.city.halfExtent - 14);
     this.traffic.reset(this.car.x, this.car.z);
+    this.pedestrians.reset(this.car.x, this.car.z);
     this.newMission();
   }
 
@@ -595,9 +609,10 @@ export class CitySession {
 
     this.signals.update(dt);
     this.traffic.update(dt, this.car.x, this.car.z, this.signals);
+    this.pedestrians.update(dt, this.car.x, this.car.z);
     this.resolveTrafficContact();
     this.collectCoins(time);
-    this.checkMission();
+    this.checkMission(dt);
 
     if (this.beacon.visible) {
       this.beacon.rotation.y = time * 0.8;
@@ -646,17 +661,29 @@ export class CitySession {
     }
   }
 
-  checkMission() {
+  checkMission(dt) {
     if (!this.mission) return;
+
+    this.mission.left -= dt;
+    if (this.mission.left <= 0 && !this.mission.expired) {
+      this.mission.expired = true;
+      this.hud.toast('Süre doldu — bonus gitti', 1.8);
+    }
+
     const dx = this.mission.x - this.car.x;
     const dz = this.mission.z - this.car.z;
     if (dx * dx + dz * dz > CITY.missionArriveRadius ** 2) return;
 
-    this.stats.coins += this.mission.pay;
+    const onTime = !this.mission.expired;
+    const paid = this.mission.pay + (onTime ? this.mission.bonus : 0);
+    this.stats.coins += paid;
     this.stats.deliveries += 1;
+    if (onTime) this.stats.onTime += 1;
     audio.nitro();
     this.car.addNitro(0.5);
-    this.hud.toast(`Teslimat tamam! +${this.mission.pay} 🪙`, 2.2);
+    this.hud.toast(onTime
+      ? `Zamanında! +${paid} 🪙 (${this.mission.bonus} bonus)`
+      : `Teslimat tamam! +${paid} 🪙`, 2.2);
     this.newMission();
   }
 
@@ -673,6 +700,7 @@ export class CitySession {
       nitro: this.car.nitro,
       boosting: this.car.boosting,
       deliveries: this.stats.deliveries,
+      timeLeft: this.mission ? Math.max(0, this.mission.left) : null,
     };
   }
 
@@ -740,5 +768,6 @@ export class CitySession {
       Math.floor(this.city.streetLines.length / 2)];
     this.car.place(line + this.city.laneOffsets[0], 0, Math.PI * 0.15);
     this.traffic.reset(this.car.x, this.car.z);
+    this.pedestrians.reset(this.car.x, this.car.z);
   }
 }
