@@ -1033,6 +1033,7 @@ export class CitySession {
 
   /** Slow orbit for the menu backdrop. */
   poseForMenu(dt, camera, baseFov) {
+    if (this.showroom) this.showroom.visible = false;
     this.menuAngle += dt * 0.14;
     const radius = 11.6;
     camera.position.set(
@@ -1047,6 +1048,55 @@ export class CitySession {
   }
 
   /** Park the car somewhere photogenic for the menu. */
+  /**
+   * Turntable for the garage: a close, slow orbit of the selected car.
+   *
+   * The garage sells cars and paint while showing a coloured square, which is
+   * a poor way to decide. The car is already in the scene, so the camera just
+   * moves in on it -- and because it is the real car, a part fitted or a
+   * colour picked shows up the moment it is bought.
+   *
+   * The aim point sits below the car so it rides high in frame, clear of the
+   * panel that covers the bottom of the screen.
+   */
+  poseForGarage(dt, camera, baseFov) {
+    this.garageAngle = (this.garageAngle || 0) + dt * 0.35;
+    const radius = 9.2;
+    camera.position.set(
+      this.car.x + Math.sin(this.garageAngle) * radius,
+      2.8,
+      this.car.z + Math.cos(this.garageAngle) * radius);
+    // Aiming below the car lifts it into the top of the frame, clear of the
+    // panel; aiming at it would put half the car behind the shopping list.
+    camera.lookAt(this.car.x, -2.2, this.car.z);
+    this.showroomLight(true, camera);
+    if (Math.abs(camera.fov - baseFov) > 0.05) {
+      camera.fov += (baseFov - camera.fov) * 0.1;
+      camera.updateProjectionMatrix();
+    }
+  }
+
+  /**
+   * A showroom lamp over the turntable.
+   *
+   * The city's own lighting is whatever time of day it is, and at night the
+   * car you are being asked to spend money on is a dark shape. This is one
+   * light that follows the camera, on only while the garage is open.
+   */
+  showroomLight(on, camera) {
+    if (!this.showroom) {
+      this.showroom = new THREE.DirectionalLight(0xfff2dc, 2.1);
+      this.showroom.target = new THREE.Object3D();
+      this.scene.add(this.showroom);
+      this.scene.add(this.showroom.target);
+    }
+    this.showroom.visible = on;
+    if (!on || !camera) return;
+    this.showroom.position.set(camera.position.x, camera.position.y + 5.5,
+                               camera.position.z);
+    this.showroom.target.position.set(this.car.x, 0, this.car.z);
+  }
+
   poseCar(carSpec) {
     this.car.setCar(carSpec);
     this.car.setHeadlights(this.nightlights);

@@ -6,7 +6,7 @@
  * of leaving players on a stale mix of new code and old models.
  */
 
-const CACHE = 'dortyol-0f33be1463d3';
+const CACHE = 'dortyol-b71c25efdc21';
 const ASSETS = [
   "./",
   "assets/icon-192.png",

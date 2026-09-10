@@ -550,8 +550,16 @@ def build_block_industrial(P):
 
 
 def build_desert_floor(P):
-    """Sand the city sits on, so the edge of the map is not a void."""
-    return kit.box('DesertFloor', (1400.0, 1400.0, 0.30), (0, 0, -0.40),
+    """
+    Sand the city sits on, so the edge of the map is not a void.
+
+    It sits well below the road rather than just under it. At 1400 m across
+    and a 1 cm gap -- which is what this used to have -- the two surfaces
+    z-fight, and the sand wins the near half of the screen: the road ahead of
+    the car turns into a flat dark slab with the lane markings gone. The city
+    wall is 3 m tall and hides the step at the map edge.
+    """
+    return kit.box('DesertFloor', (1400.0, 1400.0, 0.30), (0, 0, -1.50),
                    P['Sand'])
 
 

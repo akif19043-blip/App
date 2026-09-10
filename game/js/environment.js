@@ -12,16 +12,22 @@
 import * as THREE from 'three';
 
 export const TIME_OF_DAY = {
+  // The sun-to-ambient ratio matters more than either number on its own: a
+  // 50 m tower casts a 40 m shadow across the street, so whatever the sky
+  // alone puts on the ground is what a good part of the city is lit by. At
+  // the ratio these carried before, shadowed asphalt came out at a twentieth
+  // of the brightness of lit asphalt -- a black hole with a hard edge where
+  // the tower's shadow ended. Shade now sits at about 40% of full sun.
   dusk: {
     top: '#1d2b52', horizon: '#f0a35e', ground: '#6b5340',
-    sun: '#ffb066', sunIntensity: 2.9,
-    hemiSky: '#ffd9a8', hemiGround: '#6b5340', hemiIntensity: 1.25,
+    sun: '#ffb066', sunIntensity: 2.5,
+    hemiSky: '#ffd9a8', hemiGround: '#6b5340', hemiIntensity: 2.0,
     fogNear: 60, fogFar: 280,
   },
   day: {
     top: '#2f74c0', horizon: '#cfe3f2', ground: '#7d6647',
-    sun: '#fff3d8', sunIntensity: 2.6,
-    hemiSky: '#bcd8f0', hemiGround: '#7d6647', hemiIntensity: 1.0,
+    sun: '#fff3d8', sunIntensity: 2.3,
+    hemiSky: '#bcd8f0', hemiGround: '#7d6647', hemiIntensity: 2.2,
     fogNear: 75, fogFar: 280,
   },
   // Night leans on the emissive materials that are already in the models --
@@ -29,8 +35,8 @@ export const TIME_OF_DAY = {
   // the "sun" is a dim cool moon that only shapes the silhouettes.
   night: {
     top: '#050912', horizon: '#16233d', ground: '#0b0e15',
-    sun: '#8fa6dd', sunIntensity: 0.62,
-    hemiSky: '#33436c', hemiGround: '#15191f', hemiIntensity: 0.78,
+    sun: '#8fa6dd', sunIntensity: 0.60,
+    hemiSky: '#33436c', hemiGround: '#15191f', hemiIntensity: 1.00,
     fogNear: 40, fogFar: 210,
     headlights: true,
   },
@@ -93,6 +99,9 @@ export function applyLights(scene, settings, shadows) {
   sun.shadow.camera.bottom = -shadows.extent;
   sun.shadow.bias = -0.0012;
   sun.shadow.normalBias = 0.04;
+  // Let some sun through the shadow. A tower's shadow that takes all of it
+  // reads as a hole in the road rather than as shade.
+  if ('intensity' in sun.shadow) sun.shadow.intensity = 0.72;
 
   const hemi = new THREE.HemisphereLight(new THREE.Color(settings.hemiSky),
                                          new THREE.Color(settings.hemiGround),

@@ -143,7 +143,10 @@ class Game {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.setShadows(save.get().settings.shadows !== false);
 
-    this.camera = new THREE.PerspectiveCamera(CAMERA.fovPortrait, 1, 0.5, 1800);
+    // near 0.5 against far 1800 is a 3600:1 depth range, which is thin enough
+    // for large coplanar surfaces to flicker against each other. Nothing ever
+    // gets closer than the chase camera's 8 m, so 1.2 costs nothing.
+    this.camera = new THREE.PerspectiveCamera(CAMERA.fovPortrait, 1, 1.2, 1800);
     this.camera.position.set(0, CAMERA.height, CAMERA.distance);
     this.resize();
   }
@@ -352,7 +355,9 @@ class Game {
 
     if (this.state === 'playing') this.update(dt);
     else if (this.state === 'over') this.updateAfterCrash(dt);
-    else this.session.poseForMenu(dt, this.camera, this.baseFov);
+    else if (this.hud.current === 'garage' && this.session.poseForGarage) {
+      this.session.poseForGarage(dt, this.camera, this.baseFov);
+    } else this.session.poseForMenu(dt, this.camera, this.baseFov);
 
     this.renderer.render(this.session.scene, this.camera);
   }

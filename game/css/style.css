@@ -338,31 +338,49 @@ html, body {
 .control-cluster--right { flex-direction: column; align-items: flex-end; }
 .control-row { display: flex; gap: 12px; }
 
+/* Controls press like the menu plates -- lip under the front face, travel
+   down on to it -- but stay translucent: they sit on top of the road, and an
+   opaque pad is a pad you cannot see through at a junction. */
 .control {
   --size: 74px;
+  --lip: rgba(4, 7, 12, 0.62);
   width: var(--size);
   height: var(--size);
   border-radius: 22px;
-  border: 1px solid var(--panel-edge);
-  background: rgba(14, 19, 27, 0.62);
+  border: 0;
+  background: linear-gradient(180deg,
+              rgba(40, 51, 72, 0.70), rgba(17, 23, 34, 0.72));
   backdrop-filter: blur(8px);
   color: var(--ink);
   font-size: 22px;
   font-weight: 700;
   display: grid;
   place-items: center;
-  transition: transform 90ms ease, background 90ms ease;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.16),
+    0 5px 0 var(--lip),
+    0 8px 14px rgba(0, 0, 0, 0.34);
+  transition: transform 90ms ease, background 90ms ease, box-shadow 90ms ease;
 }
-.control.is-active { transform: scale(0.94); background: rgba(255, 255, 255, 0.16); }
+.control.is-active {
+  transform: translateY(3px);
+  background: linear-gradient(180deg,
+              rgba(78, 96, 130, 0.78), rgba(38, 49, 70, 0.78));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.16),
+    0 2px 0 var(--lip),
+    0 3px 8px rgba(0, 0, 0, 0.34);
+}
 .control.is-hidden { display: none; }
 
 .control--steer { --size: 82px; font-size: 26px; }
 .control--brake { font-size: 14px; letter-spacing: 0.06em; }
 .control--gas {
+  --lip: rgba(8, 48, 26, 0.75);
   font-size: 15px;
   letter-spacing: 0.06em;
-  background: rgba(74, 222, 128, 0.16);
-  border-color: rgba(74, 222, 128, 0.45);
+  background: linear-gradient(180deg,
+              rgba(74, 200, 122, 0.62), rgba(24, 112, 66, 0.68));
 }
 .control--nitro {
   --size: 62px;
@@ -371,17 +389,21 @@ html, body {
   line-height: 1;
   flex-direction: column;
   opacity: 0.45;
-  border-color: rgba(53, 208, 255, 0.35);
+  --lip: rgba(6, 34, 48, 0.72);
 }
 .control--nitro small { font-size: 8px; letter-spacing: 0.12em; }
 .control--nitro.is-ready {
   opacity: 1;
-  background: rgba(53, 208, 255, 0.18);
-  border-color: rgba(53, 208, 255, 0.7);
+  background: linear-gradient(180deg,
+              rgba(69, 195, 232, 0.62), rgba(24, 118, 160, 0.7));
 }
 .control--nitro.is-firing {
-  background: rgba(53, 208, 255, 0.45);
-  box-shadow: 0 0 22px rgba(53, 208, 255, 0.55);
+  background: linear-gradient(180deg,
+              rgba(120, 225, 255, 0.85), rgba(40, 160, 210, 0.9));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.30),
+    0 5px 0 var(--lip),
+    0 0 24px rgba(53, 208, 255, 0.55);
 }
 
 /* ------------------------------------------------------------- screens --- */
@@ -420,9 +442,23 @@ html, body {
  * capped and the middle scrolls -- that keeps the header and the back button
  * on screen even on a short phone.
  */
+/* The garage panel sits at the bottom and stops well short of the top, so
+   the turntable behind it has the car in view while you shop. The screen's
+   usual scrim and blur come off here for the same reason -- they are there to
+   push a background away, and this background is the thing being sold. */
+#screen-garage {
+  align-items: end;
+  background: linear-gradient(180deg,
+    rgba(6, 8, 12, 0.28) 0%, rgba(6, 8, 12, 0.62) 100%);
+  backdrop-filter: none;
+}
 #screen-garage .panel {
-  max-height: calc(100dvh - 2 * var(--pad-top));
+  max-height: min(60dvh, calc(100dvh - 2 * var(--pad-top)));
   min-height: 0;
+  background: linear-gradient(180deg,
+    rgba(13, 17, 23, 0.72) 0%,
+    rgba(13, 17, 23, 0.94) 14%,
+    rgba(13, 17, 23, 0.96) 100%);
 }
 .garage-scroll {
   display: flex;

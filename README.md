@@ -172,6 +172,21 @@ yerine altı `emissiveIntensity` yazmasıdır.
 geçerli bir şeridine denk gelir; bu yüzden binalara girmeleri için ayrıca
 çarpışma testi gerekmez.
 
+**Garajda araba canlı duruyor.** Garaj ekranı arabayı satarken renkli bir
+kare gösteriyordu; artık kamera seçili arabanın etrafında yavaşça dönüyor ve
+panel ekranın altına oturuyor. Gerçek araba olduğu için taktığın parça ya da
+seçtiğin renk aldığın anda görünüyor. Gece de alışveriş yapılabilsin diye
+tornistanın üstünde kameraya bağlı tek bir vitrin lambası var — sadece garaj
+açıkken yanıyor.
+
+**Güneş/gökyüzü dengesi.** 50 metrelik bir kule sokağa 40 metrelik gölge
+düşürüyor, yani şehrin epey bir kısmını aydınlatan şey yalnızca gökyüzü.
+Önceki dengede gölgedeki asfalt, güneş gören asfaltın **yirmide biri**
+parlaklıktaydı: yolun ortasında keskin kenarlı bir kara delik gibi
+duruyordu. Artık gölge, tam güneşin yaklaşık **%40'ı** — gölge gibi okunuyor,
+boşluk gibi değil. Gölgenin kendisi de güneşin bir kısmını geçiriyor
+(`shadow.intensity`).
+
 **Gölgeler dar bir kutuyla çalışıyor.** Gölge kamerası arabayı takip eden
 124 m'lik bir kutu, yani 1024 piksel gerçekten bulunduğun sokağa düşer.
 Maliyeti ~25 çizim çağrısı.
