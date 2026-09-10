@@ -10,6 +10,7 @@ const COLORS = {
   ground: 'rgba(10, 14, 20, 0.72)',
   block: 'rgba(150, 162, 176, 0.35)',
   open: 'rgba(120, 200, 150, 0.34)',
+  landmark: 'rgba(150, 178, 255, 0.62)',
   blockEdge: 'rgba(200, 212, 226, 0.18)',
   coin: '#ffc233',
   traffic: 'rgba(210, 220, 230, 0.75)',
@@ -17,6 +18,8 @@ const COLORS = {
   player: '#ff8a3d',
   border: 'rgba(255, 255, 255, 0.14)',
 };
+
+const LANDMARKS = new Set(['block_tower', 'block_stadium', 'block_plaza']);
 
 export class Minimap {
   /**
@@ -63,9 +66,17 @@ export class Minimap {
             this.centre + (z - this.origin.z) * this.scale];
   }
 
-  /** Which blocks the car can drive into, by blockCenters index. */
-  setOpenBlocks(flags) {
-    this.openBlocks = flags;
+  /**
+   * The block kind at each blockCenters index. Car parks are drivable, so
+   * they read as open ground rather than building, and the landmarks get
+   * their own colour -- that is half of what makes them worth having.
+   */
+  setBlockKinds(kinds) {
+    this.blockColors = kinds.map((kind) => {
+      if (kind === 'block_parking') return COLORS.open;
+      if (LANDMARKS.has(kind)) return COLORS.landmark;
+      return COLORS.block;
+    });
   }
 
   draw(car, coins, mission, traffic) {
@@ -84,9 +95,8 @@ export class Minimap {
     ctx.lineWidth = 0.5;
     this.city.blockCenters.forEach(([x, z], index) => {
       const [sx, sy] = this.toScreen(x, z);
-      // car parks are drivable, so they read as open ground, not building
-      ctx.fillStyle = this.openBlocks && this.openBlocks[index]
-        ? COLORS.open : COLORS.block;
+      ctx.fillStyle = (this.blockColors && this.blockColors[index])
+        || COLORS.block;
       ctx.fillRect(sx - side / 2, sy - side / 2, side, side);
       ctx.strokeRect(sx - side / 2, sy - side / 2, side, side);
     });

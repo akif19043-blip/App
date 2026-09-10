@@ -223,6 +223,20 @@ def box(name, size, location=(0, 0, 0), material=None, bevel=0.0,
     return obj
 
 
+def plate(name, size, location=(0, 0, 0), material=None):
+    """
+    Flat quad lying in the ground plane: two triangles where a box costs
+    twelve.
+
+    Road markings are paint on asphalt -- they have no thickness to show, and
+    a city's worth of them is the single biggest triangle bill in the scene,
+    so they are built as quads rather than as very thin boxes.
+    """
+    sx, sy = size[0] / 2.0, size[1] / 2.0
+    verts = [(-sx, -sy, 0.0), (sx, -sy, 0.0), (sx, sy, 0.0), (-sx, sy, 0.0)]
+    return mesh_from(name, verts, [(0, 1, 2, 3)], material, location)
+
+
 def cylinder(name, radius, depth, axis='Z', location=(0, 0, 0), segments=16,
              material=None, radius_top=None):
     """Capped cylinder / cone frustum aligned to `axis`."""

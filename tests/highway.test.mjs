@@ -156,7 +156,14 @@ check('a close pass also counts a near miss',
       pass.nearMisses === pass.before.nearMisses + 1);
 check('a close pass is not a collision', pass.state === 'playing');
 
-const perf = await page.evaluate(() => ({ calls: game.renderer.info.render.calls, tris: game.renderer.info.render.triangles }));
+const perf = await page.evaluate(() => {
+  // info.render only holds what the last real animation frame drew, and under
+  // software GL that frame can be anything -- render the driving scene once
+  // here so the numbers are the ones being claimed.
+  game.renderer.render(game.session.scene, game.camera);
+  return { calls: game.renderer.info.render.calls,
+           tris: game.renderer.info.render.triangles };
+});
 console.log('   draw calls', perf.calls, 'triangles', perf.tris);
 // Traffic spawns at random positions, so the count moves between runs -- it
 // sits around 240-330 here. This guards against a regression into the

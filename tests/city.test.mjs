@@ -44,7 +44,7 @@ const init = await page.evaluate(() => ({
   carX: +game.session.car.x.toFixed(1), carZ: +game.session.car.z.toFixed(1),
 }));
 console.log('   city:', JSON.stringify(init));
-check('city built', init.blocks === 36 && init.coins > 50 && init.traffic > 8,
+check('city built', init.blocks === 64 && init.coins > 50 && init.traffic > 8,
       `${init.blocks} blocks, ${init.coins} coins, ${init.traffic} cars`);
 check('mission assigned', init.mission);
 
@@ -278,7 +278,17 @@ const timing = await page.evaluate(() => {
   const s = game.session, c = s.car;
   // clear the coins so the only money moving is the delivery fee
   for (const coin of s.coins) { coin.taken = true; coin.object.visible = false; }
-  const first = { ...s.mission };
+  // This check is about the clock, not about which job the roll hands out:
+  // multi-stop jobs deliberately pay nothing until the last stop, so keep
+  // rolling until a single-stop one comes up.
+  const single = () => {
+    for (let i = 0; i < 60 && (!s.mission || s.mission.stops.length > 1); i++) {
+      s.newMission();
+    }
+    return { ...s.mission };
+  };
+
+  const first = single();
   const route = Math.abs(first.x - c.x) + Math.abs(first.z - c.z);
 
   const before = s.stats.coins;
@@ -286,7 +296,7 @@ const timing = await page.evaluate(() => {
   game.update(1/60);
   const onTime = s.stats.coins - before;
 
-  const second = { ...s.mission };
+  const second = single();
   s.mission.left = 0.001;                       // run the clock out
   game.update(1/60);
   const mid = s.stats.coins;
@@ -380,6 +390,59 @@ check('a car park can be driven into', lots.intoPark > 60, lots.intoPark + ' sam
 check('other blocks stay solid', lots.intoSolid === 0);
 check('obstacles inside the park still stop the car', lots.insideObstacle === 0);
 
+// Landmarks: three fixed buildings you can steer by. They must land on the
+// cells the config names (not wherever the random roll puts them), stand
+// clear of every other block, and still be solid to drive into.
+const marks = await page.evaluate(() => {
+  const grid = game.session.city.grid;
+  const out = [];
+  for (const { kind, cell } of game.config.CITY.landmarks) {
+    const index = cell[0] * grid + cell[1];
+    const block = game.session.blocks[index];
+    const [x, z] = game.session.city.blockCenters[index];
+    const count = game.session.blocks.filter((b) => b.kind === kind).length;
+    const c = game.session.car;
+    // start on the street centre line north of it, pointing at it
+    c.place(x, z + game.session.city.pitch / 2, 0);
+    for (let i = 0; i < 240; i++) {
+      game.testInput = { steer: 0, throttle: 1, brake: false };
+      game.update(1 / 60);
+    }
+    const half = game.session.city.block / 2;
+    out.push({
+      kind, count, placed: block && block.kind === kind,
+      height: game.assets.info(kind).size[2],
+      inside: Math.abs(c.x - x) < half && Math.abs(c.z - z) < half,
+    });
+  }
+  const tallest = Math.max(...['block_downtown', 'block_lowrise',
+    'block_industrial', 'block_park', 'block_parking']
+    .map((k) => game.assets.info(k).size[2]));
+  return { marks: out, tallest };
+});
+console.log('   landmarks:', JSON.stringify(marks));
+check('every landmark is at its named cell', marks.marks.every((m) => m.placed),
+      marks.marks.map((m) => m.kind).join(', '));
+check('each landmark is one of a kind', marks.marks.every((m) => m.count === 1));
+check('landmarks are solid', marks.marks.every((m) => !m.inside));
+check('the tower stands above the skyline',
+      marks.marks.find((m) => m.kind === 'block_tower').height > marks.tallest + 20,
+      marks.marks.find((m) => m.kind === 'block_tower').height + ' m vs ' + marks.tallest);
+
+// The minimap has to show them, or a landmark only helps once you can
+// already see it.
+const marked = await page.evaluate(() => {
+  const grid = game.session.city.grid;
+  const cell = game.config.CITY.landmarks[0].cell;
+  const index = cell[0] * grid + cell[1];
+  return { landmark: game.minimap.blockColors[index],
+           plain: game.minimap.blockColors.find((_, i) =>
+             game.session.blocks[i].kind === 'block_downtown') };
+});
+check('landmarks stand out on the minimap',
+      !!marked.landmark && marked.landmark !== marked.plain,
+      JSON.stringify(marked));
+
 // Shadows: on by default, and the shadow box tracks the car.
 const shadows = await page.evaluate(() => {
   const s = game.session, c = s.car;
@@ -430,6 +493,10 @@ check('the zoomed minimap keeps the car centred', map.centred);
 const jobs = await page.evaluate(() => {
   const s = game.session, c = s.car;
   for (const coin of s.coins) { coin.taken = true; coin.object.visible = false; }
+
+  // start from a fresh job: whatever the tests above left behind may already
+  // be part-way through its stops, and this check is about a job run whole
+  s.newMission();
 
   const seen = {};
   const runs = [];
@@ -518,20 +585,28 @@ const perf = await page.evaluate(() => {
     game.testInput = { steer: 0, throttle: 1, brake: false };
     game.update(1/60);
   }
+  // render once here rather than trusting whatever the last animation frame
+  // happened to draw -- under software GL that can be a menu frame
+  game.renderer.render(s.scene, game.camera);
   return { calls: game.renderer.info.render.calls,
            tris: game.renderer.info.render.triangles };
 });
 console.log('   render while driving:', JSON.stringify(perf));
 check('draw calls phone-friendly', perf.calls > 30 && perf.calls < 400, perf.calls+'');
 
-// kerb collision: aim straight at a block
+// kerb collision: aim straight at a block. It has to be a solid one -- car
+// parks are meant to be driveable, and which cells they land on moves with
+// the map seed.
 const bump = await page.evaluate(() => {
-  const c = game.session.car;
-  const [bx, bz] = game.session.city.blockCenters[20];
-  c.place(bx, bz + 45, Math.PI);          // south of the block, facing +Z
+  const s = game.session, c = s.car;
+  const index = s.blocks.findIndex((block) => block.kind !== 'block_parking');
+  const [bx, bz] = s.city.blockCenters[index];
+  // one street north of it, pointing at it: heading 0 drives along -Z
+  c.place(bx, bz + s.city.pitch / 2, 0);
   for (let i=0;i<240;i++) { game.testInput = { steer: 0, throttle: 1, brake: false }; game.update(1/60); }
-  const half = game.session.city.block/2;
-  return { z: +c.z.toFixed(1), blockEdge: +(bz+half).toFixed(1), inside: c.z < bz + half,
+  const half = s.city.block / 2;
+  return { kind: s.blocks[index].kind, z: +c.z.toFixed(1),
+           blockEdge: +(bz + half).toFixed(1), inside: Math.abs(c.z - bz) < half,
            speed: +c.speed.toFixed(1), bumped: c.bumped };
 });
 console.log('   kerb:', JSON.stringify(bump));
@@ -563,12 +638,18 @@ const loop = await page.evaluate(() => {
   // arrive at the beacon: pathfinding is the player's job, not the test's
   const start = { coins: s.stats.coins, deliveries: s.stats.deliveries };
   const first = { x: s.mission.x, z: s.mission.z, pay: s.mission.pay };
-  c.place(first.x, first.z + 2, 0);
-  game.update(1/60);
+  // a job with several stops only pays at the last one, so see each job
+  // through to the end rather than assuming a single drop
+  const finish = () => {
+    for (let n = s.mission.stops.length; n > 0; n -= 1) {
+      c.place(s.mission.x, s.mission.z + 2, 0);
+      game.update(1/60);
+    }
+  };
+  finish();
   const paid = s.stats.coins - start.coins;
   const moved = s.mission.x !== first.x || s.mission.z !== first.z;
-  c.place(s.mission.x, s.mission.z + 2, 0);
-  game.update(1/60);
+  finish();
   return { swept, pay: first.pay, paid, moved,
            deliveries: s.stats.deliveries - start.deliveries };
 });

@@ -517,25 +517,36 @@ export class CitySession {
     const middle = (grid - 1) / 2;
     this.blocks = [];
 
+    // fixed cells first, so the landmarks land in the same place every run
+    const landmarks = new Map();
+    for (const { kind, cell } of CITY.landmarks) {
+      landmarks.set(cell[0] * grid + cell[1], kind);
+    }
+
     this.city.blockCenters.forEach(([x, z], index) => {
       const i = index / grid | 0;
       const j = index % grid;
       const ring = Math.max(Math.abs(i - middle), Math.abs(j - middle));
       const roll = this.random();
 
-      let kind;
-      if (ring < 1) kind = 'block_downtown';
-      else if (ring < 2) {
-        kind = roll < 0.5 ? 'block_downtown'
-          : (roll < 0.72 ? 'block_lowrise' : 'block_parking');
-      } else if (roll < 0.38) kind = 'block_lowrise';
-      else if (roll < 0.62) kind = 'block_park';
-      else if (roll < 0.82) kind = 'block_industrial';
-      else kind = 'block_parking';
+      let kind = landmarks.get(index);
+      if (!kind) {
+        if (ring < 1) kind = 'block_downtown';
+        else if (ring < 2) {
+          kind = roll < 0.5 ? 'block_downtown'
+            : (roll < 0.72 ? 'block_lowrise' : 'block_parking');
+        } else if (roll < 0.38) kind = 'block_lowrise';
+        else if (roll < 0.62) kind = 'block_park';
+        else if (roll < 0.82) kind = 'block_industrial';
+        else kind = 'block_parking';
+      }
 
       const block = environment.shadowRole(assets.instance(kind), 'both');
       block.position.set(x, 0, z);
-      block.rotation.y = Math.floor(this.random() * 4) * (Math.PI / 2);
+      // landmarks keep their built orientation -- the arch faces the street
+      // it is meant to face, and a rotated stadium is just a rotated stadium
+      block.rotation.y = landmarks.has(index)
+        ? 0 : Math.floor(this.random() * 4) * (Math.PI / 2);
       this.scene.add(block);
       this.blocks.push({ x, z, kind });
     });

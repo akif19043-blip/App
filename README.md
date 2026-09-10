@@ -12,7 +12,7 @@ gerektirmez.
 
 | Mod | Ne yapıyorsun |
 |---|---|
-| **Serbest Sürüş** | Izgara sokaklı bir şehirde istediğin gibi gez. Çalışan trafik ışıkları, kırmızıda kuyruğa giren ve kavşakta dönen trafik, kaldırımlarda yürüyen insanlar, girilebilen otoparklar. Jeton topla; **teslimat**, **yolcu** ve **kurye** işlerini süreye karşı yetiştir. |
+| **Serbest Sürüş** | 626 metrelik, 64 adalık ızgara sokaklı bir şehirde istediğin gibi gez. Çalışan trafik ışıkları, kırmızıda kuyruğa giren ve kavşakta dönen trafik, kaldırımlarda yürüyen insanlar, girilebilen otoparklar. Yönünü **kule**, **stadyum** ve **meydan**dan bulursun. Jeton topla; **teslimat**, **yolcu** ve **kurye** işlerini süreye karşı yetiştir. |
 | **Trafik Yarışı** | Sonsuz otoyolda trafiği yararak skor topla. Hızlı gitmek ve sıyırarak geçmek ekstra puan. |
 
 Kazandığın jetonlarla garajdan **beş arabadan** birini alır, **motor /
@@ -79,8 +79,9 @@ npm run android:release   # imzalı .aab (önce keystore.properties gerekir)
 ```
 blender/           3B varlık üretimi (Blender'ın bpy modülü)
   lib/kit.py       düşük poligonlu modelleme araçları: kesit loft'u, materyal, GLB
-  lib/vehicles.py  3 oynanabilir araba + 5 trafik aracı
-  lib/city.py      şehir: sokak ağı, bina adaları, trafik lambası, yaya, otopark
+  lib/vehicles.py  5 oynanabilir araba + 5 trafik aracı
+  lib/city.py      şehir: sokak ağı, bina adaları, simge yapılar,
+                   trafik lambası, yaya, otopark
   lib/road.py      otoyol döşemeleri, bariyer, korkuluk
   lib/props.py     palmiye, kaktüs, kaya, lamba, pano, jeton, nitro
   build_all.py     hepsini üretir, ölçer, manifest.json yazar
@@ -131,7 +132,8 @@ Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Dört paket:
   kuyruk ve kavşakta dönüş; kaldırım/duvar çarpışması; otoparka girilebilmesi
   ama içindeki engellerin durdurması; yayaların kaldırımdan inmemesi; garajda
   parça ve renk; teslimat süresinin sokak mesafesine göre hesaplanması; oyun
-  kolu; geri vites kamerası; hedef oku; mini harita yakınlaşması.
+  kolu; geri vites kamerası; hedef oku; mini harita yakınlaşması; üç simge
+  yapının hep aynı adada durması ve mini haritada ayrı renkte görünmesi.
 - **highway** — skor, sollama ve kıl payı bonusları, satın alma, duraklatma,
   12 km sonrası koordinat sıfırlama.
 - **layout** — altı ekran boyutunda (küçük telefon → tablet, iki yön) her
@@ -168,6 +170,16 @@ geçerli bir şeridine denk gelir; bu yüzden binalara girmeleri için ayrıca
 **Gölgeler dar bir kutuyla çalışıyor.** Gölge kamerası arabayı takip eden
 124 m'lik bir kutu, yani 1024 piksel gerçekten bulunduğun sokağa düşer.
 Maliyeti ~25 çizim çağrısı.
+
+**Yol çizgileri kutu değil, düz dörtgen.** Asfalta boyanan her şerit, durak
+çizgisi ve orta çizgi iki üçgen; kutu olsaydı on iki olurdu. 626 metrelik
+şehirde fark 20.844 üçgenden 3.468'e iniyor ve bütün yol ağı tek çizim
+çağrısı grubunda kalıyor. Sürerken ölçülen toplam: **~270-360 çizim çağrısı,
+~35.000 üçgen**.
+
+**Üç simge yapı sabit adalarda.** Kule (87 m), stadyum ve meydan her oyunda
+aynı yerde duruyor ve mini haritada ayrı renkte görünüyor: birbirinin aynı
+adalardan oluşan bir ızgarada yönünü bulabilmen için.
 
 **Oyun kendi akıcılığını izliyor.** Kare süresi sürekli yüksek kalırsa görüntü
 ayarlarını kendiliğinden düşürür (gölge, yaya sayısı, görüş mesafesi, piksel

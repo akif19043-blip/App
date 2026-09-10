@@ -111,16 +111,28 @@ export const DRIVE = {
 
 /** City map: what lives on the streets. */
 export const CITY = {
-  trafficCars: 22,
+  trafficCars: 26,
   trafficSpeed: [11, 19],     // m/s -- town speeds, not motorway speeds
   trafficKeepRadius: 300,     // respawn once this far from the player
   trafficSpawnRadius: [55, 190],
-  coins: 150,
+  coins: 240,          // a bigger map needs more strung along its streets
   coinHeight: 1.0,
   pickupRadius: 3.0,
   lampsAtIntersections: true,
+  /**
+   * Landmarks sit at fixed grid cells instead of being rolled like the rest.
+   * A grid of interchangeable blocks all looks the same through a windscreen,
+   * so three unmistakable buildings -- one north, one east, one south -- give
+   * the player something to steer by without staring at the minimap.
+   * `cell` is [i, j] into the grid; index = i * grid + j.
+   */
+  landmarks: [
+    { kind: 'block_tower', cell: [3, 6] },
+    { kind: 'block_stadium', cell: [6, 3] },
+    { kind: 'block_plaza', cell: [3, 1] },
+  ],
   minimapSpan: 230,           // metres across the zoomed-in minimap
-  pedestrians: 14,            // people walking the pavements
+  pedestrians: 16,            // people walking the pavements
   pedestrianRange: 150,       // metres from the player before they are moved
   missionPay: [140, 380],
   /**

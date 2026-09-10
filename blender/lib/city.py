@@ -10,7 +10,8 @@ metres wide, so the grid pitch is BLOCK + STREET:
         |  (i,j)  |         |           block centre = (i - (GRID-1)/2) * PITCH
 
 The whole street network -- asphalt and every painted marking -- is built as a
-single mesh, so the roads cost three draw calls no matter how big the map is.
+single mesh, so the roads cost a handful of draw calls no matter how big the
+map is; the markings themselves are flat quads rather than thin boxes.
 Each block is likewise joined into one mesh. The same constants are written
 into manifest.json, so the game places blocks, spawns traffic in real lanes and
 collides against the kerbs using the numbers the geometry was built from.
@@ -24,7 +25,7 @@ from lib import kit
 BLOCK = 58.0            # side of a city block, including its pavement
 STREET = 18.0           # kerb-to-kerb street width (2 lanes each way)
 PITCH = BLOCK + STREET
-GRID = 6                # blocks per side
+GRID = 8                # blocks per side
 EXTENT = GRID * PITCH + STREET          # full map width, kerb wall to kerb wall
 
 LANE_OFFSETS = (2.25, 6.75)             # from the street centre line
@@ -65,12 +66,12 @@ def _markings_for_segment(P, parts, along_axis, line, start, end):
     def place(name, u, v, size_u, size_v, material):
         # u runs along the street, v across it
         if along_axis == 'x':
-            kit_size = (size_u, size_v, 0.02)
+            kit_size = (size_u, size_v)
             location = (u, v, 0.012)
         else:
-            kit_size = (size_v, size_u, 0.02)
+            kit_size = (size_v, size_u)
             location = (v, u, 0.012)
-        parts.append(kit.box(name, kit_size, location, material))
+        parts.append(kit.plate(name, kit_size, location, material))
 
     length = end - start
     mid = (start + end) / 2.0
@@ -94,12 +95,20 @@ def _markings_for_segment(P, parts, along_axis, line, start, end):
 
 
 def build_city_ground(P):
-    """Asphalt plus every road marking, as one mesh."""
+    """
+    Asphalt plus every road marking, as one mesh.
+
+    A band-per-street-line split was tried so three.js could cull the far
+    side of the map, and measured worse: a band runs the full 626 m, so it is
+    in frustum whichever way you face, and the split only added draw calls.
+    With the markings built as flat quads the whole network is a few thousand
+    triangles, cheap enough to submit in one go.
+    """
+    lines = street_lines()
+    half_street = STREET / 2.0
     parts = [kit.box('asphalt', (EXTENT, EXTENT, 0.24), (0, 0, -0.12),
                      P['Asphalt'])]
 
-    lines = street_lines()
-    half_street = STREET / 2.0
     for line in lines:
         for j in range(GRID):
             start = lines[j] + half_street
@@ -108,6 +117,201 @@ def build_city_ground(P):
             _markings_for_segment(P, parts, 'y', line, start, end)
 
     return kit.join(parts, 'CityGround')
+
+
+# --------------------------------------------------------------------------- #
+# landmark blocks
+# --------------------------------------------------------------------------- #
+#
+# Three blocks are not generated at random but placed at fixed cells, so the
+# city is learnable: a grid of interchangeable blocks all looks the same from
+# the driver's seat, and once you have seen the tower once you know which way
+# is which without looking at the minimap.
+
+
+def _disc(name, radii, z, segments, material):
+    """Flat ellipse -- the stadium pitch. A fan, so it is one triangle a step."""
+    verts = [(0.0, 0.0, z)]
+    for n in range(segments):
+        angle = 2.0 * math.pi * n / segments
+        verts.append((radii[0] * math.cos(angle), radii[1] * math.sin(angle), z))
+    faces = [(0, 1 + n, 1 + (n + 1) % segments) for n in range(segments)]
+    return kit.mesh_from(name, verts, faces, material)
+
+
+def _annulus(name, inner, outer, z_inner, z_outer, segments, material,
+             facade=None):
+    """
+    Sloped elliptical band -- a bowl of stadium seating, or the canopy over it.
+
+    `inner` and `outer` are (rx, ry) radii; the band rises from z_inner at the
+    inner edge to z_outer at the outer one. Pass `facade` to also drop the
+    outer edge to that height as a wall, which is what turns the seating into
+    a closed bowl; leave it off for the canopy, which hangs in the air.
+    """
+    stride = 3 if facade is not None else 2
+    verts, faces = [], []
+    for n in range(segments):
+        angle = 2.0 * math.pi * n / segments
+        c, s = math.cos(angle), math.sin(angle)
+        verts += [(inner[0] * c, inner[1] * s, z_inner),
+                  (outer[0] * c, outer[1] * s, z_outer)]
+        if facade is not None:
+            verts.append((outer[0] * c, outer[1] * s, facade))
+    for n in range(segments):
+        a = n * stride
+        b = ((n + 1) % segments) * stride
+        faces.append((a, a + 1, b + 1, b))          # the band, facing up
+        if facade is not None:
+            faces.append((a + 1, a + 2, b + 2, b + 1))   # wall, facing out
+    return kit.mesh_from(name, verts, faces, material)
+
+
+def _floodlight(P, x, y, height=22.0):
+    """Mast with a lit head, at stadium scale."""
+    parts = [kit.cylinder('mast', 0.55, height, axis='Z',
+                          location=(x, y, PAVEMENT + height / 2.0),
+                          segments=6, material=P['Metal'], radius_top=0.35)]
+    for row in (-1, 1):
+        parts.append(kit.box('rig', (5.0, 0.9, 1.6),
+                             (x, y + row * 1.1, PAVEMENT + height + 0.8),
+                             P['LampGlow']))
+    parts.append(kit.box('rig_back', (5.4, 2.8, 0.6),
+                         (x, y, PAVEMENT + height + 1.9), P['Roof']))
+    return parts
+
+
+def build_block_stadium(P):
+    """A stadium: a bowl of seating around a pitch, under four floodlights."""
+    parts = _pavement(P)
+    inner = BLOCK / 2.0 - SETBACK
+    pitch_r = (inner * 0.52, inner * 0.40)
+    parts.append(_disc('pitch', pitch_r, PAVEMENT + 0.05, 24, P['Grass']))
+    outer = (inner, inner * 0.82)
+    parts.append(_annulus('stands', pitch_r, outer,
+                          PAVEMENT + 1.2, PAVEMENT + 13.5, 24, P['Concrete'],
+                          facade=0.0))
+    # the canopy hangs over the seating without a wall of its own, so the
+    # stands stay visible from outside
+    parts.append(_annulus('canopy', (pitch_r[0] * 1.45, pitch_r[1] * 1.45),
+                          (outer[0] + 1.4, outer[1] + 1.4),
+                          PAVEMENT + 21.0, PAVEMENT + 16.5, 24,
+                          P['Sidewalk']))
+    for x, y in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+        parts += _floodlight(P, x * (inner + 1.6), y * (inner * 0.82 + 1.6))
+    # a ring of turnstiles, standing proud of the facade
+    for n in range(8):
+        angle = 2.0 * math.pi * (n + 0.5) / 8.0
+        parts.append(kit.box('gate', (4.6, 3.4, 5.0),
+                             (math.cos(angle) * (outer[0] + 0.6),
+                              math.sin(angle) * (outer[1] + 0.6),
+                              PAVEMENT + 2.5), P['BuildingA']))
+    return kit.join(parts, 'BlockStadium')
+
+
+def build_block_tower(P):
+    """
+    The tallest thing on the map: an observation tower on a podium.
+
+    Deliberately over-scaled at 80 m against 48 m downtown towers, because a
+    landmark you cannot pick out of the skyline is not a landmark.
+    """
+    parts = _pavement(P)
+    base = PAVEMENT
+
+    parts.append(kit.box('podium', (30.0, 30.0, 7.0), (0, 0, base + 3.5),
+                         P['BuildingB'], taper=0.94))
+    parts.append(kit.box('podium_glass', (30.4, 30.4, 2.2),
+                         (0, 0, base + 3.0), P['Window']))
+    parts.append(kit.box('podium_roof', (31.0, 31.0, 0.8),
+                         (0, 0, base + 7.4), P['Roof']))
+
+    shaft = 52.0
+    parts.append(kit.cylinder('shaft', 6.2, shaft, axis='Z',
+                              location=(0, 0, base + 7.8 + shaft / 2.0),
+                              segments=10, material=P['Concrete'],
+                              radius_top=4.0))
+    # four ribs up the shaft, so it reads as a structure and not a chimney
+    for angle in (0.0, math.pi / 2.0, math.pi, 3.0 * math.pi / 2.0):
+        parts.append(kit.box('rib', (1.4, 1.4, shaft),
+                             (math.cos(angle) * 5.4, math.sin(angle) * 5.4,
+                              base + 7.8 + shaft / 2.0), P['Metal'],
+                             taper=0.7))
+
+    pod = base + 7.8 + shaft
+    parts.append(kit.cylinder('pod_floor', 10.5, 1.0, axis='Z',
+                              location=(0, 0, pod + 0.5), segments=12,
+                              material=P['Roof']))
+    parts.append(kit.cylinder('pod', 10.0, 6.0, axis='Z',
+                              location=(0, 0, pod + 4.0), segments=12,
+                              material=P['Window'], radius_top=8.6))
+    parts.append(kit.cylinder('pod_roof', 9.4, 1.2, axis='Z',
+                              location=(0, 0, pod + 7.6), segments=12,
+                              material=P['Roof'], radius_top=6.0))
+    parts.append(kit.cylinder('deck', 4.4, 4.0, axis='Z',
+                              location=(0, 0, pod + 10.2), segments=10,
+                              material=P['Concrete'], radius_top=3.0))
+    mast = 14.0
+    parts.append(kit.cylinder('mast', 0.9, mast, axis='Z',
+                              location=(0, 0, pod + 12.2 + mast / 2.0),
+                              segments=6, material=P['Metal'],
+                              radius_top=0.25))
+    parts.append(kit.cylinder('aircraft_light', 0.8, 0.9, axis='Z',
+                              location=(0, 0, pod + 12.2 + mast + 0.4),
+                              segments=8, material=P['LightRed']))
+    return kit.join(parts, 'BlockTower')
+
+
+def build_block_plaza(P):
+    """A civic square: a memorial arch over a paved court, with a fountain."""
+    rng = random.Random(707)
+    parts = _pavement(P)
+    inner = BLOCK / 2.0 - SETBACK
+    base = PAVEMENT
+
+    parts.append(kit.box('court', (inner * 2, inner * 2, 0.10),
+                         (0, 0, base + 0.05), P['Sidewalk']))
+    for ring, shade in ((0.74, P['Concrete']), (0.42, P['Sidewalk'])):
+        parts.append(kit.box('court_ring', (inner * 2 * ring,
+                                            inner * 2 * ring, 0.12),
+                             (0, 0, base + 0.07), shade))
+
+    # the arch: two piers, a lintel and a cornice, spanning the north-south walk
+    pier = (5.0, 8.0, 15.0)
+    for side in (-1, 1):
+        parts.append(kit.box('pier', pier,
+                             (side * 8.0, 0, base + pier[2] / 2.0),
+                             P['BuildingA'], taper=0.94))
+        parts.append(kit.box('pier_plinth', (pier[0] + 1.2, pier[1] + 1.2, 1.6),
+                             (side * 8.0, 0, base + 0.8), P['Concrete']))
+    parts.append(kit.box('lintel', (21.0, 8.4, 5.0), (0, 0, base + 17.5),
+                         P['BuildingA']))
+    parts.append(kit.box('cornice', (23.0, 9.6, 1.4), (0, 0, base + 20.7),
+                         P['Concrete']))
+    parts.append(kit.box('frieze', (16.0, 8.8, 1.8), (0, 0, base + 17.4),
+                         P['Gold']))
+
+    # fountain, off the arch's axis so the walk stays clear
+    for radius, height, material in ((7.0, 0.9, P['Concrete']),
+                                     (6.2, 0.6, P['SignFace']),
+                                     (1.6, 3.4, P['Concrete'])):
+        parts.append(kit.cylinder('fountain', radius, height, axis='Z',
+                                  location=(0, inner * 0.58,
+                                            base + height / 2.0),
+                                  segments=14, material=material,
+                                  radius_top=radius * 0.9))
+
+    for side in (-1, 1):
+        for y in (-inner * 0.62, inner * 0.10):
+            parts += _tree(P, side * inner * 0.70, y, rng.uniform(3.8, 5.0))
+        parts.append(kit.cylinder('flagpole', 0.22, 11.0, axis='Z',
+                                  location=(side * 3.2, -inner * 0.72,
+                                            base + 5.5),
+                                  segments=6, material=P['Chrome']))
+        parts.append(kit.box('flag', (0.1, 3.0, 1.8),
+                             (side * 3.2, -inner * 0.72 + 1.5, base + 10.0),
+                             P['Cone'] if side < 0 else P['SignFace']))
+    return kit.join(parts, 'BlockPlaza')
 
 
 # --------------------------------------------------------------------------- #
@@ -196,6 +400,19 @@ def build_block_lowrise(P):
     return kit.join(parts, 'BlockLowrise')
 
 
+def _tree(P, x, y, trunk):
+    """Two-tier palm: a tapered trunk and a pair of cone canopies."""
+    parts = [kit.cylinder('trunk', 0.30, trunk, axis='Z',
+                          location=(x, y, PAVEMENT + trunk / 2.0),
+                          segments=7, material=P['Wood'], radius_top=0.22)]
+    for radius, lift in ((2.6, 0.0), (1.9, 1.5)):
+        parts.append(kit.cylinder(
+            'canopy', radius, 1.8, axis='Z',
+            location=(x, y, PAVEMENT + trunk + lift), segments=7,
+            material=P['Foliage'], radius_top=radius * 0.45))
+    return parts
+
+
 def build_block_park(P):
     """Green space: grass, paths and palms."""
     rng = random.Random(303)
@@ -212,16 +429,7 @@ def build_block_park(P):
                                         PAVEMENT + 0.06),
                               segments=12, material=P['SignFace']))
     for (x, y) in _scatter(rng, 7, inner - 4, 9):
-        trunk = rng.uniform(3.4, 4.6)
-        parts.append(kit.cylinder('trunk', 0.30, trunk, axis='Z',
-                                  location=(x, y, PAVEMENT + trunk / 2.0),
-                                  segments=7, material=P['Wood'],
-                                  radius_top=0.22))
-        for level, (radius, lift) in enumerate(((2.6, 0.0), (1.9, 1.5))):
-            parts.append(kit.cylinder(
-                'canopy', radius, 1.8, axis='Z',
-                location=(x, y, PAVEMENT + trunk + lift), segments=7,
-                material=P['Foliage'], radius_top=radius * 0.45))
+        parts += _tree(P, x, y, rng.uniform(3.4, 4.6))
     return kit.join(parts, 'BlockPark')
 
 
@@ -461,6 +669,9 @@ BUILDERS = {
     'block_park': build_block_park,
     'block_industrial': build_block_industrial,
     'block_parking': build_block_parking,
+    'block_tower': build_block_tower,
+    'block_stadium': build_block_stadium,
+    'block_plaza': build_block_plaza,
     'beacon': build_beacon,
     'traffic_light': build_traffic_light,
     'pedestrian': build_pedestrian,
@@ -470,6 +681,7 @@ BUILDERS = {
 
 
 def build(name, P):
+    """A builder may return one object or a list of them; both are fine."""
     return BUILDERS[name](P)
 
 

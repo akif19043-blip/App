@@ -29,7 +29,7 @@ const MODELS = [
   // city
   'city_ground', 'desert_floor', 'city_wall', 'beacon', 'traffic_light', 'pedestrian',
   'block_downtown', 'block_lowrise', 'block_park', 'block_industrial',
-  'block_parking',
+  'block_parking', 'block_tower', 'block_stadium', 'block_plaza',
   // vehicles
   'car_hatch', 'car_sport', 'car_muscle', 'car_van', 'car_super',
   'traffic_sedan', 'traffic_hatch', 'traffic_suv',
@@ -86,8 +86,8 @@ class Game {
     const minimapCanvas = document.getElementById('minimap');
     this.minimap = new Minimap(minimapCanvas, assets.manifest.city,
                                CITY.minimapSpan);
-    this.minimap.setOpenBlocks(
-      this.session.blocks.map((block) => block.kind === 'block_parking'));
+    this.minimap.setBlockKinds(
+      this.session.blocks.map((block) => block.kind));
     minimapCanvas.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       audio.uiTap();
@@ -445,3 +445,7 @@ game.boot().catch((error) => {
 });
 
 window.game = game;      // handy for debugging from the console
+// The headless suites drive this same page, so they read the manifest and the
+// tuning tables through the game rather than keeping their own copies.
+game.assets = assets;
+game.config = { CAMERA, CARS, CITY };
