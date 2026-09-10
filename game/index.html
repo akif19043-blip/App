@@ -129,6 +129,16 @@
 <section id="screen-menu" class="screen">
   <div class="panel">
     <h1 class="logo">DÖRTYOL<span data-i18n="app.tagline">Şehir Sürüşü</span></h1>
+    <!-- Rank first: it is the thing that only goes up, and the bar under it
+         says how close the next one is. -->
+    <div class="rank">
+      <div class="rank__line">
+        <span class="rank__badge" id="menu-rank-id">1</span>
+        <strong id="menu-rank">ÇIRAK</strong>
+        <span class="rank__next muted" id="menu-rank-next"></span>
+      </div>
+      <div class="rank__track"><div id="menu-rank-fill" class="rank__fill"></div></div>
+    </div>
     <div class="stat-row">
       <div><span class="muted" data-i18n="menu.best">EN İYİ</span>
         <strong id="menu-best">0</strong></div>
@@ -146,10 +156,25 @@
     <div class="button-row">
       <button id="btn-garage" class="button" type="button"
               data-i18n="menu.garage">GARAJ</button>
+      <button id="btn-records" class="button button--ghost" type="button"
+              data-i18n="menu.records">KAYITLAR</button>
       <button id="btn-settings" class="button button--ghost" type="button"
               data-i18n="menu.settings">AYARLAR</button>
     </div>
     <p class="hint" data-i18n="menu.controlsHint"></p>
+  </div>
+</section>
+
+<section id="screen-records" class="screen">
+  <div class="panel panel--wide">
+    <div class="panel__head">
+      <h2 data-i18n="records.title">KAYITLAR</h2>
+    </div>
+    <div class="records-scroll">
+      <div id="records-body" class="records"></div>
+    </div>
+    <button id="btn-records-back" class="button button--ghost" type="button"
+            data-i18n="garage.back">GERİ</button>
   </div>
 </section>
 

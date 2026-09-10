@@ -17,12 +17,13 @@ import * as audio from './audio.js';
 import * as environment from './environment.js';
 import * as haptics from './haptics.js';
 import * as save from './save.js';
+import * as progress from './progress.js';
 import { Car } from './car.js';
 import { Pedestrians } from './pedestrians.js';
 import { Police } from './police.js';
 import { Signals } from './signals.js';
 import { t } from './i18n.js';
-import { CITY, DRIVE, SHADOWS, TRAFFIC_COLORS, TRAFFIC_MODELS }
+import { CITY, DRIVE, SHADOWS, TRAFFIC_COLORS, TRAFFIC_MODELS, XP }
   from './config.js';
 
 const MAP_SEED = 1337;
@@ -457,7 +458,8 @@ export class CitySession {
     this.reverseBlend = 0;
     this.rigScale = 1;
     this.stats = { coins: 0, collected: 0, deliveries: 0, onTime: 0,
-                   distance: 0, fines: 0, busts: 0 };
+                   distance: 0, fines: 0, busts: 0, crashes: 0,
+                   cleanJobs: 0, xp: 0 };
   }
 
   build(timeOfDay) {
@@ -669,7 +671,12 @@ export class CitySession {
    * you will actually drive.
    */
   newMission() {
-    const type = pickWeighted(CITY.missionTypes, this.random);
+    // Only the job types the driver's rank has opened. A four-stop courier
+    // run is not something you are handed on your first afternoon.
+    const open = progress.unlockedJobs(save.get().xp || 0);
+    const offered = CITY.missionTypes.filter((type) => open.has(type.id));
+    const type = pickWeighted(offered.length ? offered : CITY.missionTypes,
+                              this.random);
     const stops = [];
     let fromX = this.car.x;
     let fromZ = this.car.z;
@@ -708,6 +715,8 @@ export class CitySession {
       expired: false,
     };
     this.showBeacon();
+    // Anything you hit from here on costs the clean-driving bonus.
+    this.cleanFrom = this.stats.crashes;
     return this.mission;
   }
 
@@ -731,9 +740,12 @@ export class CitySession {
     this.police.reset();
     this.wasScraping = false;
     this.lastEvent = null;
+    this.cleanFrom = 0;
+    this.xpDistance = 0;
 
     this.stats = { coins: 0, collected: 0, deliveries: 0, onTime: 0,
-                   distance: 0, fines: 0, busts: 0 };
+                   distance: 0, fines: 0, busts: 0, crashes: 0,
+                   cleanJobs: 0, xp: 0 };
     this.random = makeRandom(MAP_SEED + 7);
     this.scatterCoins(this.city.streetLines, this.city.halfExtent - 14);
     this.traffic.reset(this.car.x, this.car.z);
@@ -744,6 +756,7 @@ export class CitySession {
   update(dt, controls, time) {
     const travelled = this.car.update(dt, controls, this.collider);
     this.stats.distance += travelled;
+    this.awardDistance(travelled);
 
     environment.followSun(this.sun, this.car.x, this.car.z);
     this.signals.update(dt);
@@ -777,6 +790,7 @@ export class CitySession {
       // Hitting another car is the reckless thing you can do that a patrol
       // would actually see, so it carries most of the heat.
       this.police.add(CITY.police.heatPerCrash);
+      this.stats.crashes += 1;
     }
     this.car.hurt(Math.abs(this.car.speed), 0.8);
     this.car.speed *= 0.35;
@@ -791,6 +805,7 @@ export class CitySession {
     const scraping = this.car.bumped && Math.abs(this.car.speed) > 6;
     if (scraping && !this.wasScraping) {
       this.police.add(CITY.police.heatPerScrape);
+      this.stats.crashes += 1;
     }
     this.wasScraping = scraping;
   }
@@ -804,9 +819,11 @@ export class CitySession {
       this.stats.coins = Math.max(0, this.stats.coins - fine);
       this.stats.fines += fine;
       this.stats.busts += 1;
+      save.recordLifetime({ busts: 1 });
       this.lastEvent = { kind: 'busted', amount: fine };
       this.car.speed = 0;
     } else if (outcome.escaped) {
+      save.recordLifetime({ escapes: 1 });
       this.lastEvent = { kind: 'escaped', amount: 0 };
     }
   }
@@ -867,19 +884,64 @@ export class CitySession {
     }
 
     const onTime = !this.mission.expired;
-    // The van earns its keep here: the fee and the bonus both scale with it.
-    const rate = this.car.spec.payMultiplier || 1;
+    // The van earns its keep here, and so does the driver's rank: the fee and
+    // the bonus both scale with the two together.
+    const rate = (this.car.spec.payMultiplier || 1)
+      * progress.payRate(save.get().xp || 0);
     const paid = Math.round(
       (this.mission.pay + (onTime ? this.mission.bonus : 0)) * rate);
+    const clean = this.stats.crashes === this.cleanFrom;
     this.stats.coins += paid;
     this.stats.deliveries += 1;
     if (onTime) this.stats.onTime += 1;
+    if (clean) this.stats.cleanJobs += 1;
+    this.awardJob(this.mission, onTime, clean, paid);
     audio.nitro();
     haptics.reward();
     this.hud.toast(onTime
       ? t('toast.deliveredOnTime', { coins: paid, bonus: this.mission.bonus })
       : t('toast.delivered', { coins: paid }), 2.2);
     this.newMission();
+  }
+
+  /**
+   * Bank what a finished job was worth: experience for the job itself, for
+   * beating the clock and for not hitting anything, plus a share of the fee.
+   * Lifetime totals go in at the same time -- the run's own stats are thrown
+   * away when the player goes back to the menu.
+   */
+  awardJob(mission, onTime, clean, paid) {
+    const earned = progress.jobXp(mission, onTime, clean) + XP.perCoin * paid;
+    this.stats.xp += earned;
+    const result = progress.award(earned);
+    // Crashes are banked with the job rather than as they happen: the totals
+    // are written straight to storage, and a fender-bender is not worth a
+    // write of its own.
+    save.recordLifetime({
+      jobs: 1, onTime: onTime ? 1 : 0, earned: paid,
+      cleanJobs: clean ? 1 : 0,
+      crashes: this.stats.crashes - this.cleanFrom,
+    });
+    if (result.promoted) {
+      this.lastEvent = { kind: 'promoted', rank: result.rank };
+    }
+  }
+
+  /**
+   * Experience for simply being out there, paid a kilometre at a time so a
+   * long drive with no job on is still worth something.
+   */
+  awardDistance(travelled) {
+    this.xpDistance += travelled;
+    if (this.xpDistance < 1000) return;
+    const km = Math.floor(this.xpDistance / 1000);
+    this.xpDistance -= km * 1000;
+    this.stats.xp += XP.perKm * km;
+    const result = progress.award(XP.perKm * km);
+    save.recordLifetime({ distance: km * 1000 });
+    if (result.promoted) {
+      this.lastEvent = { kind: 'promoted', rank: result.rank };
+    }
   }
 
   /** One-shot HUD events (a fine, an escape); reading one clears it. */

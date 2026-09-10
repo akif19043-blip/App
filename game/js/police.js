@@ -212,6 +212,25 @@ export class Police {
     const lines = this.city.streetLines;
     const target = c.axis === 'x' ? car.x : car.z;
     const across = c.axis === 'x' ? car.z : car.x;
+    const at = this.worldOf();
+
+    // Over the last few metres the lanes stop mattering: a patrol that parks
+    // one lane over and a car length back has not pulled you over. It slides
+    // straight at you instead -- still along its own street, and with the
+    // lane offset clamped to the tarmac, so it cannot end up on a pavement.
+    if (Math.hypot(at.x - car.x, at.z - car.z) < this.tuning.closeRange) {
+      const reach = this.tuning.chaseSpeed * 0.5 * dt;
+      const delta = target - c.along;
+      c.along += Math.sign(delta) * Math.min(Math.abs(delta), reach);
+
+      const half = this.city.street / 2 - 1.2;
+      const wanted = (c.axis === 'x' ? 1 : -1) * c.dir * (across - c.line);
+      const aim = Math.max(-half, Math.min(half, wanted));
+      c.lane += (aim - c.lane) * Math.min(1, dt * 3);
+      c.speed = Math.abs(delta) > 1 ? this.tuning.chaseSpeed * 0.4 : 0;
+      this.applyTransform();
+      return;
+    }
 
     // close fast when far behind, ease off when alongside
     const gap = Math.abs(target - c.along);

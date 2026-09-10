@@ -13,6 +13,16 @@ const DEFAULTS = {
   bestDistance: 0,
   coins: 0,
   runs: 0,
+  xp: 0,                 // driver rank is derived from this and never resets
+  /**
+   * Lifetime totals for the records panel. Kept separate from a run's own
+   * stats: a run is thrown away when you go back to the menu, and these are
+   * the only thing that says what you have actually done.
+   */
+  lifetime: {
+    jobs: 0, onTime: 0, distance: 0, earned: 0,
+    crashes: 0, busts: 0, escapes: 0, cleanJobs: 0,
+  },
   selectedCar: 'sport',
   owned: ['sport'],
   seen: {},              // mode -> true once its tutorial has been shown
@@ -57,6 +67,12 @@ export function load() {
         profile.paint = {};
       }
       if (!profile.seen || typeof profile.seen !== 'object') profile.seen = {};
+      if (!profile.damage || typeof profile.damage !== 'object') {
+        profile.damage = {};
+      }
+      profile.xp = Math.max(0, Number(profile.xp) || 0);
+      profile.lifetime = Object.assign(clone(DEFAULTS.lifetime),
+                                       parsed.lifetime || {});
     }
   } catch (err) {
     console.warn('profile unreadable, starting fresh', err);
@@ -88,6 +104,26 @@ export function recordRun(score, distance) {
   profile.best = Math.max(profile.best, Math.round(score));
   profile.bestDistance = Math.max(profile.bestDistance, Math.round(distance));
   return save();
+}
+
+/** Bank experience. Returns the new total. */
+export function addXp(amount) {
+  profile.xp = Math.max(0, (profile.xp || 0) + amount);
+  save();
+  return profile.xp;
+}
+
+/**
+ * Add to the lifetime totals. Takes a partial object so a caller only names
+ * what it knows about.
+ */
+export function recordLifetime(delta) {
+  for (const [key, value] of Object.entries(delta)) {
+    if (!(key in profile.lifetime)) continue;
+    profile.lifetime[key] += value;
+  }
+  save();
+  return profile.lifetime;
 }
 
 export function owns(carId) {

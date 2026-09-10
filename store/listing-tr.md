@@ -27,6 +27,12 @@ Trafiğe çarpar, binalara toslar ya da hız sınırını aşarsan polis devriye
 yola çıkar: yakalarsan kazancının bir kısmı ceza olarak gider, ekmeyi
 başarırsan hiçbir şey kaybetmezsin.
 
+**Kariyer**
+Yaptığın her iş seni bir kademe yukarı taşır. Sekiz kademe var: yükseldikçe
+şehir sana daha iyi işler verir — çok duraklı yolcu ve kurye işleri — ve her
+işin ücreti artar. Zamanında varmak ve arabaya çizik atmadan bitirmek fazladan
+sayılır. KAYITLAR ekranında ömür boyu ne yaptığını görürsün.
+
 **Yönünü bulmak kolay**
 Şehirde her oyunda aynı yerde duran üç simge yapı var: gözlem kulesi, stadyum
 ve anıt meydanı. Mini haritada da ayrı renkte görünürler.

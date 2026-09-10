@@ -16,6 +16,7 @@ import * as input from './input.js';
 import * as save from './save.js';
 import * as environment from './environment.js';
 import * as garage from './garage.js';
+import * as progress from './progress.js';
 import * as haptics from './haptics.js';
 import * as i18n from './i18n.js';
 import { CitySession } from './city.js';
@@ -390,6 +391,9 @@ class Game {
                          ? this.session.car.speedRatio
                          : this.session.player.speedRatio,
                        state.boosting);
+    // Handed back so an automated run can see what the HUD was told, including
+    // the one-shot events (a fine, a promotion) that are cleared on read.
+    return state;
   }
 
   /**
@@ -460,3 +464,5 @@ window.game = game;      // handy for debugging from the console
 // tuning tables through the game rather than keeping their own copies.
 game.assets = assets;
 game.config = { CAMERA, CARS, CITY };
+game.save = save;
+game.progress = progress;

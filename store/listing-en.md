@@ -27,6 +27,12 @@ clout a building or sit well over the limit and a patrol car is sent out: get
 caught and part of your takings goes on the fine, shake it off and you keep
 the lot.
 
+**A career**
+Every job you finish moves you up. There are eight ranks: climbing them opens
+better work -- multi-stop passenger and courier runs -- and lifts the rate
+every fee is paid at. Arriving on time counts for extra, and so does finishing
+without a scratch on the car. The records screen keeps the lifetime tally.
+
 **Easy to find your way**
 Three landmarks stand in the same place every game -- an observation tower, a
 stadium and a memorial square -- and each has its own colour on the minimap.

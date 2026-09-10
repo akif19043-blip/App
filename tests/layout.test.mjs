@@ -22,7 +22,7 @@ const VIEWPORTS = [
   { name: 'tablet landscape', width: 1180, height: 820 },
 ];
 
-const SCREENS = ['menu', 'garage', 'settings', 'paused', 'over'];
+const SCREENS = ['menu', 'garage', 'records', 'settings', 'paused', 'over'];
 const CONTROLS = ['#btn-left', '#btn-right', '#btn-brake', '#btn-gas', '#btn-nitro'];
 
 let failures = 0;
@@ -78,6 +78,19 @@ check('garage is populated before measuring',
 await page.click('#btn-garage-back');
 await page.waitForTimeout(150);
 
+// Records is built on demand too, and the rank ladder is the tallest thing
+// in it -- measuring it closed would prove nothing either.
+await page.click('#btn-records');
+await page.waitForTimeout(300);
+const records = await page.evaluate(() => ({
+  rows: document.querySelectorAll('.records__row').length,
+  ranks: document.querySelectorAll('.records__rank').length,
+}));
+check('records is populated before measuring',
+      records.rows > 0 && records.ranks > 0, JSON.stringify(records));
+await page.click('#btn-records-back');
+await page.waitForTimeout(150);
+
 // Get into the city so the HUD and controls are live and measurable.
 await page.click('#btn-play-city');
 await page.waitForTimeout(400);
@@ -122,6 +135,7 @@ for (const viewport of VIEWPORTS) {
     const minimap = rect('#minimap');
     const pause = rect('#btn-pause');
     const nitroBar = rect('.hud__nitro');
+    const meters = rect('.hud__meters');
 
     const clashes = [];
     for (const [selector, box] of Object.entries(controls)) {
@@ -129,8 +143,10 @@ for (const viewport of VIEWPORTS) {
       if (overlaps(box, speed)) clashes.push(selector + ' over speed');
       if (overlaps(box, minimap)) clashes.push(selector + ' over minimap');
       if (overlaps(box, nitroBar)) clashes.push(selector + ' over nitro bar');
+      if (overlaps(box, meters)) clashes.push(selector + ' over the meters');
     }
     if (overlaps(minimap, pause)) clashes.push('minimap over pause');
+    if (overlaps(minimap, meters)) clashes.push('minimap over the meters');
 
     const outside = Object.entries(controls)
       .filter(([, box]) => box && (box.x < 0 || box.y < 0

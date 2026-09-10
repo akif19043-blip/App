@@ -177,6 +177,7 @@ export const CITY = {
     heatDecay: 0.05,          // per second of driving properly
     spawnRadius: [80, 140],
     chaseSpeed: 27,
+    closeRange: 26,           // within this it stops driving lanes and closes
     catchRadius: 9,
     catchSpeed: 7,            // you are only nicked once you have slowed down
     catchTime: 1.6,
@@ -201,6 +202,43 @@ export const UPGRADES = [
   { id: 'brakes', nameKey: 'part.brakes', stat: 'brakeScale', perLevel: 0.10,
     levels: 3, basePrice: 500 },
 ];
+
+/**
+ * Driver ranks.
+ *
+ * Coins buy cars; rank is what the city thinks of you. It gates the harder
+ * job types -- a four-stop courier run is not something you are handed on
+ * your first afternoon -- and lifts the rate every job pays, so the same
+ * delivery is worth more to a driver who has earned it. Cars stay on coins
+ * alone: two currencies gating the same purchase is one too many.
+ *
+ * `xp` is the total needed to reach the rank. `job` is a job type it opens;
+ * `payBonus` is added to the multiplier on every fee.
+ */
+export const RANKS = [
+  { id: 1, xp: 0, nameKey: 'rank.1', payBonus: 0 },
+  { id: 2, xp: 500, nameKey: 'rank.2', payBonus: 0.05, job: 'passenger' },
+  { id: 3, xp: 1400, nameKey: 'rank.3', payBonus: 0.10 },
+  { id: 4, xp: 2800, nameKey: 'rank.4', payBonus: 0.15, job: 'courier' },
+  { id: 5, xp: 5000, nameKey: 'rank.5', payBonus: 0.20 },
+  { id: 6, xp: 8200, nameKey: 'rank.6', payBonus: 0.26 },
+  { id: 7, xp: 12500, nameKey: 'rank.7', payBonus: 0.32 },
+  { id: 8, xp: 18000, nameKey: 'rank.8', payBonus: 0.40 },
+];
+
+/**
+ * What earns experience. Deliveries are the bulk of it, distance is the slow
+ * drip that rewards simply being out there, and the clean-driving bonus is
+ * paid per job finished without a scratch -- the one number that makes the
+ * careful line worth taking.
+ */
+export const XP = {
+  perJob: 45,                 // times the number of stops
+  onTime: 40,
+  perKm: 10,
+  perCoin: 1,
+  cleanJob: 35,
+};
 
 /** Paints available in the garage. */
 export const PAINTS = [

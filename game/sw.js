@@ -6,7 +6,7 @@
  * of leaving players on a stale mix of new code and old models.
  */
 
-const CACHE = 'dortyol-74ed4f7ab947';
+const CACHE = 'dortyol-ee9b25c69d71';
 const ASSETS = [
   "./",
   "assets/icon-192.png",
@@ -71,6 +71,7 @@ const ASSETS = [
   "js/pickups.js",
   "js/player.js",
   "js/police.js",
+  "js/progress.js",
   "js/quality.js",
   "js/save.js",
   "js/signals.js",

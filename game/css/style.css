@@ -176,11 +176,14 @@ html, body {
 
 /* Damage and heat sit under the nitro bar and stay out of the way: a bar
    only appears once it has something to report. */
+/* Under the minimap rather than above the nitro bar: the nitro button sits
+   at different heights in portrait and landscape, and it was landing on top
+   of these. Nothing else lives in the gap below the map. */
 .hud__meters {
   position: absolute;
   right: var(--pad);
-  bottom: calc(var(--pad-bottom) + 152px);
-  width: 120px;
+  top: calc(var(--pad-top) + 166px);
+  width: 108px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -431,6 +434,94 @@ html, body {
   -webkit-overflow-scrolling: touch;
   padding-right: 2px;
 }
+/* Records reuses the garage's scrolling panel: same shape, same behaviour on
+   a short screen. */
+#screen-records .panel {
+  max-height: calc(100dvh - 2 * var(--pad-top));
+  min-height: 0;
+}
+.records-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px;
+}
+/* The scrolling region takes the squeeze on a short screen, never the button
+   that gets you back out of it. */
+#screen-records .panel > .button,
+#screen-garage .panel > .button { flex-shrink: 0; }
+.records__group { margin: 0 0 4px; }
+.records__title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+.records__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--panel-edge);
+  margin-bottom: 4px;
+}
+.records__row strong { font-size: 15px; }
+.records__ranks { display: flex; flex-direction: column; gap: 4px; }
+.records__rank {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-edge);
+  color: var(--muted);
+}
+.records__rank.is-reached { color: inherit; background: rgba(255, 255, 255, 0.05); }
+.records__rank.is-current { border-color: var(--accent-2); }
+.records__rank small { margin-left: auto; font-size: 11px; }
+
+/* Rank badge and progress bar on the menu. */
+.rank { margin: 0 0 10px; }
+.rank__line { display: flex; align-items: center; gap: 8px; }
+.rank__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--accent-2);
+  color: #0d1117;
+  font-size: 12px;
+  font-weight: 700;
+}
+.rank__line strong { font-size: 14px; letter-spacing: 0.10em; }
+.rank__next { margin-left: auto; font-size: 11px; }
+.rank__track {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(10, 14, 20, 0.6);
+  border: 1px solid var(--panel-edge);
+  overflow: hidden;
+}
+.rank__fill {
+  height: 100%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg, #1c9fd0, var(--accent-2));
+  transition: transform 220ms ease;
+}
+
 .panel h2 { margin: 0 0 4px; font-size: 20px; letter-spacing: 0.10em; }
 .panel__head { display: flex; align-items: center; justify-content: space-between; }
 .panel__head h2 { margin: 0; }
@@ -486,8 +577,10 @@ html, body {
   opacity: 0.75;
   text-transform: none;
 }
-.button-row { display: flex; gap: 10px; }
-.button-row .button { flex: 1; }
+.button-row { display: flex; gap: 10px; flex-wrap: wrap; }
+/* Three buttons at 360px would each be 110px of padding and no room for a
+   word, so they wrap rather than squeeze. */
+.button-row .button { flex: 1 1 92px; }
 .button:disabled { opacity: 0.4; }
 
 .hint { margin: 4px 0 0; font-size: 11px; color: var(--muted); }

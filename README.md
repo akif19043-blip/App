@@ -87,7 +87,8 @@ blender/           3B varlık üretimi (Blender'ın bpy modülü)
   build_all.py     hepsini üretir, ölçer, manifest.json yazar
   make_store.py    ikonlar ve mağaza görselleri
 game/              oyunun kendisi (statik site, derleme adımı yok)
-  js/              fizik, şehir, trafik, sinyaller, yayalar, polis, garaj, girdi,
+  js/              fizik, şehir, trafik, sinyaller, yayalar, polis, kademe,
+                   garaj, girdi,
                    ses, kalite gözcüsü, i18n, arayüz
   assets/models/   üretilen .glb dosyaları + manifest.json
   vendor/three/    three.js (r180, MIT)
@@ -135,7 +136,9 @@ Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Dört paket:
   kolu; geri vites kamerası; hedef oku; mini harita yakınlaşması; üç simge
   yapının hep aynı adada durması ve mini haritada ayrı renkte görünmesi;
   hasarın hızı düşürüp garajda para karşılığı geçmesi; hız yapınca devriyenin
-  yola çıkması, yaklaşması, yakalayınca ceza kesmesi ve ekilebilmesi.
+  yola çıkması, yaklaşması, yakalayınca ceza kesmesi ve ekilebilmesi;
+  çırağa sadece basit teslimat verilmesi, üst kademede üç işin de çıkması,
+  kademenin ücreti yükseltmesi ve terfinin duyurulması.
 - **highway** — skor, sollama ve kıl payı bonusları, satın alma, duraklatma,
   12 km sonrası koordinat sıfırlama.
 - **layout** — altı ekran boyutunda (küçük telefon → tablet, iki yön) her
@@ -178,6 +181,19 @@ Maliyeti ~25 çizim çağrısı.
 şehirde fark 20.844 üçgenden 3.468'e iniyor ve bütün yol ağı tek çizim
 çağrısı grubunda kalıyor. Sürerken ölçülen toplam: **~270-360 çizim çağrısı,
 ~35.000 üçgen**.
+
+**Kazandığın tek şey para değil: bir de kariyer.** Para eline geçtiği anda
+harcanıyor — araba, parça, onarım — yani ne yaptığının kötü bir kaydı. Kademe
+iyi bir kaydı: sadece yükseliyor, şehrin sana hangi işleri vereceğini
+belirliyor ve her ücretin ödendiği oranı yükseltiyor. Sekiz kademe var;
+**yolcu** işleri 2., **kurye** işleri 4. kademede açılıyor, en üstte ücretler
+**%40** daha yüksek. Deneyim iş başına, zamanında varınca, **çizik almadan
+bitirince** ve sürülen kilometre başına geliyor. Arabalar hâlâ sadece parayla
+alınıyor: aynı satın almayı iki para birimiyle kilitlemek bir fazlası olurdu.
+
+**KAYITLAR ekranı** ömür boyu toplamları tutuyor: bitirilen iş, zamanında
+varılan, çiziksiz tamamlanan, sürülen yol, kazanılan jeton, çarpışma,
+yakalanma, ekme ve en iyi skor — artı kademe merdiveni.
 
 **Çarpmanın bir bedeli var.** Her çarpışma arabaya hasar yazar, hasar da azami
 hızı düşürür — tam hasarlı bir araba hızının **%35'ini** kaybeder. Hasar

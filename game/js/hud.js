@@ -9,12 +9,14 @@
 import * as save from './save.js';
 import * as audio from './audio.js';
 import * as garage from './garage.js';
+import * as progress from './progress.js';
 import { t, apply as applyStrings, language, setLanguage, LANGUAGES }
   from './i18n.js';
 import { TIMES } from './environment.js';
-import { CARS, PAINTS } from './config.js';
+import { CARS, PAINTS, RANKS } from './config.js';
 
-const SCREENS = ['loading', 'menu', 'garage', 'settings', 'paused', 'over'];
+const SCREENS = ['loading', 'menu', 'garage', 'records', 'settings',
+                 'paused', 'over'];
 
 export class Hud {
   constructor(handlers) {
@@ -50,6 +52,12 @@ export class Hud {
     this.el.garageList = document.getElementById('garage-list');
     this.el.garageTune = document.getElementById('garage-tune');
     this.el.menuBest = document.getElementById('menu-best');
+    this.el.rankId = document.getElementById('menu-rank-id');
+    this.el.rankName = document.getElementById('menu-rank');
+    this.el.rankNext = document.getElementById('menu-rank-next');
+    this.el.rankFill = document.getElementById('menu-rank-fill');
+    // NOT `records`: that key is the screen itself, set from SCREENS above.
+    this.el.recordsBody = document.getElementById('records-body');
     this.el.menuCoins = document.getElementById('menu-coins');
     this.el.garageCoins = document.getElementById('garage-coins');
 
@@ -75,6 +83,8 @@ export class Hud {
     tap('btn-garage', () => this.showGarage());
     tap('btn-settings', () => this.show('settings'));
     tap('btn-garage-back', () => this.show('menu'));
+    tap('btn-records', () => this.showRecords());
+    tap('btn-records-back', () => this.show('menu'));
     tap('btn-settings-back', () => this.show('menu'));
     tap('btn-pause', () => this.handlers.onPause());
     tap('btn-resume', () => this.handlers.onResume());
@@ -212,6 +222,80 @@ export class Hud {
     const profile = save.get();
     this.el.menuBest.textContent = formatNumber(profile.best);
     this.el.menuCoins.textContent = formatNumber(profile.coins);
+    this.refreshRank();
+  }
+
+  /** Rank badge, name and how far it is to the next one. */
+  refreshRank() {
+    if (!this.el.rankId) return;
+    const xp = save.get().xp || 0;
+    const rank = progress.rankFor(xp);
+    const next = progress.nextRank(xp);
+    this.el.rankId.textContent = rank.id;
+    this.el.rankName.textContent = t(rank.nameKey);
+    this.el.rankNext.textContent = next
+      ? t('rank.toNext', { xp: formatNumber(next.xp - xp) })
+      : t('rank.top');
+    this.el.rankFill.style.transform =
+      `scaleX(${progress.rankProgress(xp).toFixed(3)})`;
+  }
+
+  showRecords() {
+    this.renderRecords();
+    this.show('records');
+  }
+
+  /**
+   * Lifetime totals and the rank ladder. Everything here comes from the
+   * saved profile, so it survives a session and is the same after a reload.
+   */
+  renderRecords() {
+    const panel = this.el.recordsBody;
+    if (!panel) return;
+    const profile = save.get();
+    const life = profile.lifetime;
+    const xp = profile.xp || 0;
+    const here = progress.rankFor(xp);
+
+    const row = (labelKey, value) => `
+      <div class="records__row">
+        <span class="muted">${t(labelKey)}</span>
+        <strong>${value}</strong>
+      </div>`;
+
+    const rows = [
+      row('records.jobs', formatNumber(life.jobs)),
+      row('records.onTime', formatNumber(life.onTime)),
+      row('records.cleanJobs', formatNumber(life.cleanJobs)),
+      row('records.distance', formatNumber(Math.round(life.distance / 1000)) + ' km'),
+      row('records.earned', formatNumber(life.earned)),
+      row('records.crashes', formatNumber(life.crashes)),
+      row('records.busts', formatNumber(life.busts)),
+      row('records.escapes', formatNumber(life.escapes)),
+      row('records.best', formatNumber(profile.best)),
+    ].join('');
+
+    const ladder = RANKS.map((rank) => {
+      const reached = xp >= rank.xp;
+      const current = rank.id === here.id;
+      return `<div class="records__rank${reached ? ' is-reached' : ''}${
+        current ? ' is-current' : ''}">
+        <span class="rank__badge">${rank.id}</span>
+        <span>${t(rank.nameKey)}</span>
+        <small>${formatNumber(rank.xp)} XP</small>
+      </div>`;
+    }).join('');
+
+    panel.innerHTML = `
+      <div class="records__group">
+        <h3 class="records__title">${t('records.career', {
+          xp: formatNumber(xp) })}</h3>
+        ${rows}
+      </div>
+      <div class="records__group">
+        <h3 class="records__title">${t('records.ranks')}</h3>
+        <div class="records__ranks">${ladder}</div>
+      </div>`;
   }
 
   setProgress(done, total, name) {
@@ -459,6 +543,10 @@ export class Hud {
       this.toast(t('police.busted', { amount: formatNumber(event.amount) }), 2.6);
     } else if (event.kind === 'escaped') {
       this.toast(t('police.escaped'), 2.2);
+    } else if (event.kind === 'promoted') {
+      audio.nitro();
+      this.toast(t('rank.promoted', { rank: t(event.rank.nameKey) }), 2.8);
+      this.refreshRank();
     }
   }
 

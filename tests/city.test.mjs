@@ -290,10 +290,17 @@ const timing = await page.evaluate(() => {
     return { ...s.mission };
   };
 
+  // Fees are scaled by the car and by the driver's rank, and the rank can go
+  // up mid-test, so the expected payout is read at each payout rather than
+  // assumed to be the raw fee.
+  const rate = () => (c.spec.payMultiplier || 1)
+    * game.progress.payRate(game.save.get().xp || 0);
+
   const first = single();
   const route = Math.abs(first.x - c.x) + Math.abs(first.z - c.z);
 
   const before = s.stats.coins;
+  const onTimeDue = Math.round((first.pay + first.bonus) * rate());
   c.place(first.x, first.z + 2, 0);
   game.update(1/60);
   const onTime = s.stats.coins - before;
@@ -302,6 +309,7 @@ const timing = await page.evaluate(() => {
   s.mission.left = 0.001;                       // run the clock out
   game.update(1/60);
   const mid = s.stats.coins;
+  const lateDue = Math.round(second.pay * rate());
   c.place(s.mission.x, s.mission.z + 2, 0);
   game.update(1/60);
   const late = s.stats.coins - mid;
@@ -309,15 +317,17 @@ const timing = await page.evaluate(() => {
   // put the coins back for the tests that follow
   s.scatterCoins(s.city.streetLines, s.city.halfExtent - 14);
   return { route: Math.round(route), limit: +first.limit.toFixed(1),
-           pay: first.pay, bonus: first.bonus, onTime,
-           latePay: second.pay, late, expired: true };
+           pay: first.pay, bonus: first.bonus, onTime, onTimeDue,
+           latePay: second.pay, lateDue, late, expired: true };
 });
 console.log('   deliveries:', JSON.stringify(timing));
 check('the clock follows the street grid, not the crow',
       timing.limit > timing.route / 20 && timing.limit < timing.route / 6,
       `${timing.route} m in ${timing.limit} s`);
-check('beating the clock pays the bonus', timing.onTime === timing.pay + timing.bonus);
-check('missing the clock pays only the fee', timing.late === timing.latePay);
+check('beating the clock pays the bonus', timing.onTime === timing.onTimeDue,
+      `${timing.onTime} for a ${timing.pay} fee + ${timing.bonus} bonus`);
+check('missing the clock pays only the fee', timing.late === timing.lateDue,
+      `${timing.late} for a ${timing.latePay} fee`);
 
 // A gamepad drives the real input path, not a test hook.
 const pad = await page.evaluate(() => {
@@ -391,6 +401,99 @@ check('the map has car parks', lots.parks > 0, lots.parks + '');
 check('a car park can be driven into', lots.intoPark > 60, lots.intoPark + ' samples inside');
 check('other blocks stay solid', lots.intoSolid === 0);
 check('obstacles inside the park still stop the car', lots.insideObstacle === 0);
+
+// Ranks: the city only offers the harder jobs once you have earned them, and
+// the rate every fee is paid at goes up with rank.
+const ranks = await page.evaluate(() => {
+  const s = game.session;
+  const key = 'dortyol.profile.v1';
+  const profile = JSON.parse(localStorage.getItem(key));
+  profile.xp = 0;
+  profile.lifetime = { jobs: 0, onTime: 0, distance: 0, earned: 0,
+                       crashes: 0, busts: 0, escapes: 0, cleanJobs: 0 };
+  localStorage.setItem(key, JSON.stringify(profile));
+  game.save.load();
+
+  const seenAtRookie = new Set();
+  for (let i = 0; i < 40; i++) {
+    s.newMission();
+    seenAtRookie.add(s.mission.type);
+  }
+  const rookieRate = game.progress.payRate(game.save.get().xp);
+
+  game.save.addXp(30000);
+  const seenAtTop = new Set();
+  for (let i = 0; i < 60; i++) {
+    s.newMission();
+    seenAtTop.add(s.mission.type);
+  }
+  return {
+    rookie: [...seenAtRookie].sort(),
+    top: [...seenAtTop].sort(),
+    rookieRate: +rookieRate.toFixed(2),
+    topRate: +game.progress.payRate(game.save.get().xp).toFixed(2),
+    topRank: game.progress.rankFor(game.save.get().xp).id,
+  };
+});
+console.log('   ranks:', JSON.stringify(ranks));
+check('a rookie is only offered simple deliveries',
+      ranks.rookie.length === 1 && ranks.rookie[0] === 'delivery',
+      ranks.rookie.join(', '));
+check('the top rank is offered every job type', ranks.top.length === 3,
+      ranks.top.join(', '));
+check('rank lifts the rate every fee is paid at',
+      ranks.topRate > ranks.rookieRate,
+      `${ranks.topRate} vs ${ranks.rookieRate}`);
+check('experience climbs the ladder', ranks.topRank === 8, ranks.topRank + '');
+
+// Finishing a job banks experience and the lifetime totals behind the
+// records screen, and crossing a threshold announces a promotion.
+const career = await page.evaluate(() => {
+  const s = game.session, c = s.car;
+  const key = 'dortyol.profile.v1';
+  const profile = JSON.parse(localStorage.getItem(key));
+  profile.xp = 0;
+  profile.lifetime = { jobs: 0, onTime: 0, distance: 0, earned: 0,
+                       crashes: 0, busts: 0, escapes: 0, cleanJobs: 0 };
+  localStorage.setItem(key, JSON.stringify(profile));
+  game.save.load();
+
+  s.stats.crashes = 0;
+  s.newMission();
+  const before = game.save.get().xp;
+  const stops = s.mission.stops.length;
+  for (let n = 0; n < stops; n++) {
+    c.place(s.mission.x, s.mission.z + 2, 0);
+    game.update(1/60);
+  }
+  const life = game.save.get().lifetime;
+
+  // enough jobs to cross the first threshold, watching for the announcement
+  let promoted = null;
+  for (let i = 0; i < 30 && !promoted; i++) {
+    const count = s.mission.stops.length;
+    for (let n = 0; n < count; n++) {
+      c.place(s.mission.x, s.mission.z + 2, 0);
+      const state = game.update(1/60);
+      if (state.event && state.event.kind === 'promoted') promoted = state.event;
+    }
+  }
+  return { before, after: game.save.get().xp, jobs: life.jobs,
+           earned: life.earned, cleanJobs: life.cleanJobs,
+           promotedTo: promoted ? promoted.rank.id : null,
+           rank: game.progress.rankFor(game.save.get().xp).id };
+});
+console.log('   career:', JSON.stringify(career));
+check('finishing a job earns experience', career.after > career.before,
+      `${career.before} -> ${career.after}`);
+check('the lifetime record counts the job', career.jobs >= 1, career.jobs + '');
+check('the lifetime record counts the fee', career.earned > 0,
+      career.earned + '');
+check('a job finished without a scratch is recorded as such',
+      career.cleanJobs >= 1, career.cleanJobs + '');
+check('crossing a threshold announces a promotion',
+      career.promotedTo === career.rank && career.rank > 1,
+      'rank ' + career.rank);
 
 // Landmarks: three fixed buildings you can steer by. They must land on the
 // cells the config names (not wherever the random roll puts them), stand
@@ -496,8 +599,9 @@ const jobs = await page.evaluate(() => {
   const s = game.session, c = s.car;
   for (const coin of s.coins) { coin.taken = true; coin.object.visible = false; }
 
-  // start from a fresh job: whatever the tests above left behind may already
-  // be part-way through its stops, and this check is about a job run whole
+  // All three job types only come up once the driver's rank has opened them,
+  // which is the point of the ranks -- so promote first, then check.
+  game.save.addXp(30000);
   s.newMission();
 
   const seen = {};
@@ -542,6 +646,11 @@ check('longer jobs are worth more',
 const van = await page.evaluate(() => {
   const s = game.session, c = s.car;
   const fee = 1000;
+  // Clear the coins: one swept up in the same frame would land in the same
+  // total and make the payout look a coin richer than the fee.
+  for (const coin of s.coins) { coin.taken = true; coin.object.visible = false; }
+  // Rank scales every fee, so the expected payout is derived, not assumed.
+  const rate = game.progress.payRate(game.save.get().xp || 0);
   const collect = (multiplier) => {
     s.car.spec.payMultiplier = multiplier;
     s.mission = { type: 'delivery', stops: [{ x: 0, z: 0 }], stopIndex: 0,
@@ -555,11 +664,14 @@ const van = await page.evaluate(() => {
   const plain = collect(1);
   const loaded = collect(1.35);
   s.car.spec.payMultiplier = 1;
-  return { plain, loaded };
+  s.scatterCoins(s.city.streetLines, s.city.halfExtent - 14);
+  return { plain, loaded, plainDue: Math.round(fee * rate),
+           loadedDue: Math.round(fee * 1.35 * rate) };
 });
 console.log('   van pay:', JSON.stringify(van));
 check('the van multiplier reaches the payout',
-      van.loaded === Math.round(van.plain * 1.35), JSON.stringify(van));
+      van.plain === van.plainDue && van.loaded === van.loadedDue,
+      JSON.stringify(van));
 
 // Night is a real lighting change, not just a darker sky.
 const night = await page.evaluate(() => {
@@ -729,6 +841,9 @@ const escape = await page.evaluate(() => {
   const s = game.session, c = s.car;
   const police = s.police;
   police.reset();
+  // Dispatch from the middle of the map, so the corner the car runs to is
+  // genuinely far away whatever the test before this one left behind.
+  c.place(s.city.streetLines[4] + s.city.laneOffsets[0], 0, 0);
   police.heat = 1;
   police.update(1/60, c);                       // dispatches
   const dispatched = police.wanted;
