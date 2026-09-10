@@ -630,6 +630,32 @@
       ],
       "bytes": 76956
     },
+    "traffic_police": {
+      "file": "traffic_police.glb",
+      "kind": "traffic",
+      "tris": 1436,
+      "size": [
+        2.03,
+        4.815,
+        1.487
+      ],
+      "center": [
+        0.0,
+        -0.012,
+        0.752
+      ],
+      "min": [
+        -1.015,
+        -2.42,
+        0.008
+      ],
+      "max": [
+        1.015,
+        2.395,
+        1.495
+      ],
+      "bytes": 84620
+    },
     "road": {
       "file": "road.glb",
       "kind": "road",

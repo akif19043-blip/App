@@ -64,6 +64,19 @@
     </div>
     <span class="hud__nitro-label" data-i18n="hud.nitro">NITRO</span>
   </div>
+
+  <!-- Damage and heat: both hidden while there is nothing to say, so a
+       careful driver never sees them. -->
+  <div class="hud__meters">
+    <div id="meter-damage" class="meter meter--damage is-hidden">
+      <span class="meter__label">🔧</span>
+      <div class="meter__track"><div id="meter-damage-fill" class="meter__fill"></div></div>
+    </div>
+    <div id="meter-heat" class="meter meter--heat is-hidden">
+      <span class="meter__label">🚨</span>
+      <div class="meter__track"><div id="meter-heat-fill" class="meter__fill"></div></div>
+    </div>
+  </div>
 </div>
 
 <div id="target-arrow" class="target-arrow" aria-hidden="true">

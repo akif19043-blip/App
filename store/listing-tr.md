@@ -21,13 +21,23 @@ hesaplanır; zamanında varırsan ekstra ödeme alırsın. Hedef ekranda
 görünmüyorsa kenardaki ok yönü gösterir, mini haritaya dokunarak bütün
 şehri görebilirsin.
 
+Ama pervasız sürmenin bir bedeli var. Her çarpışma arabana hasar yazar ve
+hasarlı araba yavaşlar; garajda onarım parasını ödeyene kadar da öyle kalır.
+Trafiğe çarpar, binalara toslar ya da hız sınırını aşarsan polis devriyesi
+yola çıkar: yakalarsan kazancının bir kısmı ceza olarak gider, ekmeyi
+başarırsan hiçbir şey kaybetmezsin.
+
+**Yönünü bulmak kolay**
+Şehirde her oyunda aynı yerde duran üç simge yapı var: gözlem kulesi, stadyum
+ve anıt meydanı. Mini haritada da ayrı renkte görünürler.
+
 **Trafik Yarışı**
 Sonsuz otoyolda trafiği yararak skor topla. Hızlı gitmek daha çok puan
 kazandırır, araçların yanından sıyırarak geçmek ise ekstra prim verir.
 
 **Garaj**
-Kazandığın jetonlarla üç arabadan birini al, motor / şanzıman / lastik / fren
-tak ve rengini değiştir. Her araç kendi donanımını ve rengini hatırlar.
+Kazandığın jetonlarla beş arabadan birini al, motor / şanzıman / lastik / fren
+tak, hasarı onart ve rengini değiştir. Her araç kendi donanımını ve rengini hatırlar.
 
 **Kontroller**
 Ekrandaki tuşlar, ekranı parmakla kaydırma ya da telefonu eğerek sürme. Solak

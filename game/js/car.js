@@ -34,6 +34,11 @@ export class Car {
     this.boostTimer = 0;
     this.shake = 0;
     this.bumped = false;
+    // 0 = straight out of the garage, 1 = wrecked. Crashes add to it and it
+    // only comes off by paying for repairs, which is what makes a crash cost
+    // something beyond the speed you lose in it.
+    this.damage = 0;
+    this.lastHit = 0;
   }
 
   setCar(spec) {
@@ -152,8 +157,44 @@ export class Car {
     this.applyTransform(0);
   }
 
+  /**
+   * A battered car is a slower car: at full damage it gives up
+   * PLAY.damagePower of its top speed. The loss is smooth, so the player
+   * feels the car going off before the warning light comes on.
+   */
+  get healthFactor() {
+    return 1 - PLAY.damagePower * this.damage;
+  }
+
   get topSpeed() {
-    return this.spec.topSpeed * (this.boosting ? PLAY.nitroFactor : 1);
+    return this.spec.topSpeed * this.healthFactor
+      * (this.boosting ? PLAY.nitroFactor : 1);
+  }
+
+  /**
+   * Take damage from an impact at `speed` m/s hitting `severity` (0..1) of
+   * it head-on. Below PLAY.damageFloor nothing registers -- kerbing a wheel
+   * while parking is not a crash -- and the amount taken is the share of the
+   * car's top speed that went into the impact, so a scrape at 20 km/h is
+   * nothing and a head-on at 120 km/h is most of a repair bill.
+   *
+   * @returns {number} how much damage this impact added
+   */
+  hurt(speed, severity) {
+    const into = speed * Math.max(0, Math.min(1, severity));
+    if (into < PLAY.damageFloor) return 0;
+    const taken = Math.min(PLAY.damagePerHit,
+                           (into / this.spec.topSpeed) * PLAY.damageScale);
+    const before = this.damage;
+    this.damage = Math.min(1, this.damage + taken);
+    this.lastHit = this.damage - before;
+    return this.lastHit;
+  }
+
+  /** Straighten it out again -- the garage calls this once it is paid for. */
+  repair() {
+    this.damage = 0;
+    this.lastHit = 0;
   }
 
   get kmh() {
@@ -201,6 +242,7 @@ export class Car {
     let nextZ = this.z + forward.z * this.speed * dt;
 
     this.bumped = false;
+    const before = Math.abs(this.speed);
     if (collider) {
       const hit = collider.resolve(nextX, nextZ, this.radius);
       if (hit.hit) {
@@ -216,6 +258,7 @@ export class Car {
           audio.scrape();
           haptics.scrape();
         }
+        this.hurt(before, severity);
         this.bumped = true;
       }
     }

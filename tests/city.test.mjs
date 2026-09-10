@@ -219,13 +219,15 @@ check('pedestrians actually walk', walkers.moved > walkers.total / 2,
 check('their legs swing', walkers.legSwing > 0.2);
 
 // Garage: parts cost money, raise the stat they name, and stick.
-const tuning = await page.evaluate(() => {
+// Pause first: the run banks coins and damage on a timer, and a profile
+// written from under us would undo the edit before the reload picks it up.
+await page.evaluate(() => {
   const key = 'dortyol.profile.v1';
+  game.pause();
   const profile = JSON.parse(localStorage.getItem(key));
   profile.coins = 50000;
   profile.upgrades = {};
   localStorage.setItem(key, JSON.stringify(profile));
-  return null;
 });
 await page.reload({ waitUntil: 'load' });
 await page.waitForFunction(() => document.getElementById('screen-menu')?.classList.contains('is-visible'), { timeout: 120000 });
@@ -611,6 +613,140 @@ const bump = await page.evaluate(() => {
 });
 console.log('   kerb:', JSON.stringify(bump));
 check('car cannot drive into a block', !bump.inside && bump.bumped);
+
+// Damage: a crash costs you something beyond the speed you lose in it, and
+// the garage is the only way to get it back.
+const dents = await page.evaluate(() => {
+  const s = game.session, c = s.car;
+  const index = s.blocks.findIndex((block) => block.kind !== 'block_parking');
+  const [bx, bz] = s.city.blockCenters[index];
+
+  c.damage = 0;
+  // creep into the kerb: too slow to count as a crash
+  c.place(bx, bz + s.city.pitch / 2, 0);
+  c.speed = 3;
+  for (let i = 0; i < 120; i++) {
+    game.testInput = { steer: 0, throttle: 0, brake: false };
+    game.update(1/60);
+  }
+  const nudge = c.damage;
+
+  // now drive into it properly
+  c.place(bx, bz + s.city.pitch / 2, 0);
+  const clean = c.topSpeed;
+  for (let i = 0; i < 240; i++) {
+    game.testInput = { steer: 0, throttle: 1, brake: false };
+    game.update(1/60);
+  }
+  const crashed = c.damage;
+  const slowed = c.topSpeed;
+
+  c.damage = 0.5;
+  const halfDead = c.topSpeed;
+  c.repair();
+  return { nudge: +nudge.toFixed(3), crashed: +crashed.toFixed(3),
+           clean: +clean.toFixed(2), slowed: +slowed.toFixed(2),
+           halfDead: +halfDead.toFixed(2), afterRepair: c.damage };
+});
+console.log('   damage:', JSON.stringify(dents));
+check('a kerb at walking pace is not a crash', dents.nudge === 0, dents.nudge + '');
+check('driving into a building damages the car', dents.crashed > 0.02,
+      dents.crashed + '');
+check('damage costs top speed', dents.halfDead < dents.clean,
+      `${dents.halfDead} vs ${dents.clean}`);
+check('repairs undo it', dents.afterRepair === 0);
+
+// The garage charges for the repair, and will not do it for free.
+const bill = await page.evaluate(async () => {
+  const before = JSON.parse(localStorage.getItem('dortyol.profile.v1'));
+  game.session.car.damage = 0.6;
+  game.pause();                      // banking is what writes damage out
+  const saved = JSON.parse(localStorage.getItem('dortyol.profile.v1'));
+  return { savedDamage: saved.damage && saved.damage[game.session.car.spec.id],
+           coinsBefore: before.coins };
+});
+console.log('   repair bill:', JSON.stringify(bill));
+check('damage is banked with the run', bill.savedDamage > 0.5,
+      bill.savedDamage + '');
+await page.click('#btn-resume');
+await page.waitForTimeout(250);
+
+// Police: reckless driving fills the heat meter, a patrol turns up, and it
+// costs money if it catches you.
+const chase = await page.evaluate(() => {
+  const s = game.session, c = s.car;
+  const police = s.police;
+  police.reset();
+  const calm = police.heat;
+
+  // A spell of speeding, from one end of the map to the other: the meter
+  // takes about twelve seconds to fill and the car covers 40 m of street a
+  // second, so it needs the full run to get there without hitting the wall.
+  c.place(s.city.streetLines[3] + s.city.laneOffsets[0],
+          s.city.halfExtent - 40, 0);
+  c.speed = 40;
+  for (let i = 0; i < 60 * 20 && !police.wanted; i++) {
+    c.speed = Math.max(c.speed, 40);
+    game.testInput = { steer: 0, throttle: 1, brake: false };
+    game.update(1/60);
+  }
+  const dispatched = police.wanted;
+  const at = police.position;
+  const gapAtStart = at
+    ? Math.round(Math.hypot(at.x - c.x, at.z - c.z)) : null;
+
+  // stand still and let them arrive
+  let closest = gapAtStart;
+  let busted = false;
+  const coinsBefore = s.stats.coins = 4000;
+  // Coast to a stop rather than holding the brake -- held past a standstill
+  // the brake reverses the car, and you are not caught while still moving.
+  for (let i = 0; i < 60 * 60 && !busted; i++) {
+    game.testInput = { steer: 0, throttle: 0, brake: false };
+    game.update(1/60);
+    const now = police.position;
+    if (now) {
+      closest = Math.min(closest,
+                         Math.round(Math.hypot(now.x - c.x, now.z - c.z)));
+    }
+    busted = s.stats.busts > 0;
+  }
+  return { calm, dispatched, gapAtStart, closest, busted,
+           fine: coinsBefore - s.stats.coins, heatAfter: police.heat,
+           coins: s.stats.coins };
+});
+console.log('   chase:', JSON.stringify(chase));
+check('the heat meter starts empty', chase.calm === 0);
+check('speeding brings out a patrol car', chase.dispatched);
+check('the patrol closes in on the car', chase.closest < chase.gapAtStart,
+      `${chase.closest} m from ${chase.gapAtStart} m`);
+check('being caught costs a fine', chase.busted && chase.fine > 0,
+      chase.fine + ' coins');
+check('the heat clears once it is settled', chase.heatAfter === 0);
+
+// ...and outrunning them ends it without a fine.
+const escape = await page.evaluate(() => {
+  const s = game.session, c = s.car;
+  const police = s.police;
+  police.reset();
+  police.heat = 1;
+  police.update(1/60, c);                       // dispatches
+  const dispatched = police.wanted;
+  const before = s.stats.coins;
+  // teleport away and hold: the chase gives up after loseTime seconds
+  let escaped = false;
+  for (let i = 0; i < 60 * 30 && !escaped; i++) {
+    c.place(-s.city.halfExtent + 30, -s.city.halfExtent + 30, 0);
+    c.speed = 0;
+    game.testInput = { steer: 0, throttle: 0, brake: false };
+    game.update(1/60);
+    escaped = !police.wanted;
+  }
+  return { dispatched, escaped, charged: before - s.stats.coins };
+});
+console.log('   escape:', JSON.stringify(escape));
+check('a patrol can be outrun', escape.dispatched && escape.escaped);
+check('outrunning them costs nothing', escape.charged === 0);
 
 // map bounds
 const bounds = await page.evaluate(() => {

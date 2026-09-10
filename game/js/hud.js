@@ -38,6 +38,10 @@ export class Hud {
     this.el.coins = document.getElementById('hud-coins');
     this.el.distance = document.getElementById('hud-distance');
     this.el.nitroFill = document.getElementById('hud-nitro-fill');
+    this.el.damage = document.getElementById('meter-damage');
+    this.el.damageFill = document.getElementById('meter-damage-fill');
+    this.el.heat = document.getElementById('meter-heat');
+    this.el.heatFill = document.getElementById('meter-heat-fill');
     this.el.nitroButton = document.getElementById('btn-nitro');
     this.el.gas = document.getElementById('btn-gas');
     this.el.toast = document.getElementById('toast');
@@ -324,12 +328,39 @@ export class Hud {
                aria-label="${t('garage.paintOf', { color })}"></button>`
     ).join('');
 
+    // Repairs come first: a battered car undoes the parts you already paid
+    // for, so fixing it is the upgrade to make before any other.
+    const bill = garage.repairCost(car);
+    const repair = bill === 0 ? '' : `
+      <button class="tune__row tune__row--repair${profile.coins >= bill ? '' : ' is-disabled'}"
+              type="button" data-repair="1"
+              ${profile.coins >= bill ? '' : 'disabled'}>
+        <span class="tune__name">${t('garage.repair')}</span>
+        <span class="tune__pips tune__damage">${
+          Math.round(save.damageFor(car.id) * 100)}%</span>
+        <span class="tune__cost">${formatNumber(bill)} 🪙</span>
+      </button>`;
+
     panel.innerHTML = `
       <h3 class="tune__title">${t('garage.parts', { car: t(car.nameKey) })}</h3>
-      <div class="tune__rows">${rows}</div>
+      <div class="tune__rows">${repair}${rows}</div>
       <h3 class="tune__title">${t('garage.paint')}</h3>
       <div class="tune__paints">${paints}</div>
     `;
+
+    const repairButton = panel.querySelector('[data-repair]');
+    if (repairButton) {
+      repairButton.addEventListener('click', () => {
+        audio.uiTap();
+        if (garage.repair(car)) {
+          this.handlers.onSelectCar(car);
+          this.toast(t('garage.repaired'));
+        } else {
+          this.toast(t('garage.tooPoor'));
+        }
+        this.renderGarage();
+      });
+    }
 
     panel.querySelectorAll('[data-part]').forEach((button) => {
       button.addEventListener('click', () => {
@@ -401,6 +432,34 @@ export class Hud {
     this.el.nitroFill.style.transform = `scaleX(${state.nitro.toFixed(3)})`;
     this.el.nitroButton.classList.toggle('is-ready', state.nitro > 0.1);
     this.el.nitroButton.classList.toggle('is-firing', state.boosting);
+    this.updateMeters(state);
+  }
+
+  /**
+   * Damage and heat. Both bars stay hidden until they have something to
+   * report, so a clean run keeps a clean screen.
+   */
+  updateMeters(state) {
+    if (!this.el.damage) return;
+    const damage = state.damage || 0;
+    this.el.damage.classList.toggle('is-hidden', damage < 0.04);
+    this.el.damageFill.style.transform = `scaleX(${damage.toFixed(3)})`;
+
+    const heat = state.heat || 0;
+    this.el.heat.classList.toggle('is-hidden', heat < 0.02 && !state.wanted);
+    this.el.heat.classList.toggle('is-wanted', !!state.wanted);
+    this.el.heatFill.style.transform = `scaleX(${(state.wanted ? 1 : heat).toFixed(3)})`;
+
+    if (state.event) this.announce(state.event);
+  }
+
+  /** One-shot news from the session: a fine, or shaking off a patrol. */
+  announce(event) {
+    if (event.kind === 'busted') {
+      this.toast(t('police.busted', { amount: formatNumber(event.amount) }), 2.6);
+    } else if (event.kind === 'escaped') {
+      this.toast(t('police.escaped'), 2.2);
+    }
   }
 
   showGameOver(result) {

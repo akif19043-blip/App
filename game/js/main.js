@@ -33,7 +33,7 @@ const MODELS = [
   // vehicles
   'car_hatch', 'car_sport', 'car_muscle', 'car_van', 'car_super',
   'traffic_sedan', 'traffic_hatch', 'traffic_suv',
-  'traffic_truck', 'traffic_bus',
+  'traffic_truck', 'traffic_bus', 'traffic_police',
   // highway
   'road', 'ground', 'guardrail', 'barrier',
   'palm', 'cactus', 'rock', 'mesa', 'lamp', 'billboard', 'cone',
@@ -194,6 +194,7 @@ class Game {
     audio.stopEngine();
     audio.stopAmbience();
     audio.stopMusic();
+    audio.stopSiren();
   }
 
   toMenu() {
@@ -310,6 +311,15 @@ class Game {
   bankCityEarnings() {
     const session = this.sessions.city;
     if (!session || !session.stats) return;
+    // Damage is banked whether or not there is money to bank: it is what the
+    // garage charges to put right, so it has to outlive the session. Only
+    // when it has actually moved, though -- this runs on a timer, and a
+    // profile written to disk every few seconds for no reason is a profile
+    // that will eventually overwrite something that mattered.
+    const carId = session.car && session.car.spec ? session.car.spec.id : null;
+    if (carId && Math.abs(save.damageFor(carId) - session.car.damage) > 0.001) {
+      save.setDamage(carId, session.car.damage);
+    }
     const owed = session.stats.coins - (this.banked || 0);
     if (owed <= 0) return;
     save.addCoins(owed);
@@ -363,7 +373,8 @@ class Game {
 
     if (this.mode === 'city') {
       this.minimap.draw(this.session.car, this.session.coins,
-                        this.session.mission, this.session.traffic.cars);
+                        this.session.mission, this.session.traffic.cars,
+                        this.session.police.position);
       this.hud.setTargetArrow(this.targetMarker(this.session.mission));
       this.bankTimer += dt;
       if (this.bankTimer > 8) {

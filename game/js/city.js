@@ -16,8 +16,10 @@ import * as assets from './assets.js';
 import * as audio from './audio.js';
 import * as environment from './environment.js';
 import * as haptics from './haptics.js';
+import * as save from './save.js';
 import { Car } from './car.js';
 import { Pedestrians } from './pedestrians.js';
+import { Police } from './police.js';
 import { Signals } from './signals.js';
 import { t } from './i18n.js';
 import { CITY, DRIVE, SHADOWS, TRAFFIC_COLORS, TRAFFIC_MODELS }
@@ -156,7 +158,7 @@ const ACCEL = 3.2;
 const FOLLOW_GAP = 3.0;
 
 /** Unit forward vector for a lane direction. */
-function forwardOf(axis, dir) {
+export function forwardOf(axis, dir) {
   return axis === 'x' ? { x: dir, z: 0 } : { x: 0, z: dir };
 }
 
@@ -166,7 +168,7 @@ function rightOf(f) {
 }
 
 /** rotation.y for a forward vector, matching the models' -Z facing. */
-function headingOf(f) {
+export function headingOf(f) {
   return Math.atan2(-f.x, -f.z);
 }
 
@@ -455,7 +457,7 @@ export class CitySession {
     this.reverseBlend = 0;
     this.rigScale = 1;
     this.stats = { coins: 0, collected: 0, deliveries: 0, onTime: 0,
-                   distance: 0 };
+                   distance: 0, fines: 0, busts: 0 };
   }
 
   build(timeOfDay) {
@@ -478,6 +480,7 @@ export class CitySession {
     this.buildSignals();
     this.buildCoins();
     this.buildBeacon();
+    this.police = new Police(this.scene, this.city, this.random);
 
     this.car = new Car(this.scene);
     this.traffic = new CityTraffic(this.scene, this.city, this.random);
@@ -723,9 +726,14 @@ export class CitySession {
     // north-south street is at line + laneOffset.
     this.car.place(line + this.city.laneOffsets[0], 0, 0);
     this.car.nitro = 0.5;
+    // Damage carries over between sessions -- only the garage clears it.
+    this.car.damage = save.damageFor(carSpec.id);
+    this.police.reset();
+    this.wasScraping = false;
+    this.lastEvent = null;
 
     this.stats = { coins: 0, collected: 0, deliveries: 0, onTime: 0,
-                   distance: 0 };
+                   distance: 0, fines: 0, busts: 0 };
     this.random = makeRandom(MAP_SEED + 7);
     this.scatterCoins(this.city.streetLines, this.city.halfExtent - 14);
     this.traffic.reset(this.car.x, this.car.z);
@@ -742,8 +750,10 @@ export class CitySession {
     this.traffic.update(dt, this.car.x, this.car.z, this.signals);
     this.pedestrians.update(dt, this.car.x, this.car.z);
     this.resolveTrafficContact();
+    this.noticeScrape();
     this.collectCoins(time);
     this.checkMission(dt);
+    this.updatePolice(dt);
 
     if (this.beacon.visible) {
       this.beacon.rotation.y = time * 0.8;
@@ -764,8 +774,41 @@ export class CitySession {
       this.car.shake = Math.max(this.car.shake, 0.7);
       audio.crash();
       haptics.crash();
+      // Hitting another car is the reckless thing you can do that a patrol
+      // would actually see, so it carries most of the heat.
+      this.police.add(CITY.police.heatPerCrash);
     }
+    this.car.hurt(Math.abs(this.car.speed), 0.8);
     this.car.speed *= 0.35;
+  }
+
+  /**
+   * A bump into a building is worth a little heat too, but only once per
+   * impact -- `bumped` stays true for as long as you are grinding along a
+   * wall, and a single scrape should not summon the whole city's police.
+   */
+  noticeScrape() {
+    const scraping = this.car.bumped && Math.abs(this.car.speed) > 6;
+    if (scraping && !this.wasScraping) {
+      this.police.add(CITY.police.heatPerScrape);
+    }
+    this.wasScraping = scraping;
+  }
+
+  /** Run the chase, and settle up if it ends. */
+  updatePolice(dt) {
+    const outcome = this.police.update(dt, this.car);
+    if (outcome.busted) {
+      const fine = Math.max(CITY.police.minFine,
+                            Math.round(this.stats.coins * CITY.police.fine));
+      this.stats.coins = Math.max(0, this.stats.coins - fine);
+      this.stats.fines += fine;
+      this.stats.busts += 1;
+      this.lastEvent = { kind: 'busted', amount: fine };
+      this.car.speed = 0;
+    } else if (outcome.escaped) {
+      this.lastEvent = { kind: 'escaped', amount: 0 };
+    }
   }
 
   collectCoins(time) {
@@ -839,6 +882,13 @@ export class CitySession {
     this.newMission();
   }
 
+  /** One-shot HUD events (a fine, an escape); reading one clears it. */
+  takeEvent() {
+    const event = this.lastEvent || null;
+    this.lastEvent = null;
+    return event;
+  }
+
   hudState() {
     const target = this.mission
       ? Math.round(Math.hypot(this.mission.x - this.car.x,
@@ -853,6 +903,10 @@ export class CitySession {
       boosting: this.car.boosting,
       deliveries: this.stats.deliveries,
       timeLeft: this.mission ? Math.max(0, this.mission.left) : null,
+      heat: this.police ? this.police.heat : 0,
+      wanted: this.police ? this.police.wanted : false,
+      damage: this.car.damage,
+      event: this.takeEvent(),
     };
   }
 
@@ -937,6 +991,9 @@ export class CitySession {
     const line = this.city.streetLines[
       Math.floor(this.city.streetLines.length / 2)];
     this.car.place(line + this.city.laneOffsets[0], 0, Math.PI * 0.15);
+    // Re-read the damage: this is also the path a garage repair comes back
+    // through, and a car you have just paid to fix must drive like it.
+    this.car.damage = save.damageFor(carSpec.id);
     this.traffic.reset(this.car.x, this.car.z);
     this.pedestrians.reset(this.car.x, this.car.z);
   }

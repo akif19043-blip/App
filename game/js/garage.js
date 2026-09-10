@@ -7,7 +7,7 @@
  */
 
 import * as save from './save.js';
-import { UPGRADES } from './config.js';
+import { PLAY, UPGRADES } from './config.js';
 
 /** Cost of taking `partId` on `car` from its current level to the next. */
 export function upgradeCost(car, partId) {
@@ -36,6 +36,28 @@ export function buyUpgrade(car, partId) {
   if (profile.coins < cost) return false;
   save.addCoins(-cost);
   save.setUpgradeLevel(car.id, partId, save.upgradeLevel(car.id, partId) + 1);
+  return true;
+}
+
+/**
+ * What it costs to put this car right, rounded to something a player can
+ * read. Zero when there is nothing to fix.
+ */
+export function repairCost(car) {
+  const damage = save.damageFor(car.id);
+  if (damage < 0.02) return 0;
+  return Math.max(40, Math.round(damage * PLAY.repairCost / 10) * 10);
+}
+
+/**
+ * Pay for the repair. Returns false, changing nothing, when the car is either
+ * already straight or the money is not there.
+ */
+export function repair(car) {
+  const cost = repairCost(car);
+  if (!cost || save.get().coins < cost) return false;
+  save.addCoins(-cost);
+  save.setDamage(car.id, 0);
   return true;
 }
 

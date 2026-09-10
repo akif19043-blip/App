@@ -16,6 +16,7 @@ const COLORS = {
   traffic: 'rgba(210, 220, 230, 0.75)',
   mission: '#8ef06a',
   player: '#ff8a3d',
+  police: '#4f8dff',
   border: 'rgba(255, 255, 255, 0.14)',
 };
 
@@ -79,7 +80,7 @@ export class Minimap {
     });
   }
 
-  draw(car, coins, mission, traffic) {
+  draw(car, coins, mission, traffic, police = null) {
     const ctx = this.ctx;
     const size = this.size;
     this.origin = this.mode === 'full' ? { x: 0, z: 0 } : { x: car.x, z: car.z };
@@ -114,6 +115,16 @@ export class Minimap {
       const [sx, sy] = this.toScreen(other.holder.position.x,
                                      other.holder.position.z);
       ctx.fillRect(sx - 1, sy - 1, 2, 2);
+    }
+
+    // The patrol gets a blinking blue dot: knowing which way it is coming
+    // from is most of what makes shaking it off a decision rather than luck.
+    if (police && Math.floor(performance.now() / 260) % 2 === 0) {
+      const [sx, sy] = this.toScreen(police.x, police.z);
+      ctx.fillStyle = COLORS.police;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 2.6, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     if (mission) {

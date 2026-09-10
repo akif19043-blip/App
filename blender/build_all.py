@@ -36,7 +36,7 @@ ASSETS = (
                                       'car_muscle', 'car_super', 'car_van')]
     + [(n, vehicles, 'traffic') for n in ('traffic_sedan', 'traffic_hatch',
                                           'traffic_suv', 'traffic_truck',
-                                          'traffic_bus')]
+                                          'traffic_bus', 'traffic_police')]
     + [(n, road, 'road') for n in ('road', 'guardrail', 'barrier', 'ground')]
     + [(n, props, 'prop') for n in ('palm', 'cactus', 'rock', 'mesa',
                                     'lamp', 'billboard', 'cone')]

@@ -79,6 +79,16 @@ def build():
                               emission='#ffa41c', emission_strength=1.0),
         'SignalZ_Green': dict(color='#0b3a16', roughness=0.30,
                               emission='#3cff72', emission_strength=1.0),
+        # Police. The body is its own slot rather than the shared CarPaint,
+        # so a patrol car cannot come out of the traffic tint in pink; the
+        # two bar lamps are shared materials like the signals, so the game
+        # flashes every patrol car in the city with two writes a frame.
+        'PoliceBody':   dict(color='#eceff2', metallic=0.15, roughness=0.42),
+        'PoliceStripe': dict(color='#16305c', metallic=0.10, roughness=0.50),
+        'PoliceRed':    dict(color='#3a0d0a', roughness=0.30,
+                             emission='#ff2a18', emission_strength=1.0),
+        'PoliceBlue':   dict(color='#0a1a3a', roughness=0.30,
+                             emission='#3d7bff', emission_strength=1.0),
         # pedestrians
         'Skin':       dict(color='#c98d63', metallic=0.00, roughness=0.72),
         'Shirt':      dict(color='#3f7fd0', metallic=0.00, roughness=0.75),

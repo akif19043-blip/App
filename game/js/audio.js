@@ -287,6 +287,61 @@ export function stopAmbience() {
   ambience = null;
 }
 
+let siren = null;
+
+/**
+ * Two-tone siren, held for as long as a patrol car is after you.
+ *
+ * One oscillator whose frequency is stepped between two notes by a second,
+ * very slow oscillator -- a square LFO on the pitch, which is what a European
+ * two-tone siren is. Volume follows how close the patrol car is, so it warns
+ * you before you can see it in the mirror.
+ */
+export function setSiren(on, closeness = 0) {
+  if (!ctx || !enabled) {
+    if (!on) stopSiren();
+    return;
+  }
+  if (!on) return stopSiren();
+
+  if (!siren) {
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = 640;
+
+    const lfo = ctx.createOscillator();
+    lfo.type = 'square';
+    lfo.frequency.value = 1.6;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 150;          // Hz either side of the centre note
+    lfo.connect(lfoGain).connect(osc.frequency);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 1800;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    osc.connect(filter).connect(gain).connect(master);
+    osc.start();
+    lfo.start();
+    siren = { osc, lfo, gain };
+  }
+  const level = 0.05 + 0.11 * Math.max(0, Math.min(1, closeness));
+  siren.gain.gain.setTargetAtTime(level, now(), 0.15);
+}
+
+export function stopSiren() {
+  if (!siren) return;
+  const { osc, lfo, gain } = siren;
+  gain.gain.setTargetAtTime(0, now(), 0.2);
+  try {
+    osc.stop(now() + 0.6);
+    lfo.stop(now() + 0.6);
+  } catch (err) { /* already stopped */ }
+  siren = null;
+}
+
 let lastScreech = 0;
 
 /**

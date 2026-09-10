@@ -168,6 +168,50 @@ html, body {
   color: var(--muted);
 }
 
+/* The repair row leads the parts list and reads as urgent, not as another
+   upgrade to browse. */
+.tune__row--repair { border-color: rgba(208, 69, 28, 0.55); }
+.tune__row--repair .tune__name { color: #f0a15c; }
+.tune__damage { color: #f0a15c; font-size: 12px; letter-spacing: 0.04em; }
+
+/* Damage and heat sit under the nitro bar and stay out of the way: a bar
+   only appears once it has something to report. */
+.hud__meters {
+  position: absolute;
+  right: var(--pad);
+  bottom: calc(var(--pad-bottom) + 152px);
+  width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.meter.is-hidden { display: none; }
+.meter__label { font-size: 11px; line-height: 1; }
+.meter__track {
+  flex: 1;
+  height: 7px;
+  border-radius: 99px;
+  background: rgba(10, 14, 20, 0.6);
+  border: 1px solid var(--panel-edge);
+  overflow: hidden;
+}
+.meter__fill {
+  height: 100%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 160ms linear;
+}
+.meter--damage .meter__fill { background: linear-gradient(90deg, #d08b1c, #d0451c); }
+.meter--heat .meter__fill { background: linear-gradient(90deg, #2f6bd8, #d0281c); }
+.meter--heat.is-wanted .meter__label { animation: heat-blink 0.7s steps(2, end) infinite; }
+@keyframes heat-blink { 50% { opacity: 0.15; } }
+
 /* Points at the delivery whenever the beacon itself is off screen. */
 .target-arrow {
   position: fixed;

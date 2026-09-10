@@ -21,13 +21,23 @@ streets are a grid, so it is measured along them, not as the crow flies — and
 arriving on time pays a bonus. When the drop-off is off screen an arrow at the
 edge points to it, and tapping the minimap zooms out to the whole city.
 
+Driving badly costs you, though. Every crash dents the car, and a dented car
+is a slower one until you pay to have it put right in the garage. Hit traffic,
+clout a building or sit well over the limit and a patrol car is sent out: get
+caught and part of your takings goes on the fine, shake it off and you keep
+the lot.
+
+**Easy to find your way**
+Three landmarks stand in the same place every game -- an observation tower, a
+stadium and a memorial square -- and each has its own colour on the minimap.
+
 **Traffic Rush**
 Endless highway, one score. Going fast is worth more, and slipping past traffic
 with inches to spare is worth more still.
 
 **Garage**
-Spend your coins on one of three cars, then fit an engine, gearbox, tyres and
-brakes, and pick a colour. Every car remembers its own parts and paint.
+Spend your coins on one of five cars, then fit an engine, gearbox, tyres and
+brakes, repair the dents, and pick a colour. Every car remembers its own parts and paint.
 
 **Controls**
 On-screen buttons, drag-to-steer, or tilt. There is a left-handed layout, and

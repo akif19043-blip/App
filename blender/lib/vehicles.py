@@ -27,9 +27,13 @@ def sections(rows):
                         bw=r[4], tw=r[5], zm=r[6], zb=r[7]) for r in rows]
 
 
-def build_body(P, rows, cabin, bevel=0.02):
+def build_body(P, rows, cabin, bevel=0.02, paint=PAINT_SLOT):
     """
     Loft the shell and shade the greenhouse as glass.
+
+    `paint` names the material for the painted panels; it is the shared
+    CarPaint slot for everything the game recolours, and its own slot for
+    liveries that must not be recoloured.
 
     `cabin` is the (first, last) section index of the passenger compartment.
     The quad band bridging the section *before* it is the windscreen and the
@@ -37,7 +41,7 @@ def build_body(P, rows, cabin, bevel=0.02):
     the glazing costs no extra geometry.
     """
     first, last = cabin
-    materials = [P[PAINT_SLOT], P['Glass'], P['Chassis'], P['Trim']]
+    materials = [P[paint], P['Glass'], P['Chassis'], P['Trim']]
 
     def face_material(i, band):
         if i is None:                                   # end caps
@@ -396,6 +400,62 @@ def traffic_bus(P):
         rim='AlloyDark')
 
 
+def traffic_police(P):
+    """
+    Patrol car: the sedan shell in a fixed livery, with a light bar.
+
+    The bar's two lamps use their own shared materials, so the game can flash
+    every patrol car on the map by writing two emissiveIntensity values --
+    the same trick the traffic signals use.
+    """
+    rows = [
+        (-2.30, 0.70, 0.32, 0.90, 0.54, 0.60, 0.54, 0.86),
+        (-2.10, 0.88, 0.26, 1.00, 0.64, 0.80, 0.52, 0.96),
+        (-1.55, 0.90, 0.24, 1.04, 0.62, 0.82, 0.50, 0.98),
+        (-1.15, 0.88, 0.24, 1.44, 0.64, 0.76, 0.52, 1.02),
+        (-0.35, 0.88, 0.24, 1.48, 0.66, 0.78, 0.54, 1.04),
+        ( 0.45, 0.88, 0.24, 1.44, 0.66, 0.78, 0.54, 1.04),
+        ( 0.90, 0.90, 0.24, 1.06, 0.66, 0.82, 0.52, 1.02),
+        ( 1.70, 0.88, 0.26, 1.00, 0.62, 0.78, 0.52, 0.96),
+        ( 2.14, 0.82, 0.30, 0.94, 0.56, 0.68, 0.52, 0.90),
+        ( 2.30, 0.68, 0.34, 0.88, 0.52, 0.58, 0.54, 0.84),
+    ]
+    body = build_body(P, rows, cabin=(3, 5), paint='PoliceBody')
+    details = []
+    details += lamps(P, 2.27, 0.52, 0.74, (0.30, 0.09, 0.14), 'LightWhite')
+    details += lamps(P, -2.27, 0.48, 0.78, (0.32, 0.08, 0.13), 'LightRed')
+    details.append(kit.box('grille', (0.86, 0.07, 0.14),
+                           (0, 2.29, 0.56), P['Trim']))
+    details += mirrors(P, 0.92, 0.62, 1.14)
+
+    # door stripe down each flank, and a bonnet flash
+    for side in (-1, 1):
+        details.append(kit.box('stripe', (0.06, 2.40, 0.30),
+                               (side * 0.92, -0.10, 0.72), P['PoliceStripe']))
+    details.append(kit.box('bonnet_flash', (0.70, 0.90, 0.04),
+                           (0, 1.66, 1.00), P['PoliceStripe']))
+
+    # light bar: a dark plinth with a red half and a blue half
+    details.append(kit.box('bar_base', (1.22, 0.26, 0.06),
+                           (0, 0.30, 1.33), P['Trim']))
+    for side, material in ((-1, 'PoliceRed'), (1, 'PoliceBlue')):
+        details.append(kit.box('bar_lamp', (0.52, 0.22, 0.11),
+                               (side * 0.30, 0.30, 1.41), P[material]))
+    details.append(kit.box('bar_cap', (1.26, 0.28, 0.03),
+                           (0, 0.30, 1.48), P['Trim']))
+
+    # push bar, so it reads as a patrol car head-on
+    details.append(kit.box('push_bar', (1.30, 0.07, 0.10),
+                           (0, 2.36, 0.50), P['AlloyDark']))
+    for side in (-1, 1):
+        details.append(kit.box('push_strut', (0.08, 0.10, 0.42),
+                               (side * 0.52, 2.34, 0.44), P['AlloyDark']))
+
+    details += exhaust(P, 0.36, -2.32, 0.36, radius=0.045)
+    return kit.join([body] + details, 'Body'), dict(
+        r=0.32, w=0.24, x=0.79, front=1.48, rear=-1.50)
+
+
 def car_hatch(P):
     """Small three-door hatch -- cheap, slow, and easy to place in a gap."""
     rows = [
@@ -477,6 +537,7 @@ BUILDERS = {
     'traffic_suv': traffic_suv,
     'traffic_truck': traffic_truck,
     'traffic_bus': traffic_bus,
+    'traffic_police': traffic_police,
 }
 
 

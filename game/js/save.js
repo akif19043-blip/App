@@ -18,6 +18,7 @@ const DEFAULTS = {
   seen: {},              // mode -> true once its tutorial has been shown
   upgrades: {},          // carId -> { engine: 0, gearbox: 0, ... }
   paint: {},             // carId -> '#rrggbb'
+  damage: {},            // carId -> 0..1, so a crash outlives the session
   settings: {
     sound: true,
     autoThrottle: false,   // free roam wants a real throttle you can lift off
@@ -129,6 +130,16 @@ export function setUpgradeLevel(carId, partId, level) {
 
 export function paintFor(carId, fallback) {
   return profile.paint[carId] || fallback;
+}
+
+/** How battered a car is, 0..1. Kept per car: they are repaired separately. */
+export function damageFor(carId) {
+  return Math.max(0, Math.min(1, profile.damage[carId] || 0));
+}
+
+export function setDamage(carId, value) {
+  profile.damage[carId] = Math.max(0, Math.min(1, value));
+  save();
 }
 
 export function setPaint(carId, color) {

@@ -6,7 +6,7 @@
  * of leaving players on a stale mix of new code and old models.
  */
 
-const CACHE = 'dortyol-02ec55f83c4b';
+const CACHE = 'dortyol-74ed4f7ab947';
 const ASSETS = [
   "./",
   "assets/icon-192.png",
@@ -47,6 +47,7 @@ const ASSETS = [
   "assets/models/traffic_bus.glb",
   "assets/models/traffic_hatch.glb",
   "assets/models/traffic_light.glb",
+  "assets/models/traffic_police.glb",
   "assets/models/traffic_sedan.glb",
   "assets/models/traffic_suv.glb",
   "assets/models/traffic_truck.glb",
@@ -69,6 +70,7 @@ const ASSETS = [
   "js/pedestrians.js",
   "js/pickups.js",
   "js/player.js",
+  "js/police.js",
   "js/quality.js",
   "js/save.js",
   "js/signals.js",

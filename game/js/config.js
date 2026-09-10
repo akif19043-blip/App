@@ -36,6 +36,18 @@ export const PLAY = {
   nitroPerPickup: 0.5,        // fraction of the bar a canister fills
   collisionShrink: 0.82,      // AABBs are tighter than the art, so near
                               // misses feel like near misses
+  /**
+   * Damage. `damageFloor` is the impact speed below which nothing registers
+   * (kerbing a wheel while parking is not a crash); `damageScale` turns the
+   * share of top speed that went into the hit into damage; `damagePerHit`
+   * caps a single impact so one bad moment cannot write the car off; and
+   * `damagePower` is how much of the top speed a fully wrecked car loses.
+   */
+  damageFloor: 5.5,           // m/s of impact before anything registers
+  damageScale: 0.55,
+  damagePerHit: 0.22,
+  damagePower: 0.35,
+  repairCost: 900,            // coins to put a fully wrecked car right
 };
 
 export const SCORE = {
@@ -150,6 +162,29 @@ export const CITY = {
   missionBonus: 0.6,          // fraction of the fee paid for beating the clock
   missionArriveRadius: 7.0,
   fogRange: [90, 420],
+  /**
+   * Heat and the patrol car it summons. Heat is 0..1; a full meter dispatches
+   * a patrol, and it stays full until you lose them. The fine is a share of
+   * what the run has earned, so being nicked costs you the afternoon rather
+   * than the car -- a game that takes everything away is a game people stop
+   * playing.
+   */
+  police: {
+    speedLimit: 24,           // m/s (~86 km/h) before it counts as speeding
+    heatPerCrash: 0.34,       // running into traffic
+    heatPerScrape: 0.10,      // clouting a building
+    heatWhileSpeeding: 0.085, // per second over the limit
+    heatDecay: 0.05,          // per second of driving properly
+    spawnRadius: [80, 140],
+    chaseSpeed: 27,
+    catchRadius: 9,
+    catchSpeed: 7,            // you are only nicked once you have slowed down
+    catchTime: 1.6,
+    loseRadius: 200,
+    loseTime: 8,
+    fine: 0.25,               // share of the run's earnings handed over
+    minFine: 120,
+  },
 };
 
 /**

@@ -12,7 +12,7 @@ gerektirmez.
 
 | Mod | Ne yapıyorsun |
 |---|---|
-| **Serbest Sürüş** | 626 metrelik, 64 adalık ızgara sokaklı bir şehirde istediğin gibi gez. Çalışan trafik ışıkları, kırmızıda kuyruğa giren ve kavşakta dönen trafik, kaldırımlarda yürüyen insanlar, girilebilen otoparklar. Yönünü **kule**, **stadyum** ve **meydan**dan bulursun. Jeton topla; **teslimat**, **yolcu** ve **kurye** işlerini süreye karşı yetiştir. |
+| **Serbest Sürüş** | 626 metrelik, 64 adalık ızgara sokaklı bir şehirde istediğin gibi gez. Çalışan trafik ışıkları, kırmızıda kuyruğa giren ve kavşakta dönen trafik, kaldırımlarda yürüyen insanlar, girilebilen otoparklar. Yönünü **kule**, **stadyum** ve **meydan**dan bulursun. Jeton topla; **teslimat**, **yolcu** ve **kurye** işlerini süreye karşı yetiştir. Ama dikkat: çarpmak arabayı **hasarlar**, pervasız sürmek **polisi** çağırır. |
 | **Trafik Yarışı** | Sonsuz otoyolda trafiği yararak skor topla. Hızlı gitmek ve sıyırarak geçmek ekstra puan. |
 
 Kazandığın jetonlarla garajdan **beş arabadan** birini alır, **motor /
@@ -79,7 +79,7 @@ npm run android:release   # imzalı .aab (önce keystore.properties gerekir)
 ```
 blender/           3B varlık üretimi (Blender'ın bpy modülü)
   lib/kit.py       düşük poligonlu modelleme araçları: kesit loft'u, materyal, GLB
-  lib/vehicles.py  5 oynanabilir araba + 5 trafik aracı
+  lib/vehicles.py  5 oynanabilir araba + 6 trafik aracı (polis dahil)
   lib/city.py      şehir: sokak ağı, bina adaları, simge yapılar,
                    trafik lambası, yaya, otopark
   lib/road.py      otoyol döşemeleri, bariyer, korkuluk
@@ -87,7 +87,7 @@ blender/           3B varlık üretimi (Blender'ın bpy modülü)
   build_all.py     hepsini üretir, ölçer, manifest.json yazar
   make_store.py    ikonlar ve mağaza görselleri
 game/              oyunun kendisi (statik site, derleme adımı yok)
-  js/              fizik, şehir, trafik, sinyaller, yayalar, garaj, girdi,
+  js/              fizik, şehir, trafik, sinyaller, yayalar, polis, garaj, girdi,
                    ses, kalite gözcüsü, i18n, arayüz
   assets/models/   üretilen .glb dosyaları + manifest.json
   vendor/three/    three.js (r180, MIT)
@@ -133,7 +133,9 @@ Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Dört paket:
   ama içindeki engellerin durdurması; yayaların kaldırımdan inmemesi; garajda
   parça ve renk; teslimat süresinin sokak mesafesine göre hesaplanması; oyun
   kolu; geri vites kamerası; hedef oku; mini harita yakınlaşması; üç simge
-  yapının hep aynı adada durması ve mini haritada ayrı renkte görünmesi.
+  yapının hep aynı adada durması ve mini haritada ayrı renkte görünmesi;
+  hasarın hızı düşürüp garajda para karşılığı geçmesi; hız yapınca devriyenin
+  yola çıkması, yaklaşması, yakalayınca ceza kesmesi ve ekilebilmesi.
 - **highway** — skor, sollama ve kıl payı bonusları, satın alma, duraklatma,
   12 km sonrası koordinat sıfırlama.
 - **layout** — altı ekran boyutunda (küçük telefon → tablet, iki yön) her
@@ -176,6 +178,19 @@ Maliyeti ~25 çizim çağrısı.
 şehirde fark 20.844 üçgenden 3.468'e iniyor ve bütün yol ağı tek çizim
 çağrısı grubunda kalıyor. Sürerken ölçülen toplam: **~270-360 çizim çağrısı,
 ~35.000 üçgen**.
+
+**Çarpmanın bir bedeli var.** Her çarpışma arabaya hasar yazar, hasar da azami
+hızı düşürür — tam hasarlı bir araba hızının **%35'ini** kaybeder. Hasar
+oturumlar arası kalıcıdır; tek çıkış yolu garajda **onarım** parasını
+ödemektir. Kaldırıma sürtmek hasar sayılmaz: 5,5 m/s altındaki temaslar
+yok sayılır, yoksa park etmek ceza olurdu.
+
+**Pervasız sürersen polis gelir.** Trafiğe çarpmak, binaya toslamak ve hız
+sınırının üstünde gitmek "arananlık" göstergesini doldurur; dolduğunda bir
+devriye arabası yola çıkar. Devriye serbestçe peşine takılmaz, **sokak
+ızgarasını** sürer: her kavşakta sana en uzak olduğu eksene döner. Bu hem
+her zaman yaklaşmasını sağlar hem de bir binanın içinden geçmesini imkânsız
+kılar. Yakalanırsan kazancının **dörtte biri** ceza; ektiğinde bedava.
 
 **Üç simge yapı sabit adalarda.** Kule (87 m), stadyum ve meydan her oyunda
 aynı yerde duruyor ve mini haritada ayrı renkte görünüyor: birbirinin aynı
