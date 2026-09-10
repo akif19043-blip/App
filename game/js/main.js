@@ -16,10 +16,13 @@ import * as input from './input.js';
 import * as save from './save.js';
 import * as environment from './environment.js';
 import * as garage from './garage.js';
+import * as haptics from './haptics.js';
+import * as i18n from './i18n.js';
 import { CitySession } from './city.js';
 import { HighwaySession } from './highway.js';
 import { Hud } from './hud.js';
 import { Minimap } from './minimap.js';
+import { Quality } from './quality.js';
 import { CAMERA, CARS, CITY } from './config.js';
 
 const MODELS = [
@@ -47,11 +50,15 @@ class Game {
     this.mode = 'city';
     this.sessions = {};
     this.projected = new THREE.Vector3();
+    this.quality = null;
     this.bankTimer = 0;
   }
 
   async boot() {
     save.load();
+    // Language before anything renders, so no screen ever shows the wrong one.
+    i18n.setLanguage(save.get().settings.language || i18n.detect());
+    i18n.apply();
     this.hud = new Hud({
       onPlay: (mode) => this.startRun(mode),
       onPause: () => this.pause(),
@@ -61,6 +68,9 @@ class Game {
       onAutoThrottle: (value) => input.setAutoThrottle(value),
       onTilt: (value) => this.setTilt(value),
       onShadows: (value) => this.setShadows(value),
+      onMusic: (value) => audio.setMusicEnabled(value),
+      onVibrate: (value) => haptics.setEnabled(value),
+      onLanguage: () => this.hud.refreshControls(),
       onLeftHanded: (value) => this.setLeftHanded(value),
     });
     this.hud.show('loading');
@@ -93,7 +103,14 @@ class Game {
       nitro: document.getElementById('btn-nitro'),
     }, { autoThrottle: save.get().settings.autoThrottle });
 
+    // Quality before the first frame, so a slow phone never sees a bad one.
+    this.quality = new Quality(save.get().settings.quality || 'high',
+                               (level, auto) => this.applyQuality(level, auto));
+    this.applyQuality(this.quality.level, false);
+
     audio.setEnabled(save.get().settings.sound);
+    audio.setMusicEnabled(save.get().settings.music !== false);
+    haptics.setEnabled(save.get().settings.vibrate !== false);
     this.setShadows(save.get().settings.shadows !== false);
     this.setLeftHanded(!!save.get().settings.leftHanded);
     window.addEventListener('resize', () => this.resize());
@@ -151,6 +168,9 @@ class Game {
       const session = new Session(this.renderer, this.hud);
       session.rigScale = this.rigScale || 1;
       session.build(this.timeOfDay);
+      if (this.quality && session.applyQuality) {
+        session.applyQuality(this.quality.level);
+      }
       session.poseCar(this.currentCar());
       this.sessions[mode] = session;
     }
@@ -169,13 +189,19 @@ class Game {
     Object.values(this.sessions).forEach((session) => session.poseCar(car));
   }
 
+  /** Silence everything the run was playing. */
+  hushAudio() {
+    audio.stopEngine();
+    audio.stopAmbience();
+    audio.stopMusic();
+  }
+
   toMenu() {
     if (this.mode === 'city' && this.session && this.session.stats) {
       this.bankCityEarnings();
     }
     this.state = 'menu';
-    audio.stopEngine();
-    audio.stopAmbience();
+    this.hushAudio();
     input.reset();
     this.session.poseCar(this.currentCar());
     this.hud.show('menu');
@@ -192,19 +218,23 @@ class Game {
     input.recentreTilt();
     this.banked = 0;
     this.bankTimer = 0;
+    if (this.quality) this.quality.reset();
 
     this.state = 'playing';
     this.hud.setMode(this.mode);
     this.hud.showPlaying();
+    if (save.firstTime('tutorial.' + this.mode)) {
+      this.hud.showTutorial(this.mode === 'city' ? 'tutorial.city' : 'tutorial.rush');
+    }
     audio.startEngine();
+    audio.startMusic();
     if (this.mode === 'city') audio.startAmbience();
   }
 
   pause() {
     if (this.state !== 'playing') return;
     this.state = 'paused';
-    audio.stopEngine();
-    audio.stopAmbience();
+    this.hushAudio();
     input.reset();
     if (this.mode === 'city') this.bankCityEarnings();
     this.hud.show('paused');
@@ -216,6 +246,26 @@ class Game {
     this.hud.showPlaying();
     audio.startEngine();
     if (this.mode === 'city') audio.startAmbience();
+  }
+
+  /**
+   * Put a quality level into effect.
+   *
+   * `auto` marks a step down the watchdog decided on; the player is told once,
+   * because a game quietly getting uglier is worse than one that says why.
+   */
+  applyQuality(level, auto) {
+    this.renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio || 1, level.pixelRatio));
+    const wantShadows = level.shadows && save.get().settings.shadows !== false;
+    this.setShadows(wantShadows);
+    for (const session of Object.values(this.sessions)) {
+      if (session.applyQuality) session.applyQuality(level);
+    }
+    if (auto) {
+      save.setSetting('quality', level.id);
+      this.hud.toast(i18n.t('toast.qualityDropped'), 2.6);
+    }
   }
 
   /**
@@ -250,7 +300,7 @@ class Game {
     }
     const granted = await input.enableTilt();
     this.hud.setTiltState(granted);
-    if (!granted) this.hud.toast('Bu cihazda eğim desteği yok');
+    if (!granted) this.hud.toast(i18n.t('settings.noTilt'));
   }
 
   /** Free roam has no run end, so pay out as we go. */
@@ -266,8 +316,8 @@ class Game {
 
   endHighwayRun() {
     this.state = 'over';
-    audio.stopEngine();
-    audio.stopAmbience();
+    this.hushAudio();
+    haptics.crash();
     const run = this.session.run;
     const previousBest = save.get().best;
     save.addCoins(run.coins);
@@ -284,6 +334,7 @@ class Game {
     requestAnimationFrame((t) => this.frame(t));
     const dt = Math.min(this.clock.getDelta(), MAX_FRAME);
     this.time += dt;
+    if (this.state === 'playing' && this.quality) this.quality.sample(dt);
 
     if (this.state === 'playing') this.update(dt);
     else if (this.state === 'over') this.updateAfterCrash(dt);
@@ -387,7 +438,7 @@ const game = new Game();
 game.boot().catch((error) => {
   console.error(error);
   const label = document.getElementById('loading-label');
-  if (label) label.textContent = 'Yükleme hatası: ' + error.message;
+  if (label) label.textContent = i18n.t('loading.error', { message: error.message });
 });
 
 window.game = game;      // handy for debugging from the console

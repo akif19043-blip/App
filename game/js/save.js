@@ -6,7 +6,7 @@
  * refusing to start.
  */
 
-const KEY = 'kumtepe-racer.profile.v1';
+const KEY = 'dortyol.profile.v1';
 
 const DEFAULTS = {
   best: 0,
@@ -15,6 +15,7 @@ const DEFAULTS = {
   runs: 0,
   selectedCar: 'sport',
   owned: ['sport'],
+  seen: {},              // mode -> true once its tutorial has been shown
   upgrades: {},          // carId -> { engine: 0, gearbox: 0, ... }
   paint: {},             // carId -> '#rrggbb'
   settings: {
@@ -23,6 +24,10 @@ const DEFAULTS = {
     tilt: false,
     shadows: true,
     leftHanded: false,
+    music: true,
+    vibrate: true,
+    language: null,        // null = follow the device on first run
+    quality: 'high',       // lowered automatically if the device struggles
   },
 };
 
@@ -49,6 +54,7 @@ export function load() {
       if (!profile.paint || typeof profile.paint !== 'object') {
         profile.paint = {};
       }
+      if (!profile.seen || typeof profile.seen !== 'object') profile.seen = {};
     }
   } catch (err) {
     console.warn('profile unreadable, starting fresh', err);
@@ -97,6 +103,14 @@ export function buy(car) {
 export function selectCar(carId) {
   if (!owns(carId)) return false;
   profile.selectedCar = carId;
+  save();
+  return true;
+}
+
+/** True the first time it is asked about a given key; records it afterwards. */
+export function firstTime(key) {
+  if (profile.seen[key]) return false;
+  profile.seen[key] = true;
   save();
   return true;
 }

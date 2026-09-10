@@ -9,6 +9,8 @@
 import * as save from './save.js';
 import * as audio from './audio.js';
 import * as garage from './garage.js';
+import { t, apply as applyStrings, language, setLanguage, LANGUAGES }
+  from './i18n.js';
 import { CARS, PAINTS } from './config.js';
 
 const SCREENS = ['loading', 'menu', 'garage', 'settings', 'paused', 'over'];
@@ -27,6 +29,8 @@ export class Hud {
     this.el.timer = document.getElementById('hud-timer');
     this.el.minimap = document.getElementById('minimap');
     this.el.arrow = document.getElementById('target-arrow');
+    this.el.tutorial = document.getElementById('tutorial');
+    this.el.tutorialText = document.getElementById('tutorial-text');
     this.el.controls = document.getElementById('controls');
     this.el.speed = document.getElementById('hud-speed');
     this.el.score = document.getElementById('hud-score');
@@ -46,6 +50,7 @@ export class Hud {
 
     this.toastTimer = 0;
     this.bindButtons();
+    this.buildLanguagePicker();
   }
 
   bindButtons() {
@@ -69,6 +74,7 @@ export class Hud {
     tap('btn-resume', () => this.handlers.onResume());
     tap('btn-quit', () => this.handlers.onQuit());
     tap('btn-retry', () => this.handlers.onPlay(this.mode));
+    tap('btn-tutorial', () => this.hideTutorial());
     tap('btn-over-menu', () => this.handlers.onQuit());
 
     this.bindToggle('toggle-sound', 'sound', (value) => {
@@ -81,12 +87,45 @@ export class Hud {
     this.bindToggle('toggle-tilt', 'tilt', (value) => {
       this.handlers.onTilt(value);
     });
+    this.bindToggle('toggle-music', 'music', (value) => {
+      this.handlers.onMusic(value);
+    });
+    this.bindToggle('toggle-vibrate', 'vibrate', (value) => {
+      this.handlers.onVibrate(value);
+    });
     this.bindToggle('toggle-shadows', 'shadows', (value) => {
       this.handlers.onShadows(value);
     });
     this.bindToggle('toggle-lefthanded', 'leftHanded', (value) => {
       this.handlers.onLeftHanded(value);
     });
+  }
+
+  /**
+   * Language picker. Changing it re-renders every screen, since the garage and
+   * the HUD build their text at render time.
+   */
+  buildLanguagePicker() {
+    const host = document.getElementById('lang-options');
+    if (!host) return;
+    host.innerHTML = '';
+    for (const entry of LANGUAGES) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'lang__option'
+        + (entry.code === language() ? ' is-on' : '');
+      button.textContent = entry.label;
+      button.addEventListener('click', () => {
+        audio.uiTap();
+        save.setSetting('language', setLanguage(entry.code));
+        applyStrings();
+        this.buildLanguagePicker();
+        this.renderGarage();
+        this.refreshMenu();
+        this.handlers.onLanguage(language());
+      });
+      host.appendChild(button);
+    }
   }
 
   bindToggle(id, key, apply) {
@@ -121,6 +160,7 @@ export class Hud {
   }
 
   show(name) {
+    if (name !== null) this.hideTutorial();
     SCREENS.forEach((key) => {
       if (this.el[key]) this.el[key].classList.toggle('is-visible', key === name);
     });
@@ -151,7 +191,7 @@ export class Hud {
     const ratio = total ? done / total : 0;
     this.el.progress.style.width = Math.round(ratio * 100) + '%';
     this.el.progressLabel.textContent = name
-      ? `${name} (${done}/${total})` : 'Hazırlanıyor…';
+      ? `${name} (${done}/${total})` : t('loading.preparing');
   }
 
   showGarage() {
@@ -175,12 +215,12 @@ export class Hud {
       card.innerHTML = `
         <div class="car-card__swatch" style="--paint:${garage.paint(car)}"></div>
         <div class="car-card__body">
-          <h3>${car.name}</h3>
-          <p class="car-card__tag">${car.tagline}</p>
+          <h3>${t(car.nameKey)}</h3>
+          <p class="car-card__tag">${t(car.tagKey)}</p>
           <dl class="car-card__stats">
-            ${statBar('Hız', car.topSpeed / 90)}
-            ${statBar('İvme', car.accel / 16)}
-            ${statBar('Yol tutuş', car.handling / 1.3)}
+            ${statBar(t('garage.statSpeed'), car.topSpeed / 90)}
+            ${statBar(t('garage.statAccel'), car.accel / 16)}
+            ${statBar(t('garage.statGrip'), car.handling / 1.3)}
           </dl>
         </div>
         <button class="car-card__action" type="button"></button>
@@ -188,10 +228,10 @@ export class Hud {
 
       const action = card.querySelector('.car-card__action');
       if (selected) {
-        action.textContent = 'SEÇİLİ';
+        action.textContent = t('garage.selected');
         action.disabled = true;
       } else if (owned) {
-        action.textContent = 'SEÇ';
+        action.textContent = t('garage.select');
         action.addEventListener('click', () => {
           audio.uiTap();
           save.selectCar(car.id);
@@ -206,9 +246,9 @@ export class Hud {
           if (save.buy(car)) {
             save.selectCar(car.id);
             this.handlers.onSelectCar(car);
-            this.toast(`${car.name} garajında!`);
+            this.toast(t('garage.bought', { car: t(car.nameKey) }));
           } else {
-            this.toast('Yeterli jetonun yok');
+            this.toast(t('garage.tooPoor'));
           }
           this.renderGarage();
         });
@@ -238,11 +278,11 @@ export class Hud {
         `<i class="${i < part.level ? 'is-on' : ''}"></i>`).join('');
       const affordable = part.cost !== null && profile.coins >= part.cost;
       const label = part.cost === null
-        ? 'TAM' : `${formatNumber(part.cost)} 🪙`;
+        ? t('garage.full') : `${formatNumber(part.cost)} 🪙`;
       return `<button class="tune__row${affordable ? '' : ' is-disabled'}"
                       type="button" data-part="${part.id}"
                       ${part.cost === null || !affordable ? 'disabled' : ''}>
-        <span class="tune__name">${part.name}</span>
+        <span class="tune__name">${t(part.nameKey)}</span>
         <span class="tune__pips">${pips}</span>
         <span class="tune__cost">${label}</span>
       </button>`;
@@ -252,13 +292,14 @@ export class Hud {
     const paints = PAINTS.map((color) =>
       `<button class="tune__paint${color === current ? ' is-on' : ''}"
                type="button" data-paint="${color}"
-               style="--paint:${color}" aria-label="Renk ${color}"></button>`
+               style="--paint:${color}"
+               aria-label="${t('garage.paintOf', { color })}"></button>`
     ).join('');
 
     panel.innerHTML = `
-      <h3 class="tune__title">${car.name} · DONANIM</h3>
+      <h3 class="tune__title">${t('garage.parts', { car: t(car.nameKey) })}</h3>
       <div class="tune__rows">${rows}</div>
-      <h3 class="tune__title">RENK</h3>
+      <h3 class="tune__title">${t('garage.paint')}</h3>
       <div class="tune__paints">${paints}</div>
     `;
 
@@ -267,9 +308,9 @@ export class Hud {
         audio.uiTap();
         if (garage.buyUpgrade(car, button.dataset.part)) {
           this.handlers.onSelectCar(car);
-          this.toast(`${car.name} yükseltildi!`);
+          this.toast(t('garage.upgraded', { car: t(car.nameKey) }));
         } else {
-          this.toast('Yeterli jetonun yok');
+          this.toast(t('garage.tooPoor'));
         }
         this.renderGarage();
       });
@@ -296,6 +337,20 @@ export class Hud {
     arrow.style.transform =
       `translate(${marker.x.toFixed(1)}px, ${marker.y.toFixed(1)}px)`
       + ` rotate(${marker.angle.toFixed(1)}deg)`;
+  }
+
+  /** First-run control hint. Non-blocking: the run is already going. */
+  showTutorial(key) {
+    if (!this.el.tutorial) return;
+    this.el.tutorialText.textContent = t(key);
+    this.el.tutorial.classList.add('is-visible');
+    clearTimeout(this.tutorialHandle);
+    this.tutorialHandle = setTimeout(() => this.hideTutorial(), 9000);
+  }
+
+  hideTutorial() {
+    clearTimeout(this.tutorialHandle);
+    if (this.el.tutorial) this.el.tutorial.classList.remove('is-visible');
   }
 
   updateHud(state) {
@@ -330,7 +385,7 @@ export class Hud {
     document.getElementById('over-best').textContent =
       formatNumber(save.get().best);
     const banner = document.getElementById('over-banner');
-    banner.textContent = result.isBest ? 'YENİ REKOR!' : 'ÇARPTIN!';
+    banner.textContent = t(result.isBest ? 'over.record' : 'over.crashed');
     banner.classList.toggle('is-record', !!result.isBest);
     this.show('over');
   }

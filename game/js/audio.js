@@ -172,6 +172,78 @@ export function scrape() {
   blip({ type: 'square', from: 320, to: 260, duration: 0.10, gain: 0.06 });
 }
 
+let music = null;
+let musicEnabled = true;
+
+/**
+ * Music.
+ *
+ * A four-bar loop built from a minor-pentatonic bass line and a held fifth
+ * above it, scheduled a bar at a time against the audio clock. Deliberately
+ * sparse and quiet: it should sit under the engine rather than compete with
+ * it, and it is the first thing a player turns off if it does not.
+ */
+const BASS = [0, 0, 3, 0, 5, 3, 0, -2];        // semitones from the root
+const ROOT = 55;                                // A1
+const STEP = 0.42;                              // seconds per note
+
+function note(freq, at, duration, type, gain, filterHz) {
+  const osc = ctx.createOscillator();
+  const amp = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = filterHz;
+  osc.type = type;
+  osc.frequency.value = freq;
+  amp.gain.setValueAtTime(0.0001, at);
+  amp.gain.exponentialRampToValueAtTime(gain, at + 0.04);
+  amp.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+  osc.connect(filter).connect(amp).connect(music.gain);
+  osc.start(at);
+  osc.stop(at + duration + 0.05);
+}
+
+function scheduleMusic() {
+  if (!music || !ctx) return;
+  const barLength = BASS.length * STEP;
+  while (music.next < ctx.currentTime + 1.5) {
+    const start = music.next;
+    for (let i = 0; i < BASS.length; i += 1) {
+      const at = start + i * STEP;
+      const freq = ROOT * Math.pow(2, BASS[i] / 12);
+      note(freq, at, STEP * 0.9, 'triangle', 0.16, 620);
+      // a fifth above, every other beat, for a little movement
+      if (i % 2 === 0) {
+        note(freq * 3, at, STEP * 1.6, 'sine', 0.045, 1400);
+      }
+    }
+    music.next = start + barLength;
+  }
+  music.timer = setTimeout(scheduleMusic, 700);
+}
+
+export function setMusicEnabled(value) {
+  musicEnabled = !!value;
+  if (!musicEnabled) stopMusic();
+}
+
+export function startMusic() {
+  if (!ctx || music || !musicEnabled) return;
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  gain.gain.setTargetAtTime(0.5, now(), 1.5);
+  gain.connect(master);
+  music = { gain, next: ctx.currentTime + 0.2, timer: 0 };
+  scheduleMusic();
+}
+
+export function stopMusic() {
+  if (!music) return;
+  clearTimeout(music.timer);
+  music.gain.gain.setTargetAtTime(0, now(), 0.4);
+  music = null;
+}
+
 let ambience = null;
 
 /**

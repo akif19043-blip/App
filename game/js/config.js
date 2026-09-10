@@ -135,13 +135,13 @@ export const CITY = {
  * stat per level, so a level-3 engine is +21% top speed.
  */
 export const UPGRADES = [
-  { id: 'engine', name: 'Motor', stat: 'topSpeed', perLevel: 0.07,
+  { id: 'engine', nameKey: 'part.engine', stat: 'topSpeed', perLevel: 0.07,
     levels: 3, basePrice: 900 },
-  { id: 'gearbox', name: 'Şanzıman', stat: 'accel', perLevel: 0.10,
+  { id: 'gearbox', nameKey: 'part.gearbox', stat: 'accel', perLevel: 0.10,
     levels: 3, basePrice: 750 },
-  { id: 'tyres', name: 'Lastik', stat: 'handling', perLevel: 0.08,
+  { id: 'tyres', nameKey: 'part.tyres', stat: 'handling', perLevel: 0.08,
     levels: 3, basePrice: 650 },
-  { id: 'brakes', name: 'Fren', stat: 'brakeScale', perLevel: 0.10,
+  { id: 'brakes', nameKey: 'part.brakes', stat: 'brakeScale', perLevel: 0.10,
     levels: 3, basePrice: 500 },
 ];
 
@@ -159,8 +159,8 @@ export const CARS = [
   {
     id: 'sport',
     model: 'car_sport',
-    name: 'Kavalye GT',
-    tagline: 'Dengeli ve affedici',
+    nameKey: 'car.sport',
+    tagKey: 'car.sport.tag',
     paint: '#d33a2c',
     price: 0,
     topSpeed: 61,
@@ -170,8 +170,8 @@ export const CARS = [
   {
     id: 'muscle',
     model: 'car_muscle',
-    name: 'Bozkurt V8',
-    tagline: 'Ağır ama düz yolda uçar',
+    nameKey: 'car.muscle',
+    tagKey: 'car.muscle.tag',
     paint: '#2f6bd8',
     price: 3500,
     topSpeed: 71,
@@ -181,8 +181,8 @@ export const CARS = [
   {
     id: 'super',
     model: 'car_super',
-    name: 'Şimşek SR',
-    tagline: 'Çok hızlı, çok keskin',
+    nameKey: 'car.super',
+    tagKey: 'car.super.tag',
     paint: '#f0b429',
     price: 12000,
     topSpeed: 78,

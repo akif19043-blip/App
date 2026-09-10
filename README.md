@@ -1,29 +1,26 @@
-# Asfalt Fırtınası
+# Dörtyol
 
-Telefon için 3B araba oyunu. **Bütün 3B modeller Blender ile, kod içinden
-üretiliyor** — indirilen hazır model yok, elle modellenen mesh yok. `blender/`
-klasöründeki Python betikleri arabaları, şehri, yolu ve nesneleri kurar ve
-`.glb` olarak dışa aktarır; oyun bunları yükler.
+Telefon için 3B sürüş oyunu. **Bütün 3B modeller Blender ile, kod içinden
+üretiliyor** — indirilen hazır model yok, elle modellenen mesh yok.
+`blender/` klasöründeki Python betikleri arabaları, şehri, yolu ve nesneleri
+kurar ve `.glb` olarak dışa aktarır; oyun bunları yükler.
 
-İki mod var:
+Türkçe ve İngilizce. Reklam yok, uygulama içi satın alma yok, internet
+gerektirmez.
+
+![Şehirde sürüş](store/screenshots/1-city.png)
 
 | Mod | Ne yapıyorsun |
 |---|---|
-| **Serbest Sürüş** | Izgara düzenli bir şehirde istediğin gibi gez. Trafik ışıklı kavşaklar, kırmızıda kuyruğa giren ve dönüş yapan trafik, kaldırımlarda yürüyen insanlar, **girip dolaşabildiğin otoparklar**. Jeton topla, **süreli teslimatları** yetiştir (zamanında varırsan bonus), hedef ekran dışındayken kenardaki ok yön gösterir. |
-| **Trafik Yarışı** | Sonsuz otoyolda trafiği yararak skor topla. Sıyırarak geçmek ekstra puan. |
+| **Serbest Sürüş** | Izgara sokaklı bir şehirde istediğin gibi gez. Çalışan trafik ışıkları, kırmızıda kuyruğa giren ve kavşakta dönen trafik, kaldırımlarda yürüyen insanlar, girilebilen otoparklar. Jeton topla, **süreli teslimatları** yetiştir. |
+| **Trafik Yarışı** | Sonsuz otoyolda trafiği yararak skor topla. Hızlı gitmek ve sıyırarak geçmek ekstra puan. |
 
-Kazandığın jetonlarla garajdan yeni araba alır, arabana **motor / şanzıman /
-lastik / fren** takar ve **rengini** değiştirirsin. Her araç kendi
-donanımını ve rengini hatırlar; ilerleme telefonda kayıtlı kalır.
+Kazandığın jetonlarla garajdan araba alır, **motor / şanzıman / lastik / fren**
+takar ve **rengini** değiştirirsin. Her araç kendi donanımını ve rengini
+hatırlar; ilerleme telefonda kayıtlı kalır.
 
-![Menü](docs/screens/1-menu.png)
-![Şehirde sürüş](docs/screens/2-city-day.png)
-![Işıklı kavşak](docs/screens/3-city-junction.png)
-![Otopark](docs/screens/10-car-park.png)
-![Gölgeler](docs/screens/11-shadows.png)
-![Şehir merkezi](docs/screens/4-city-downtown.png)
-![Garaj](docs/screens/7-garage.png)
-![Trafik yarışı](docs/screens/5-highway.png)
+![Işıklı kavşak](store/screenshots/2-junction.png)
+![Garaj](store/screenshots/4-garage.png)
 
 ## Oynamak için
 
@@ -31,59 +28,69 @@ donanımını ve rengini hatırlar; ilerleme telefonda kayıtlı kalır.
 python3 tools/serve.py
 ```
 
-Sonra telefonun ve bilgisayarın aynı Wi-Fi ağındayken, betiğin yazdırdığı
-`http://<ip>:8000` adresini telefonun tarayıcısında aç. Tarayıcı menüsünden
-"Ana ekrana ekle" dersen tam ekran, çevrimdışı çalışan bir uygulama gibi açılır
-(PWA; tüm dosyalar önbelleğe alınır).
+Telefonun ve bilgisayarın aynı Wi-Fi ağındayken, betiğin yazdırdığı
+`http://<ip>:8000` adresini telefonun tarayıcısında aç. "Ana ekrana ekle"
+dersen tam ekran, çevrimdışı çalışan bir uygulama gibi açılır.
 
 Bilgisayarda denemek için `http://localhost:8000` yeterli.
 
-**Dikey de yatay da oynanır.** Telefonu çevirdiğinde arayüz kendini yeniden
-diziyor: yatayda menü iki sütuna geçiyor, garaj kartları yan yana geliyor,
-kumandalar alt köşelere yerleşiyor ve kamera biraz yaklaşıp görüş açısını
-daraltıyor — kısa ekranda araba küçük kalmasın diye. Zorunlu bir yön yok,
-istediğin gibi tut.
-
-![Yatayda şehir](docs/screens/6-landscape-city.png)
-![Yatayda menü](docs/screens/9-landscape-menu.png)
+**Dikey de yatay da oynanır.** Telefonu çevirdiğinde arayüz yeniden diziliyor:
+menü iki sütuna geçiyor, garaj kartları yan yana geliyor, kumandalar alt
+köşelere yerleşiyor, kamera biraz yaklaşıyor.
 
 ### Kontroller
 
-| | Dokunmatik | Klavye |
-|---|---|---|
-| Direksiyon | ◀ ▶ tuşları, ya da ekranı parmakla sağa/sola kaydır | ← → veya A/D |
-| Gaz | GAZ | ↑ veya W |
-| Fren / geri vites | FREN (dururken basılı tutarsan geri gider; kamera öne döner) | Boşluk veya ↓ |
-| Nitro | N | Shift |
-| Oyun kolu | — | sol çubuk direksiyon, RT gaz, LT fren, X nitro |
-| Duraklat | ⏸ | — |
+| | Dokunmatik | Klavye | Oyun kolu |
+|---|---|---|---|
+| Direksiyon | ◀ ▶ ya da ekranı kaydır | ← → / A D | sol çubuk |
+| Gaz | GAZ | ↑ / W | RT ya da A |
+| Fren / geri | FREN (dururken basılı tut) | Boşluk / ↓ | LT ya da B |
+| Nitro | N | Shift | X ya da RB |
 
-Ayarlardan **otomatik gaz**, **eğerek sürme** (jiroskop), **gölgeler** (eski
-telefonlarda kapatılabilir) ve **solak düzeni** (kumandalar yer değiştirir)
-ayarlanabilir. Mini haritaya dokununca yakın görünüm ile bütün şehir arasında
-geçiş yapar.
+Ayarlardan dil, ses, müzik, titreşim, otomatik gaz, eğerek sürme (jiroskop),
+gölgeler ve **solak düzeni** ayarlanabilir. Mini haritaya dokununca yakın
+görünüm ile bütün şehir arasında geçiş yapar.
+
+## Google Play
+
+`android/` klasöründe, oyunu APK'nın içine gömen hazır bir Capacitor projesi
+var; `store/` klasöründe de ikonlar, öne çıkan görsel, ekran görüntüleri,
+iki dilde mağaza metni, gizlilik politikası ve Veri Güvenliği formu cevapları.
+
+**Ama `.aab` henüz hiç derlenmedi ve oyun gerçek bir telefonda hiç
+çalıştırılmadı.** Bu depo, `dl.google.com`'a erişemeyen bir ortamda
+geliştirildi; Android SDK kurulamadı. Yayına çıkmadan önce yapılacakları ve
+tüm derleme/imzalama adımlarını **[docs/RELEASE.md](docs/RELEASE.md)**
+anlatıyor.
+
+```bash
+npm run android:sync      # oyunu Android projesine kopyala
+npm run android:debug     # test APK'sı
+npm run android:release   # imzalı .aab (önce keystore.properties gerekir)
+```
 
 ## Depo düzeni
 
 ```
 blender/           3B varlık üretimi (Blender'ın bpy modülü)
-  lib/kit.py       düşük poligonlu modelleme araçları: kesit loft'u, materyal, GLB dışa aktarma
+  lib/kit.py       düşük poligonlu modelleme araçları: kesit loft'u, materyal, GLB
   lib/vehicles.py  3 oynanabilir araba + 5 trafik aracı
-  lib/city.py      şehir: sokak ağı, bina adaları, trafik lambası, yaya
+  lib/city.py      şehir: sokak ağı, bina adaları, trafik lambası, yaya, otopark
   lib/road.py      otoyol döşemeleri, bariyer, korkuluk
   lib/props.py     palmiye, kaktüs, kaya, lamba, pano, jeton, nitro
   build_all.py     hepsini üretir, ölçer, manifest.json yazar
-  make_icons.py    uygulama ikonlarını süper arabadan render eder
+  make_store.py    ikonlar ve mağaza görselleri
 game/              oyunun kendisi (statik site, derleme adımı yok)
-  js/              modüller: fizik, şehir, trafik, sinyaller, yayalar,
-                   garaj/donanım, girdi, ses, arayüz
+  js/              fizik, şehir, trafik, sinyaller, yayalar, garaj, girdi,
+                   ses, kalite gözcüsü, i18n, arayüz
   assets/models/   üretilen .glb dosyaları + manifest.json
   vendor/three/    three.js (r180, MIT)
-tools/serve.py     yerel sunucu (telefondan bağlanmak için)
-tools/make_sw.py   çevrimdışı önbellek listesini yeniden üretir
+android/           Capacitor Android projesi
+store/             Play için ikon, görsel, ekran görüntüsü ve metinler
+tools/             yerel sunucu, çevrimdışı önbellek, Android ikonları,
+                   mağaza ekran görüntüleri
 tests/             gerçek tarayıcıda çalışan oyun testleri
-docs/previews/     her modelin Blender render'ı (contact_sheet.png hepsi bir arada)
-docs/screens/      oyundan ekran görüntüleri
+docs/RELEASE.md    Play'e çıkarma rehberi
 ```
 
 ## Varlıkları yeniden üretmek
@@ -92,17 +99,18 @@ docs/screens/      oyundan ekran görüntüleri
 pip install bpy                      # Blender'ın Python modülü (Python 3.11)
 npm run assets                       # tüm .glb dosyaları + manifest.json
 npm run assets:preview               # üstelik her modelin önizleme render'ı
-npm run icons                        # uygulama ikonları
+npm run store                        # ikonlar + öne çıkan görsel
+npm run android:icons                # Android ikon setleri
 npm run sw                           # çevrimdışı önbellek listesini güncelle
 ```
 
 `build_all.py` her modeli **boş bir sahnede** kurar, üçgen sayısını ve gerçek
 sınırlayıcı kutusunu ölçer ve bunları `manifest.json`'a yazar. Oyun çarpışma
-boyutlarını, şerit konumlarını ve şehir ızgarasını bu dosyadan okur — yani
-oynanış her zaman gerçekten üretilmiş geometriyle aynı sayıları kullanır, kodda
-ikinci bir kopya tutulmaz.
+boyutlarını, şerit konumlarını, şehir ızgarasını ve ada çarpışma şekillerini bu
+dosyadan okur — yani oynanış her zaman gerçekten üretilmiş geometriyle aynı
+sayıları kullanır, kodda ikinci bir kopya tutulmaz.
 
-Toplam: 32 model, ~31.000 üçgen, ~3,0 MB.
+Toplam: 32 model, ~31.000 üçgen, ~3,1 MB paket.
 
 ## Test
 
@@ -111,79 +119,63 @@ npm install
 npm test
 ```
 
-Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Doğrulananlar:
-varlıkların yüklenmesi; şehrin kurulması; **sağa basınca arabanın sağa gitmesi
-ve ön tekerleklerin o yöne bakması**; ışık fazlarının dönmesi ve iki eksenin
-asla aynı anda yeşil olmaması; 3 dakikalık simülasyonda hiçbir trafik aracının
-adaya girmemesi, kırmızıda kuyruk oluşması ve dönüş yapması; geri viteste
-kameranın öne dönmesi; hedef okunun sadece hedef ekran dışındayken çıkması ve
-doğru yönü göstermesi; kaldırım/duvar çarpışması; jeton ve teslimat döngüsünün
-ödeme yapması; kazancın profile yazılması; otoyol modunda skor, sollama ve
-kıl payı bonusları ile 12 km sonrası koordinat sıfırlama; yayaların kaldırımdan
-hiç inmemesi ve yürümesi; garajda takılan parçanın ilgili değeri artırıp
-parayı düşürmesi ve kaydedilmesi; parası yetmeyenin parça alamaması; teslimat
-süresinin kuş uçuşu değil sokak mesafesine göre hesaplanması ve zamanında
-varışın bonus ödemesi; oyun kolunun gerçek girdi yolundan arabayı sürmesi; ve
-otoparka girilebilmesi ama diğer adaların kapalı kalması ve otopark içindeki
-engellerin arabayı durdurması; gölgelerin açılıp kapanması ve gölge kutusunun
-arabayı takip etmesi; mini haritanın yakınlaşması; ve çizim çağrısı sayısının
-telefon için makul kalması.
+Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Dört paket:
 
-Ayrı bir düzen testi (`tests/layout.test.mjs`) altı ekran boyutunda — küçük
-telefon, telefon dikey, telefon yatay, büyük telefon yatay, tablet dikey,
-tablet yatay — her ekranın taşmadan sığdığını, kumanda tuşlarının ekran içinde
-kaldığını ve gösterge alanlarıyla çakışmadığını doğruluyor.
+- **city** — şehrin kurulması; direksiyonun doğru yöne dönmesi; ışık fazları;
+  3 dakikalık simülasyonda hiçbir trafik aracının adaya girmemesi, kırmızıda
+  kuyruk ve kavşakta dönüş; kaldırım/duvar çarpışması; otoparka girilebilmesi
+  ama içindeki engellerin durdurması; yayaların kaldırımdan inmemesi; garajda
+  parça ve renk; teslimat süresinin sokak mesafesine göre hesaplanması; oyun
+  kolu; geri vites kamerası; hedef oku; mini harita yakınlaşması.
+- **highway** — skor, sollama ve kıl payı bonusları, satın alma, duraklatma,
+  12 km sonrası koordinat sıfırlama.
+- **layout** — altı ekran boyutunda (küçük telefon → tablet, iki yön) her
+  ekranın sığması, kumandaların ekranda kalması ve göstergelerle çakışmaması.
+- **shell** — cihaz diline göre dil seçimi ve dil değiştirme; kalite
+  gözcüsünün yavaş cihazda kademe düşürüp hızlı cihazda dokunmaması; ilk
+  kullanım rehberi; ayarların kaydedilip yeniden açılışta geri gelmesi.
 
 ## Nasıl çalışıyor (kısa notlar)
 
 **Arabalar tek bir loft'tan çıkıyor.** `kit.loft()` bir dizi kesiti köprüleyip
-gövdeyi oluşturur. Kesitte "bel hattı" (`zb`) ayrı bir nokta olduğu için, iki
-kesit arasındaki her dörtgen bandın ne olduğu bellidir: yan panel, cam bandı,
-tavan. Camlar bu yüzden ek geometri olmadan, sadece o bantlara cam materyali
-atanarak oluşur — ön cam da kaput kesitiyle kabin kesiti arasındaki tavan
-bandından kendiliğinden çıkar.
+gövdeyi oluşturur. Kesitte "bel hattı" ayrı bir nokta olduğu için iki kesit
+arasındaki her dörtgen bandın ne olduğu bellidir: yan panel, cam bandı, tavan.
+Camlar bu yüzden ek geometri olmadan, sadece o bantlara cam materyali atanarak
+oluşur — ön cam da kaput ile kabin kesiti arasındaki tavan bandından
+kendiliğinden çıkar.
 
 **Şehir tek mesh.** Asfalt ve bütün yol çizgileri tek bir mesh olarak üretilir,
-yani harita ne kadar büyürse büyüsün yollar üç çizim çağrısı tutar. Adalar da
-kendi içlerinde birleştirilmiştir.
+yani harita ne kadar büyürse büyüsün yollar üç çizim çağrısı tutar.
 
-**Metaller için ortam haritası şart.** Sahnedeki gökyüzü, bir canvas gradyanı
-olarak üretilip PMREM'den geçiriliyor ve hem arka plan hem ortam haritası
-olarak kullanılıyor; olmasaydı metalik materyaller simsiyah görünürdü.
-
-**Adaların çarpışma şekli Blender'dan geliyor.** Sıradan adalar tek bir kutu;
-otopark ise engellerini tek tek bildiriyor (duvarlar, park sıraları, büfe).
-Aynı liste hem meshleri yerleştiriyor hem `manifest.json` üzerinden oyuna
-çarpışma olarak gidiyor — yani gördüğün şey ile çarptığın şey aynı.
-
-**Gölgeler dar bir kutuyla çalışıyor.** Yönlü ışık bütün sahneyi
-gölgelendirseydi devasa bir gölge haritası gerekirdi; bunun yerine gölge
-kamerası arabayı takip eden 124 m'lik bir kutu, yani 1024 piksel gerçekten
-bulunduğun sokağa düşüyor. Yol sadece gölge alıyor, dekor sadece gölge
-düşürüyor; işaretlenmeyen hiçbir şey gölge geçişine girmiyor. Toplam maliyet
-~25 çizim çağrısı.
+**Adaların çarpışma şekli Blender'dan geliyor.** Sıradan adalar tek kutu;
+otopark ise engellerini tek tek bildirir. Aynı liste hem meshleri yerleştirir
+hem oyuna çarpışma olarak gider.
 
 **Bütün şehrin ışıkları altı materyalle yönetiliyor.** Her kavşaktaki direk
-aynı altı lamba materyalini paylaşıyor (eksen başına kırmızı/sarı/yeşil), yani
-faz değişimi 49 direği tek tek dolaşmak yerine altı `emissiveIntensity`
-yazması. Aynı şey oyuncu için de iyi: gördüğün ışık, yandan gelen trafiğin
-uyduğu ışıkla aynı.
+aynı altı lamba materyalini paylaşır, yani faz değişimi 49 direği dolaşmak
+yerine altı `emissiveIntensity` yazmasıdır.
 
-**Trafik dönüşleri gerçek yaya çiziliyor.** Bir araç kavşakta dönerken çeyrek
-daire bir yay boyunca ilerliyor ve yayın sonu her zaman karşı sokağın geçerli
-bir şeridine denk geliyor — bu yüzden binalara girmeleri için ayrıca çarpışma
-testi gerekmiyor. Testte 3 dakikalık simülasyonda 22 aracın hiçbiri adaya
-girmiyor.
+**Trafik dönüşleri gerçek yay çiziyor.** Yayın sonu her zaman karşı sokağın
+geçerli bir şeridine denk gelir; bu yüzden binalara girmeleri için ayrıca
+çarpışma testi gerekmez.
 
-**Yayalar iskeletsiz yürüyor.** Modelde sadece bacaklar ayrı nesne olarak
-duruyor ve pivotları kalçada; oyun bacakları doğrudan sallıyor. Animasyon
-verisi yok, yaya başına dört çizim çağrısı var. Adaların çevresindeki
-kaldırımda yürüdükleri için — arabanın giremediği alan — çarpışma kontrolü de
-gerekmiyor.
+**Gölgeler dar bir kutuyla çalışıyor.** Gölge kamerası arabayı takip eden
+124 m'lik bir kutu, yani 1024 piksel gerçekten bulunduğun sokağa düşer.
+Maliyeti ~25 çizim çağrısı.
 
-**Ses dosyası yok.** Motor sesi iki detune saw osilatör + gürültünün alçak
-geçiren filtreden geçmesiyle, lastik cızırtısı bant geçiren filtreli gürültüyle,
-diğer efektler kısa zarflarla Web Audio'da sentezleniyor.
+**Oyun kendi akıcılığını izliyor.** Kare süresi sürekli yüksek kalırsa görüntü
+ayarlarını kendiliğinden düşürür (gölge, yaya sayısı, görüş mesafesi, piksel
+oranı) ve seçtiği kademeyi hatırlar. Kendiliğinden **yükseltmez** — iki kötü
+durum arasında gidip gelen bir oyun, tek bir kötü durumdan daha kötüdür.
+
+**Yayalar iskeletsiz yürüyor.** Modelde sadece bacaklar ayrı nesne ve pivotları
+kalçada; oyun bacakları doğrudan sallar. Kaldırımda yürüdükleri için — arabanın
+giremediği alan — çarpışma kontrolü de gerekmez.
+
+**Ses dosyası yok.** Motor sesi iki detune saw osilatör + alçak geçiren
+filtreden gürültü, lastik cızırtısı bant geçiren filtreli gürültü, müzik ise
+ses saatine karşı çalınan dört ölçülük bir döngü — hepsi Web Audio ile
+sentezleniyor.
 
 ## Lisans
 

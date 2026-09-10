@@ -1,0 +1,13 @@
+{
+  "appId": "com.dortyol.driver",
+  "appName": "Dörtyol",
+  "webDir": "game",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

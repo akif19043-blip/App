@@ -54,7 +54,7 @@ TEMPLATE = '''/**
  * of leaving players on a stale mix of new code and old models.
  */
 
-const CACHE = 'asfalt-firtinasi-%(hash)s';
+const CACHE = 'dortyol-%(hash)s';
 const ASSETS = %(assets)s;
 
 self.addEventListener('install', (event) => {

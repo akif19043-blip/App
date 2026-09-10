@@ -1,18 +1,26 @@
 {
-  "name": "asfalt-firtinasi",
+  "name": "dortyol",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Telefon için 3B araba oyunu; tüm 3B varlıklar Blender ile üretilir.",
+  "description": "Dörtyol — düşük poligonlu bir şehirde serbest sürüş; tüm 3B varlıklar Blender ile üretilir.",
   "scripts": {
     "assets": "python3 blender/build_all.py",
     "assets:preview": "python3 blender/build_all.py --preview",
-    "icons": "python3 blender/make_icons.py",
+    "store": "python3 blender/make_store.py",
     "sw": "python3 tools/make_sw.py",
     "serve": "python3 tools/serve.py",
-    "test": "node tests/run.mjs"
+    "test": "node tests/run.mjs",
+    "android:sync": "npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:debug": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:release": "npm run android:sync && cd android && ./gradlew bundleRelease",
+    "android:icons": "python3 tools/android_assets.py"
   },
   "devDependencies": {
+    "@capacitor/android": "^6.2.2",
+    "@capacitor/cli": "^6.2.2",
+    "@capacitor/core": "^6.2.2",
     "playwright": "1.49.1"
   }
 }

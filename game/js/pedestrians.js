@@ -95,8 +95,17 @@ export class Pedestrians {
     person.root.rotation.y = at.heading + (person.dir > 0 ? 0 : Math.PI);
   }
 
+  /** Thin the crowd on slower devices. */
+  setVisibleCount(count) {
+    this.visible = Math.max(0, Math.min(this.people.length, Math.round(count)));
+    this.people.forEach((person, index) => {
+      person.root.visible = index < this.visible;
+    });
+  }
+
   update(dt, x, z) {
     for (const person of this.people) {
+      if (!person.root.visible) continue;
       person.t += person.dir * person.speed * dt;
       person.phase += person.speed * dt * 3.4;
 

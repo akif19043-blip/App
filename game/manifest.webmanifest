@@ -1,7 +1,7 @@
 {
-  "name": "Asfalt Fırtınası",
-  "short_name": "Asfalt",
-  "description": "Telefon için 3B trafik yarışı. Tüm modeller Blender'da üretildi.",
+  "name": "Dörtyol",
+  "short_name": "Dörtyol",
+  "description": "Free-roam driving and deliveries in a low-poly city.",
   "lang": "tr",
   "start_url": "./index.html",
   "scope": "./",

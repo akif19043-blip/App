@@ -51,7 +51,7 @@ await page.waitForFunction(
 // Populate the garage first. Its panel is only as tall as its contents, and
 // those are built on demand -- measuring it empty would prove nothing.
 await page.evaluate(() => {
-  const key = 'kumtepe-racer.profile.v1';
+  const key = 'dortyol.profile.v1';
   const profile = JSON.parse(localStorage.getItem(key) || '{}');
   profile.coins = 50000;
   localStorage.setItem(key, JSON.stringify(profile));

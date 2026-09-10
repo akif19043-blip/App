@@ -185,6 +185,72 @@ html, body {
 }
 .target-arrow.is-visible { opacity: 0.92; }
 
+/* First-run control hint. Sits above the HUD, never blocks the road. */
+.tutorial {
+  position: fixed;
+  left: 50%;
+  top: 16%;
+  transform: translate(-50%, -8px);
+  z-index: 6;
+  width: min(340px, calc(100% - 2 * var(--pad)));
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(16, 21, 29, 0.94);
+  border: 1px solid var(--panel-edge);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.tutorial.is-visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.tutorial p { margin: 0 0 10px; font-size: 14px; line-height: 1.4; }
+.tutorial .button { padding: 10px 14px; font-size: 13px; }
+
+/* Language picker in settings. */
+.lang {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-edge);
+}
+.lang__label { font-size: 14px; }
+.lang__options { display: flex; gap: 6px; }
+.lang__option {
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-edge);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.lang__option.is-on {
+  background: rgba(255, 138, 61, 0.16);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+/* Settings has grown past a short screen, so it scrolls like the garage. */
+#screen-settings .panel {
+  max-height: calc(100dvh - 2 * var(--pad-top));
+  min-height: 0;
+}
+.settings-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px;
+}
+
 #toast {
   position: fixed;
   left: 50%;
@@ -587,6 +653,9 @@ body.is-left-handed .minimap { right: auto; left: var(--pad); }
   .tune__rows { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
   .tune__row { padding: 7px 10px; font-size: 12px; }
   .tune__paint { width: 26px; height: 26px; }
+  .settings-scroll { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .lang { grid-column: 1 / -1; }
+  .tutorial { top: 10%; }
 
   /* Result tiles in one row so the buttons stay on screen. */
   .result { grid-template-columns: repeat(4, 1fr); gap: 7px; }

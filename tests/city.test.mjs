@@ -215,7 +215,7 @@ check('their legs swing', walkers.legSwing > 0.2);
 
 // Garage: parts cost money, raise the stat they name, and stick.
 const tuning = await page.evaluate(() => {
-  const key = 'kumtepe-racer.profile.v1';
+  const key = 'dortyol.profile.v1';
   const profile = JSON.parse(localStorage.getItem(key));
   profile.coins = 50000;
   profile.upgrades = {};
@@ -228,7 +228,7 @@ await page.click('#btn-garage');
 await page.waitForTimeout(300);
 
 const before = await page.evaluate(() => ({
-  coins: JSON.parse(localStorage.getItem('kumtepe-racer.profile.v1')).coins,
+  coins: JSON.parse(localStorage.getItem('dortyol.profile.v1')).coins,
   topSpeed: game.sessions.city.car.spec.topSpeed,
   paint: game.sessions.city.car.spec.paint,
 }));
@@ -237,10 +237,10 @@ await page.waitForTimeout(250);
 await page.click('.tune__paint[data-paint="#2f9e5f"]');
 await page.waitForTimeout(250);
 const after = await page.evaluate(() => ({
-  coins: JSON.parse(localStorage.getItem('kumtepe-racer.profile.v1')).coins,
+  coins: JSON.parse(localStorage.getItem('dortyol.profile.v1')).coins,
   topSpeed: game.sessions.city.car.spec.topSpeed,
   paint: game.sessions.city.car.spec.paint,
-  level: JSON.parse(localStorage.getItem('kumtepe-racer.profile.v1')).upgrades.sport.engine,
+  level: JSON.parse(localStorage.getItem('dortyol.profile.v1')).upgrades.sport.engine,
 }));
 console.log('   garage:', JSON.stringify({ before, after }));
 check('an engine part raises top speed', after.topSpeed > before.topSpeed);
@@ -250,7 +250,7 @@ check('paint applies and is saved', after.paint === '#2f9e5f');
 
 // Skint players cannot buy.
 const broke = await page.evaluate(() => {
-  const key = 'kumtepe-racer.profile.v1';
+  const key = 'dortyol.profile.v1';
   const profile = JSON.parse(localStorage.getItem(key));
   profile.coins = 10;
   localStorage.setItem(key, JSON.stringify(profile));
@@ -491,7 +491,7 @@ await page.screenshot({ path: SHOTS+'/c3-city.png' });
 // coins are banked to the profile
 const owed = await page.evaluate(() => game.session.stats.coins);
 await page.click('#btn-pause'); await page.waitForTimeout(250);
-const banked = await page.evaluate(() => JSON.parse(localStorage.getItem('kumtepe-racer.profile.v1')).coins);
+const banked = await page.evaluate(() => JSON.parse(localStorage.getItem('dortyol.profile.v1')).coins);
 check('earnings are banked on pause', banked >= owed, `${banked} banked for ${owed} earned`);
 await page.click('#btn-quit'); await page.waitForTimeout(400);
 

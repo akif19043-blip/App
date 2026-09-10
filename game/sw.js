@@ -6,7 +6,7 @@
  * of leaving players on a stale mix of new code and old models.
  */
 
-const CACHE = 'asfalt-firtinasi-920c515572b9';
+const CACHE = 'dortyol-7b138c0e78a3';
 const ASSETS = [
   "./",
   "assets/icon-192.png",
@@ -54,14 +54,17 @@ const ASSETS = [
   "js/config.js",
   "js/environment.js",
   "js/garage.js",
+  "js/haptics.js",
   "js/highway.js",
   "js/hud.js",
+  "js/i18n.js",
   "js/input.js",
   "js/main.js",
   "js/minimap.js",
   "js/pedestrians.js",
   "js/pickups.js",
   "js/player.js",
+  "js/quality.js",
   "js/save.js",
   "js/signals.js",
   "js/traffic.js",

@@ -15,9 +15,11 @@ import * as THREE from 'three';
 import * as assets from './assets.js';
 import * as audio from './audio.js';
 import * as environment from './environment.js';
+import * as haptics from './haptics.js';
 import { Car } from './car.js';
 import { Pedestrians } from './pedestrians.js';
 import { Signals } from './signals.js';
+import { t } from './i18n.js';
 import { CITY, DRIVE, SHADOWS, TRAFFIC_COLORS, TRAFFIC_MODELS }
   from './config.js';
 
@@ -676,6 +678,7 @@ export class CitySession {
     if (Math.abs(this.car.speed) > 8) {
       this.car.shake = Math.max(this.car.shake, 0.7);
       audio.crash();
+      haptics.crash();
     }
     this.car.speed *= 0.35;
   }
@@ -698,10 +701,11 @@ export class CitySession {
     this.stats.coins += picked;
     this.stats.collected += picked;
     audio.coin();
+    haptics.pickup();
     this.car.addNitro(picked * 0.08);
     if (this.coins.every((coin) => coin.taken)) {
       this.scatterCoins(this.city.streetLines, this.city.halfExtent - 14);
-      this.hud.toast('Jetonlar yenilendi!');
+      this.hud.toast(t('toast.coinsRefilled'));
     }
   }
 
@@ -711,7 +715,7 @@ export class CitySession {
     this.mission.left -= dt;
     if (this.mission.left <= 0 && !this.mission.expired) {
       this.mission.expired = true;
-      this.hud.toast('Süre doldu — bonus gitti', 1.8);
+      this.hud.toast(t('toast.timeUp'), 1.8);
     }
 
     const dx = this.mission.x - this.car.x;
@@ -724,10 +728,11 @@ export class CitySession {
     this.stats.deliveries += 1;
     if (onTime) this.stats.onTime += 1;
     audio.nitro();
+    haptics.reward();
     this.car.addNitro(0.5);
     this.hud.toast(onTime
-      ? `Zamanında! +${paid} 🪙 (${this.mission.bonus} bonus)`
-      : `Teslimat tamam! +${paid} 🪙`, 2.2);
+      ? t('toast.deliveredOnTime', { coins: paid, bonus: this.mission.bonus })
+      : t('toast.delivered', { coins: paid }), 2.2);
     this.newMission();
   }
 
@@ -788,6 +793,23 @@ export class CitySession {
       new THREE.Vector3(car.x + ahead.x, DRIVE.cameraLookHeight, car.z + ahead.z),
       Math.min(1, dt * 6));
     camera.lookAt(this.lookTarget);
+  }
+
+  /**
+   * Apply a quality level: how many people walk about, and how far you can
+   * see. Shadows and pixel ratio are the renderer's business, not the scene's.
+   */
+  applyQuality(level) {
+    if (this.pedestrians) {
+      this.pedestrians.setVisibleCount(
+        this.pedestrians.people.length * level.pedestrians);
+    }
+    if (this.scene.fog) {
+      const [near, far] = CITY.fogRange;
+      this.scene.fog.near = near * level.draw;
+      this.scene.fog.far = far * level.draw;
+    }
+    this.drawScale = level.draw;
   }
 
   /** Slow orbit for the menu backdrop. */

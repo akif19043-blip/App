@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import * as assets from './assets.js';
 import * as audio from './audio.js';
 import * as environment from './environment.js';
+import * as haptics from './haptics.js';
 import { DRIVE, PLAY } from './config.js';
 
 export class Car {
@@ -154,6 +155,7 @@ export class Car {
         if (Math.abs(this.speed) > 6 && severity > 0.25) {
           this.shake = Math.max(this.shake, Math.min(1, severity * 0.9));
           audio.scrape();
+          haptics.scrape();
         }
         this.bumped = true;
       }

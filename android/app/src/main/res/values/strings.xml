@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dörtyol</string>
+    <string name="title_activity_main">Dörtyol</string>
+    <string name="package_name">com.dortyol.driver</string>
+    <string name="custom_url_scheme">com.dortyol.driver</string>
+</resources>

@@ -15,6 +15,7 @@ import { Pickups } from './pickups.js';
 import { Player } from './player.js';
 import { Traffic } from './traffic.js';
 import { World } from './world.js';
+import { t } from './i18n.js';
 import { CAMERA, PICKUPS, PLAY, SCORE, TRAFFIC, WORLD } from './config.js';
 
 export class HighwaySession {
@@ -86,11 +87,12 @@ export class HighwaySession {
 
     if (events.nearMisses) {
       audio.nearMiss();
-      this.hud.toast('Kıl payı! +' + events.nearMisses * SCORE.nearMiss, 0.9);
+      this.hud.toast(
+        t('toast.nearMiss', { points: events.nearMisses * SCORE.nearMiss }), 0.9);
     }
     if (picked.nitro) {
       this.player.addNitro(picked.nitro * PLAY.nitroPerPickup);
-      this.hud.toast('Nitro dolduruldu!', 1.0);
+      this.hud.toast(t('toast.nitroFull'), 1.0);
     }
 
     this.world.update(this.player.z, this.player.x);
@@ -151,6 +153,12 @@ export class HighwaySession {
     }
     camera.lookAt(player.x * 0.85, CAMERA.lookHeight,
                   player.z - CAMERA.lookAhead);
+  }
+
+  applyQuality(level) {
+    if (this.scene.fog) {
+      this.scene.fog.far = this.world.preset.fogFar * level.draw;
+    }
   }
 
   cameraFov(baseFov) {
