@@ -12,7 +12,7 @@ gerektirmez.
 
 | Mod | Ne yapıyorsun |
 |---|---|
-| **Serbest Sürüş** | 626 metrelik, 64 adalık ızgara sokaklı bir şehirde istediğin gibi gez. Çalışan trafik ışıkları, kırmızıda kuyruğa giren ve kavşakta dönen trafik, kaldırımlarda yürüyen insanlar, girilebilen otoparklar. Yönünü **kule**, **stadyum** ve **meydan**dan bulursun. Jeton topla; **teslimat**, **yolcu** ve **kurye** işlerini süreye karşı yetiştir. Ama dikkat: çarpmak arabayı **hasarlar**, pervasız sürmek **polisi** çağırır. |
+| **Serbest Sürüş** | 626 metrelik, 64 adalık ızgara sokaklı bir şehirde istediğin gibi gez. Çalışan trafik ışıkları, kırmızıda kuyruğa giren ve kavşakta dönen trafik, kaldırımlarda yürüyen insanlar, girilebilen otoparklar. Yönünü **kule**, **stadyum** ve **meydan**dan bulursun. Jeton topla; **teslimat**, **yolcu** ve **kurye** işlerini süreye karşı yetiştir. Ama dikkat: çarpmak arabayı **hasarlar**, pervasız sürmek **polisi** çağırır. **Yağmur** yağarsa yol ıslanır ve fren mesafesi uzar. |
 | **Trafik Yarışı** | Sonsuz otoyolda trafiği yararak skor topla. Hızlı gitmek ve sıyırarak geçmek ekstra puan. |
 
 Kazandığın jetonlarla garajdan **beş arabadan** birini alır, **motor /
@@ -87,8 +87,8 @@ blender/           3B varlık üretimi (Blender'ın bpy modülü)
   build_all.py     hepsini üretir, ölçer, manifest.json yazar
   make_store.py    ikonlar, menü logosu ve mağaza görselleri
 game/              oyunun kendisi (statik site, derleme adımı yok)
-  js/              fizik, şehir, trafik, sinyaller, yayalar, polis, kademe,
-                   garaj, girdi,
+  js/              fizik, şehir, trafik, sinyaller, yayalar, polis, hava,
+                   kademe, garaj, girdi,
                    ses, kalite gözcüsü, i18n, arayüz
   assets/models/   üretilen .glb dosyaları + manifest.json
   vendor/three/    three.js (r180, MIT)
@@ -138,7 +138,8 @@ Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Dört paket:
   hasarın hızı düşürüp garajda para karşılığı geçmesi; hız yapınca devriyenin
   yola çıkması, yaklaşması, yakalayınca ceza kesmesi ve ekilebilmesi;
   çırağa sadece basit teslimat verilmesi, üst kademede üç işin de çıkması,
-  kademenin ücreti yükseltmesi ve terfinin duyurulması.
+  kademenin ücreti yükseltmesi ve terfinin duyurulması; yağmurun tutuşu
+  düşürüp fren mesafesini uzatması, yolu ıslatması ve sonra kuruması.
 - **highway** — skor, sollama ve kıl payı bonusları, satın alma, duraklatma,
   12 km sonrası koordinat sıfırlama.
 - **layout** — altı ekran boyutunda (küçük telefon → tablet, iki yön) her
@@ -206,6 +207,17 @@ düğmelerinde geçerli.
 şehirde fark 20.844 üçgenden 3.468'e iniyor ve bütün yol ağı tek çizim
 çağrısı grubunda kalıyor. Sürerken ölçülen toplam: **~270-360 çizim çağrısı,
 ~35.000 üçgen**.
+
+**Yağmur bir filtre değil.** Yağmurda yol kararıp parlıyor, ufuk yaklaşıyor,
+farlar saatten bağımsız yanıyor ve **tutuş %28 düşüyor** — 30 m/s'den fren
+mesafesi 17 metreden 24 metreye çıkıyor, virajlar da daha çok yer istiyor.
+Yağmurun kendisi tek bir `LineSegments`: kameranın etrafındaki bir kutuda
+düşen kısa çizgiler, dibe varan yukarı ışınlanıyor. Yani birkaç yüz damla
+tek çizim çağrısıyla sonsuza kadar yağıyor. Islak zemin ise yükleyicinin
+ürettiği paylaşılan yol materyallerini düzenliyor: bütün şehir iki yazmayla
+ıslanıyor. Bulutlu gökyüzü ayrı iş — güneş iniyor, gökyüzü çıkıyor ve renkler
+griye kayıyor; çevre haritası yeniden üretildiği için bu, hava *değiştiğinde*
+bir kez yapılıyor.
 
 **Kazandığın tek şey para değil: bir de kariyer.** Para eline geçtiği anda
 harcanıyor — araba, parça, onarım — yani ne yaptığının kötü bir kaydı. Kademe

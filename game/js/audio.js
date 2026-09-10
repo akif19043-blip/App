@@ -342,6 +342,59 @@ export function stopSiren() {
   siren = null;
 }
 
+let rain = null;
+
+/**
+ * Rain, as a bed of filtered noise under everything else.
+ *
+ * Built from the same brown-noise buffer trick the ambience uses, but sent
+ * through a high-pass instead of a low-pass: rain is hiss, not rumble. The
+ * level follows how hard it is raining, so the weather easing in is something
+ * you hear before you see it on the road.
+ */
+export function setRain(amount) {
+  if (!ctx || !enabled) {
+    if (!amount) stopRain();
+    return;
+  }
+  if (amount <= 0.01) return stopRain();
+
+  if (!rain) {
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) {
+      data[i] = (Math.random() * 2 - 1) * 0.5;
+    }
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 1400;
+    const shape = ctx.createBiquadFilter();
+    shape.type = 'lowpass';
+    shape.frequency.value = 7200;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    source.connect(filter).connect(shape).connect(gain).connect(master);
+    source.start();
+    rain = { source, gain };
+  }
+  rain.gain.gain.setTargetAtTime(0.085 * amount, now(), 0.4);
+}
+
+export function stopRain() {
+  if (!rain) return;
+  const { source, gain } = rain;
+  gain.gain.setTargetAtTime(0, now(), 0.3);
+  try {
+    source.stop(now() + 1.0);
+  } catch (err) { /* already stopped */ }
+  rain = null;
+}
+
 let lastScreech = 0;
 
 /**

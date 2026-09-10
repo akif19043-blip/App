@@ -118,6 +118,9 @@ export class Player {
     this.speed = 0;
     this.steer = 0;
     this.x = 0;
+    // 1 on a dry road. The weather owns the number; the player only has to
+    // dodge on it.
+    this.grip = 1;
     this.z = 0;
     this.distance = 0;
     this.nitro = 0;
@@ -207,8 +210,9 @@ export class Player {
     // --- lateral -----------------------------------------------------------
     this.steer += (input.steer - this.steer)
       * Math.min(1, PLAY.steerLerp * dt);
-    const grip = 1 - (1 - PLAY.steerAtTopSpeed) * this.speedRatio;
-    const lateral = this.steer * PLAY.steerBase * this.spec.handling * grip
+    const speedGrip = 1 - (1 - PLAY.steerAtTopSpeed) * this.speedRatio;
+    const lateral = this.steer * PLAY.steerBase * this.spec.handling
+      * speedGrip * this.grip
       // no steering authority when stopped
       * Math.min(1, this.speed / 6);
     this.x += lateral * dt;

@@ -673,6 +673,64 @@ check('the van multiplier reaches the payout',
       van.plain === van.plainDue && van.loaded === van.loadedDue,
       JSON.stringify(van));
 
+// Rain is meant to be felt, not just seen: the road goes wet, the horizon
+// comes in, and the car takes longer to stop.
+const wet = await page.evaluate(() => {
+  const s = game.session, c = s.car;
+  const asphalt = s.weather.road.find((e) => e.material.name === 'Asphalt');
+
+  // A braking run from the same speed, on the same street, dry then wet.
+  const stoppingDistance = () => {
+    c.place(s.city.streetLines[4] + s.city.laneOffsets[0], 200, 0);
+    c.speed = 30;
+    const from = c.z;
+    for (let i = 0; i < 60 * 12 && Math.abs(c.speed) > 0.5; i++) {
+      game.testInput = { steer: 0, throttle: 0, brake: true };
+      game.update(1/60);
+    }
+    return Math.abs(c.z - from);
+  };
+
+  s.setWeather('clear');
+  for (let i = 0; i < 60 * 4; i++) game.update(1/60);   // let it ease out
+  const dry = { stop: stoppingDistance(), grip: s.weather.grip,
+                fog: Math.round(s.scene.fog.far),
+                roughness: asphalt.material.roughness,
+                lit: asphalt.material.color.r };
+
+  s.setWeather('rain');
+  for (let i = 0; i < 60 * 6; i++) game.update(1/60);   // and back in
+  const rain = { stop: stoppingDistance(), grip: s.weather.grip,
+                 fog: Math.round(s.scene.fog.far),
+                 roughness: asphalt.material.roughness,
+                 lit: asphalt.material.color.r,
+                 drops: s.weather.drops.visible,
+                 headlights: !!(c.beams && c.beams.visible) };
+
+  // and it dries out again
+  s.setWeather('clear');
+  for (let i = 0; i < 60 * 6; i++) game.update(1/60);
+  const dried = { roughness: asphalt.material.roughness,
+                  lit: asphalt.material.color.r,
+                  drops: s.weather.drops.visible };
+  return { dry, rain, dried };
+});
+console.log('   rain:', JSON.stringify(wet));
+check('rain costs grip', wet.rain.grip < wet.dry.grip,
+      `${wet.rain.grip} vs ${wet.dry.grip}`);
+check('a wet road takes longer to stop on', wet.rain.stop > wet.dry.stop + 3,
+      `${Math.round(wet.rain.stop)} m vs ${Math.round(wet.dry.stop)} m`);
+check('rain pulls the horizon in', wet.rain.fog < wet.dry.fog,
+      `${wet.rain.fog} vs ${wet.dry.fog}`);
+check('the road turns wet', wet.rain.roughness < wet.dry.roughness
+      && wet.rain.lit < wet.dry.lit);
+check('you can see it raining', wet.rain.drops);
+check('headlights come on in the rain', wet.rain.headlights);
+check('and it dries out again',
+      !wet.dried.drops && Math.abs(wet.dried.roughness - wet.dry.roughness) < 0.02
+      && Math.abs(wet.dried.lit - wet.dry.lit) < 0.01,
+      JSON.stringify(wet.dried));
+
 // Night is a real lighting change, not just a darker sky.
 const night = await page.evaluate(() => {
   const s = game.session;

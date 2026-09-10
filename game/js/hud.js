@@ -13,6 +13,7 @@ import * as progress from './progress.js';
 import { t, apply as applyStrings, language, setLanguage, LANGUAGES }
   from './i18n.js';
 import { TIMES } from './environment.js';
+import { WEATHERS } from './weather.js';
 import { CARS, PAINTS, RANKS } from './config.js';
 
 const SCREENS = ['loading', 'menu', 'garage', 'records', 'settings',
@@ -65,6 +66,7 @@ export class Hud {
     this.bindButtons();
     this.buildLanguagePicker();
     this.buildTimePicker();
+    this.buildWeatherPicker();
   }
 
   bindButtons() {
@@ -137,6 +139,7 @@ export class Hud {
         applyStrings();
         this.buildLanguagePicker();
         this.buildTimePicker();
+        this.buildWeatherPicker();
         this.renderGarage();
         this.refreshMenu();
         this.handlers.onLanguage(language());
@@ -146,6 +149,30 @@ export class Hud {
   }
 
   /** Pin the lighting, or leave it random per run. */
+  /**
+   * Weather picker, same shape as the time-of-day one: 'auto' rolls for it,
+   * anything else is taken at face value.
+   */
+  buildWeatherPicker() {
+    const host = document.getElementById('weather-options');
+    if (!host) return;
+    host.innerHTML = '';
+    const current = save.get().settings.weather || 'auto';
+    for (const name of WEATHERS) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'lang__option' + (name === current ? ' is-on' : '');
+      button.textContent = t('weather.' + name);
+      button.addEventListener('click', () => {
+        audio.uiTap();
+        save.setSetting('weather', name);
+        this.buildWeatherPicker();
+        this.handlers.onWeather(name);
+      });
+      host.appendChild(button);
+    }
+  }
+
   buildTimePicker() {
     const host = document.getElementById('time-options');
     if (!host) return;

@@ -39,6 +39,9 @@ export class Car {
     // something beyond the speed you lose in it.
     this.damage = 0;
     this.lastHit = 0;
+    // 1 on a dry road, less on a wet one. The weather owns the number; the
+    // car only has to drive on it.
+    this.grip = 1;
   }
 
   setCar(spec) {
@@ -284,7 +287,7 @@ export class Car {
 
   updateSpeed(dt, input) {
     const top = this.topSpeed;
-    const braking = PLAY.brakeDecel * (this.spec.brakeScale || 1);
+    const braking = PLAY.brakeDecel * (this.spec.brakeScale || 1) * this.grip;
     if (input.brake) {
       if (this.speed > 0.4) {
         this.speed -= braking * dt;
@@ -315,10 +318,13 @@ export class Car {
 
   updateHeading(dt, input) {
     // Lock the wheels down as speed rises, or the car would spin on the spot.
+    // Grip narrows the same lock: on a wet road the car asks for more room
+    // through a corner rather than sliding, which is the honest thing to do
+    // with a model that has no lateral slip in it.
     const limit = DRIVE.maxSteerAngle
       * (DRIVE.steerAtSpeed
          + (1 - DRIVE.steerAtSpeed) * Math.exp(-Math.abs(this.speed) / 26))
-      * this.spec.handling;
+      * this.spec.handling * this.grip;
     const target = input.steer * limit;
     this.steerAngle += (target - this.steerAngle)
       * Math.min(1, DRIVE.steerLerp * dt);

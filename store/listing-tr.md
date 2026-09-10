@@ -33,6 +33,11 @@ Yaptığın her iş seni bir kademe yukarı taşır. Sekiz kademe var: yükseldi
 işin ücreti artar. Zamanında varmak ve arabaya çizik atmadan bitirmek fazladan
 sayılır. KAYITLAR ekranında ömür boyu ne yaptığını görürsün.
 
+**Hava**
+Yağmurda yol kararır ve parlar, ufuk yaklaşır, farlar yanar — ve araba
+tutuşunu kaybeder, yani fren mesafesi uzar. Ayarlardan açık, yağmurlu ya da
+rastgele seçebilirsin. Her iki modda da çalışır.
+
 **Yönünü bulmak kolay**
 Şehirde her oyunda aynı yerde duran üç simge yapı var: gözlem kulesi, stadyum
 ve anıt meydanı. Mini haritada da ayrı renkte görünürler.

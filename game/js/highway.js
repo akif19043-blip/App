@@ -12,6 +12,7 @@ import * as assets from './assets.js';
 import * as environment from './environment.js';
 import * as audio from './audio.js';
 import { Pickups } from './pickups.js';
+import { Weather } from './weather.js';
 import { Player } from './player.js';
 import { Traffic } from './traffic.js';
 import { World } from './world.js';
@@ -36,6 +37,19 @@ export class HighwaySession {
     this.player = new Player(this.scene, this.world);
     this.traffic = new Traffic(this.scene, this.world, this.lanes);
     this.pickups = new Pickups(this.scene, this.lanes);
+    // After the road is built, so the asphalt it wets down is in the scene.
+    this.weather = new Weather(this.scene);
+  }
+
+  /**
+   * Rain on the motorway. There is no braking model here to lengthen, so
+   * grip goes where it can be felt: the lateral move that dodges traffic.
+   */
+  setWeather(name) {
+    if (!this.weather || name === this.weather.name) return;
+    this.weather.set(name);
+    this.world.setRaining(this.weather.raining);
+    this.player.setHeadlights(!!this.world.preset.headlights);
   }
 
   setTimeOfDay(name) {
@@ -71,6 +85,10 @@ export class HighwaySession {
       this.world.update(this.player.z, this.player.x);
       return this.hudState();
     }
+
+    this.weather.update(dt, this.player.x, this.player.z);
+    this.player.grip = this.weather.grip;
+    audio.setRain(this.weather.rainAmount);
 
     const travelled = this.player.update(dt, controls, this.roadHalfWidth);
     if (this.player.scraping) audio.scrape();

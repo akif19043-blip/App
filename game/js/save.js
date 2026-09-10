@@ -40,6 +40,7 @@ const DEFAULTS = {
     language: null,        // null = follow the device on first run
     quality: 'high',       // lowered automatically if the device struggles
     timeOfDay: 'auto',     // auto | day | dusk | night
+    weather: 'auto',       // auto | clear | rain
   },
 };
 

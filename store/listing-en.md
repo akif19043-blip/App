@@ -33,6 +33,11 @@ better work -- multi-stop passenger and courier runs -- and lifts the rate
 every fee is paid at. Arriving on time counts for extra, and so does finishing
 without a scratch on the car. The records screen keeps the lifetime tally.
 
+**Weather**
+In the rain the road goes dark and glossy, the horizon comes in, the
+headlights come on -- and the car loses grip, so it takes longer to stop.
+Pick clear, rain, or random in the settings. It works in both modes.
+
 **Easy to find your way**
 Three landmarks stand in the same place every game -- an observation tower, a
 stadium and a memorial square -- and each has its own colour on the minimap.

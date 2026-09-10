@@ -6,7 +6,7 @@
  * of leaving players on a stale mix of new code and old models.
  */
 
-const CACHE = 'dortyol-b71c25efdc21';
+const CACHE = 'dortyol-9ef99b50ac43';
 const ASSETS = [
   "./",
   "assets/icon-192.png",
@@ -77,6 +77,7 @@ const ASSETS = [
   "js/save.js",
   "js/signals.js",
   "js/traffic.js",
+  "js/weather.js",
   "js/world.js",
   "manifest.webmanifest",
   "vendor/three/addons/loaders/GLTFLoader.js",

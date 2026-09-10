@@ -183,6 +183,7 @@ export const CITY = {
     catchTime: 1.6,
     loseRadius: 200,
     loseTime: 8,
+    stuckSeconds: 12,         // no progress for this long: send a fresh car
     fine: 0.25,               // share of the run's earnings handed over
     minFine: 120,
   },
@@ -202,6 +203,45 @@ export const UPGRADES = [
   { id: 'brakes', nameKey: 'part.brakes', stat: 'brakeScale', perLevel: 0.10,
     levels: 3, basePrice: 500 },
 ];
+
+/**
+ * Weather.
+ *
+ * `grip` is the fraction of dry grip a wet road leaves, and it is the whole
+ * point: rain you can only see is a filter, rain that adds ten metres to a
+ * stopping distance is a thing you drive around. `fogScale` pulls the draw
+ * distance in, which is both what rain looks like and a frame or two back on
+ * a phone that needs them.
+ */
+export const WEATHER = {
+  autoRainChance: 0.3,        // how often 'auto' picks a wet day
+  easeSeconds: 2.5,           // weather arrives over this, it does not snap
+  // The road materials to wet down. Every piece of asphalt in the city shares
+  // these, so the whole map turns wet on two writes.
+  wetMaterials: ['Asphalt', 'Sidewalk', 'Kerb', 'Concrete'],
+  presets: {
+    clear: { grip: 1, fogScale: 1 },
+    rain: {
+      grip: 0.72,
+      fogScale: 0.66,
+      // How far the whole sky moves toward cloud, and what that does to the
+      // two lights: less sun, more sky.
+      sky: { color: '#8d97a4', amount: 0.66, sun: 0.50, hemi: 1.45 },
+      roadDarken: 0.74,       // wet asphalt is darker than dry
+      roadRoughness: 0.18,    // and far smoother, so the sky sits on it
+      roadMetalness: 0.35,
+    },
+  },
+  rain: {
+    count: 900,
+    box: { width: 46, depth: 46, height: 18 },
+    streak: [0.55, 1.30],     // metres, so near drops read as streaks
+    slant: 0.16,              // metres of lean, as if it is being blown
+    fall: [26, 34],           // m/s
+    color: '#b9d6ee',
+    opacity: 0.5,
+  },
+};
 
 /**
  * Driver ranks.

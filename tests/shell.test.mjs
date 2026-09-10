@@ -165,11 +165,21 @@ async function open(locale = 'tr-TR') {
   await page.click('#toggle-music');
   await page.click('#toggle-lefthanded');
   await page.waitForTimeout(300);
+  // Weather is a picker rather than a switch, so it is set by clicking the
+  // option and checking the game actually took it, not just that it saved.
+  await page.evaluate(() => {
+    const options = [...document.querySelectorAll('#weather-options .lang__option')];
+    options[options.length - 1].click();       // 'rain', the last of the three
+  });
+  await page.waitForTimeout(300);
   const applied = await page.evaluate(() => ({
     shadows: game.renderer.shadowMap.enabled,
     lefty: document.body.classList.contains('is-left-handed'),
+    weather: game.weather ? game.session.weather.name : null,
     saved: JSON.parse(localStorage.getItem('dortyol.profile.v1')).settings,
   }));
+  check('picking the weather takes effect', applied.weather === 'rain',
+        applied.weather + '');
   console.log('   settings:', JSON.stringify(applied.saved));
   check('turning shadows off takes effect', applied.shadows === false);
   check('the left-handed layout mirrors the controls', applied.lefty);

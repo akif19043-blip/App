@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import * as assets from './assets.js';
 import * as environment from './environment.js';
+import * as weather from './weather.js';
 import { SCENERY, SHADOWS, WORLD } from './config.js';
 
 const SCENERY_KINDS = [
@@ -46,7 +47,19 @@ export class World {
   setTimeOfDay(name) {
     if (name === this.timeOfDay) return;
     this.timeOfDay = name;
-    this.preset = environment.preset(name);
+    this.applyEnvironment();
+  }
+
+  /** Overcast is a lighting change, so it goes through the same path. */
+  setRaining(raining) {
+    if (raining === this.raining) return;
+    this.raining = raining;
+    this.applyEnvironment();
+  }
+
+  applyEnvironment() {
+    this.preset = weather.overcast(environment.preset(this.timeOfDay),
+                                   this.raining);
     for (const light of this.lights || []) this.scene.remove(light);
     environment.applySky(this.scene, this.renderer, this.preset);
     const lights = environment.applyLights(this.scene, this.preset, SHADOWS);

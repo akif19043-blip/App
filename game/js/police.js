@@ -108,6 +108,8 @@ export class Police {
     this.state = 'calm';
     this.catchTimer = 0;
     this.loseTimer = 0;
+    this.stuckTimer = 0;
+    this.bestGap = Infinity;
     this.holder.visible = false;
     this.setLamps(0);
     audio.setSiren(false);
@@ -166,6 +168,18 @@ export class Police {
     } else {
       this.loseTimer = 0;
     }
+
+    // Safety net: a greedy grid chase should always close in, but a patrol
+    // that has not gained a metre in this long has found a corner the rule
+    // does not cover. Rather than leave it circling, dispatch a fresh one --
+    // which is what a city would do anyway.
+    if (gap < this.bestGap - 1) {
+      this.bestGap = gap;
+      this.stuckTimer = 0;
+    } else {
+      this.stuckTimer += dt;
+      if (this.stuckTimer > t.stuckSeconds) this.dispatch(car);
+    }
     return result;
   }
 
@@ -198,6 +212,8 @@ export class Police {
     this.state = 'chasing';
     this.catchTimer = 0;
     this.loseTimer = 0;
+    this.stuckTimer = 0;
+    this.bestGap = Infinity;
     this.holder.visible = true;
     this.applyTransform();
     return true;
@@ -249,8 +265,16 @@ export class Police {
       break;
     }
 
-    const limit = this.city.halfExtent - 12;
-    c.along = Math.max(-limit, Math.min(limit, c.along));
+    // Turn round at the map edge. Clamping alone was a trap: with `along`
+    // pinned at the limit the patrol never crosses another junction, so the
+    // code below that flips it round never runs, and it sits against the wall
+    // for the rest of the chase. The limit also has to clear the outermost
+    // street line, or that line's junctions are unreachable.
+    const limit = this.city.halfExtent - 8;
+    if (c.along > limit || c.along < -limit) {
+      c.along = Math.max(-limit, Math.min(limit, c.along));
+      c.dir = -c.dir;
+    }
     this.applyTransform();
   }
 

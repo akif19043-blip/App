@@ -16,6 +16,7 @@ import * as input from './input.js';
 import * as save from './save.js';
 import * as environment from './environment.js';
 import * as garage from './garage.js';
+import * as weather from './weather.js';
 import * as progress from './progress.js';
 import * as haptics from './haptics.js';
 import * as i18n from './i18n.js';
@@ -72,6 +73,7 @@ class Game {
       onMusic: (value) => audio.setMusicEnabled(value),
       onVibrate: (value) => haptics.setEnabled(value),
       onLanguage: () => this.hud.refreshControls(),
+      onWeather: (value) => this.setWeather(value),
       onLeftHanded: (value) => this.setLeftHanded(value),
     });
     this.hud.show('loading');
@@ -84,6 +86,7 @@ class Game {
 
     this.timeOfDay = environment.resolveTime(save.get().settings.timeOfDay);
     this.session = this.ensureSession('city');
+    this.setWeather();
     const minimapCanvas = document.getElementById('minimap');
     this.minimap = new Minimap(minimapCanvas, assets.manifest.city,
                                CITY.minimapSpan);
@@ -193,12 +196,26 @@ class Game {
     Object.values(this.sessions).forEach((session) => session.poseCar(car));
   }
 
+  /**
+   * Pick the weather for a run. 'auto' rolls once per run, so a session has
+   * one sky rather than flickering between two.
+   */
+  setWeather(choice) {
+    this.weather = weather.resolve(
+      choice === undefined ? save.get().settings.weather : choice);
+    for (const session of Object.values(this.sessions)) {
+      if (session.setWeather) session.setWeather(this.weather);
+    }
+    return this.weather;
+  }
+
   /** Silence everything the run was playing. */
   hushAudio() {
     audio.stopEngine();
     audio.stopAmbience();
     audio.stopMusic();
     audio.stopSiren();
+    audio.stopRain();
   }
 
   toMenu() {
@@ -221,6 +238,7 @@ class Game {
     // A fresh look each run unless the player pinned one.
     this.timeOfDay = environment.resolveTime(save.get().settings.timeOfDay);
     if (this.session.setTimeOfDay) this.session.setTimeOfDay(this.timeOfDay);
+    this.setWeather();
     this.session.start(this.currentCar());
     input.reset();
     input.recentreTilt();
@@ -471,3 +489,4 @@ game.assets = assets;
 game.config = { CAMERA, CARS, CITY };
 game.save = save;
 game.progress = progress;
+game.weather = weather;

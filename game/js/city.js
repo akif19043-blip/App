@@ -22,6 +22,8 @@ import { Car } from './car.js';
 import { Pedestrians } from './pedestrians.js';
 import { Police } from './police.js';
 import { Signals } from './signals.js';
+import * as weatherModule from './weather.js';
+import { Weather } from './weather.js';
 import { t } from './i18n.js';
 import { CITY, DRIVE, SHADOWS, TRAFFIC_COLORS, TRAFFIC_MODELS, XP }
   from './config.js';
@@ -483,6 +485,9 @@ export class CitySession {
     this.buildCoins();
     this.buildBeacon();
     this.police = new Police(this.scene, this.city, this.random);
+    // Built after the ground and the blocks, so the road materials it wets
+    // down are already in the scene to be found.
+    this.weather = new Weather(this.scene);
 
     this.car = new Car(this.scene);
     this.traffic = new CityTraffic(this.scene, this.city, this.random);
@@ -496,7 +501,31 @@ export class CitySession {
   setTimeOfDay(name) {
     if (name === this.timeOfDay) return;
     this.timeOfDay = name;
-    const preset = environment.preset(name);
+    this.applyEnvironment();
+  }
+
+  /** Switch the weather. The sky and the sun change with it, not just the road. */
+  setWeather(name) {
+    if (!this.weather || name === this.weather.name) return;
+    this.weather.set(name);
+    this.applyEnvironment();
+  }
+
+  /**
+   * Build the sky, the fog and the lights for the current time of day and
+   * weather together.
+   *
+   * Overcast is not a filter over a sunny sky: the sky itself goes grey, the
+   * sun comes down and the sky comes up, because on a wet day almost all the
+   * light is coming from the cloud rather than from a direction. Rebuilding
+   * the sky means generating an environment map, so it happens when the
+   * weather *changes* -- once a run -- while the eased rain amount drives
+   * only the road, the drops, the fog and the grip.
+   */
+  applyEnvironment() {
+    const base = environment.preset(this.timeOfDay);
+    const preset = weatherModule.overcast(base, this.weather
+      && this.weather.raining);
 
     for (const light of this.lights || []) this.scene.remove(light);
     const range = [CITY.fogRange[0], CITY.fogRange[1]];
@@ -510,10 +539,19 @@ export class CitySession {
     this.lights = [lights.sun, lights.sun.target, lights.hemi];
     this.nightlights = !!preset.headlights;
     if (this.car) this.car.setHeadlights(this.nightlights);
-    if (this.drawScale) {
-      this.scene.fog.near = range[0] * this.drawScale;
-      this.scene.fog.far = range[1] * this.drawScale;
-    }
+    this.fogRange = range;
+    this.applyWeatherFog();
+  }
+
+  /**
+   * Rain pulls the horizon in. Kept separate from the quality level's own
+   * draw scale so the two multiply rather than overwrite each other.
+   */
+  applyWeatherFog() {
+    if (!this.scene.fog || !this.fogRange || !this.weather) return;
+    const scale = (this.drawScale || 1) * this.weather.fogScale();
+    this.scene.fog.near = this.fogRange[0] * scale;
+    this.scene.fog.far = this.fogRange[1] * scale;
   }
 
   /** Towers in the middle, sheds and parks on the outskirts. */
@@ -759,6 +797,13 @@ export class CitySession {
     this.awardDistance(travelled);
 
     environment.followSun(this.sun, this.car.x, this.car.z);
+    // The rain box rides on the car rather than the camera: the camera is
+    // only 8 m behind it, and a box centred on the car covers the view either
+    // way round -- including when the camera swings to the front in reverse.
+    this.weather.update(dt, this.car.x, this.car.z);
+    this.car.grip = this.weather.grip;
+    this.applyWeatherFog();
+    audio.setRain(this.weather.rainAmount);
     this.signals.update(dt);
     this.traffic.update(dt, this.car.x, this.car.z, this.signals);
     this.pedestrians.update(dt, this.car.x, this.car.z);
@@ -966,6 +1011,7 @@ export class CitySession {
       deliveries: this.stats.deliveries,
       timeLeft: this.mission ? Math.max(0, this.mission.left) : null,
       heat: this.police ? this.police.heat : 0,
+      raining: this.weather ? this.weather.raining : false,
       wanted: this.police ? this.police.wanted : false,
       damage: this.car.damage,
       event: this.takeEvent(),
@@ -1023,12 +1069,11 @@ export class CitySession {
       this.pedestrians.setVisibleCount(
         this.pedestrians.people.length * level.pedestrians);
     }
-    if (this.scene.fog) {
-      const [near, far] = CITY.fogRange;
-      this.scene.fog.near = near * level.draw;
-      this.scene.fog.far = far * level.draw;
-    }
     this.drawScale = level.draw;
+    if (this.scene.fog) {
+      if (!this.fogRange) this.fogRange = [...CITY.fogRange];
+      this.applyWeatherFog();
+    }
   }
 
   /** Slow orbit for the menu backdrop. */
