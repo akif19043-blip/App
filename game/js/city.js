@@ -25,6 +25,18 @@ import { CITY, DRIVE, SHADOWS, TRAFFIC_COLORS, TRAFFIC_MODELS }
 
 const MAP_SEED = 1337;
 
+/** Pick one entry in proportion to its `weight`. */
+function pickWeighted(list, random) {
+  let total = 0;
+  for (const item of list) total += item.weight;
+  let roll = random() * total;
+  for (const item of list) {
+    roll -= item.weight;
+    if (roll <= 0) return item;
+  }
+  return list[list.length - 1];
+}
+
 /** Small deterministic PRNG, so the city is the same city every time. */
 function makeRandom(seed) {
   let state = seed >>> 0;
@@ -449,12 +461,7 @@ export class CitySession {
   build(timeOfDay) {
     this.city = assets.manifest.city;
 
-    environment.applySky(this.scene, this.renderer,
-                         environment.preset(timeOfDay), CITY.fogRange);
-    const lights = environment.applyLights(this.scene,
-                                           environment.preset(timeOfDay),
-                                           SHADOWS);
-    this.sun = lights.sun;
+    this.setTimeOfDay(timeOfDay);
 
     // The ground only receives; nothing about it can cast anything useful.
     this.scene.add(environment.shadowRole(
@@ -475,6 +482,33 @@ export class CitySession {
     this.car = new Car(this.scene);
     this.traffic = new CityTraffic(this.scene, this.city, this.random);
     this.pedestrians = new Pedestrians(this.scene, this.city, this.random);
+  }
+
+  /**
+   * Swap the lighting. Rebuilding the sky regenerates the environment map, so
+   * this is only ever called between runs, never mid-drive.
+   */
+  setTimeOfDay(name) {
+    if (name === this.timeOfDay) return;
+    this.timeOfDay = name;
+    const preset = environment.preset(name);
+
+    for (const light of this.lights || []) this.scene.remove(light);
+    const range = [CITY.fogRange[0], CITY.fogRange[1]];
+    if (preset.fogFar < range[1]) {
+      range[0] = preset.fogNear;
+      range[1] = preset.fogFar;
+    }
+    environment.applySky(this.scene, this.renderer, preset, range);
+    const lights = environment.applyLights(this.scene, preset, SHADOWS);
+    this.sun = lights.sun;
+    this.lights = [lights.sun, lights.sun.target, lights.hemi];
+    this.nightlights = !!preset.headlights;
+    if (this.car) this.car.setHeadlights(this.nightlights);
+    if (this.drawScale) {
+      this.scene.fog.near = range[0] * this.drawScale;
+      this.scene.fog.far = range[1] * this.drawScale;
+    }
   }
 
   /** Towers in the middle, sheds and parks on the outskirts. */
@@ -598,39 +632,79 @@ export class CitySession {
     this.mission = null;
   }
 
-  /** Pick a junction far enough away to be worth driving to. */
-  newMission() {
+  /** A junction at least `minimum` metres from (x, z). */
+  pickJunction(x, z, minimum) {
     const lines = this.city.streetLines;
-    for (let attempt = 0; attempt < 24; attempt += 1) {
-      const x = lines[Math.floor(this.random() * lines.length)];
-      const z = lines[Math.floor(this.random() * lines.length)];
-      const dx = x - this.car.x;
-      const dz = z - this.car.z;
-      const distance = Math.hypot(dx, dz);
-      if (distance < 120 && attempt < 20) continue;
-      const [lo, hi] = CITY.missionPay;
-      const pay = Math.round(lo + this.random() * (hi - lo));
-      // Time the route you can actually drive, not the crow's flight: the
-      // streets are a grid, so the trip is the Manhattan distance. The grace
-      // covers the red lights on the way.
-      const route = Math.abs(dx) + Math.abs(dz);
-      const limit = route / CITY.missionPace + CITY.missionGrace;
-      this.mission = {
-        x, z, pay,
-        bonus: Math.round(pay * CITY.missionBonus),
-        limit,
-        left: limit,
-        expired: false,
-      };
-      this.beacon.position.set(x, 0, z);
-      this.beacon.visible = true;
-      return this.mission;
+    let fallback = null;
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const jx = lines[Math.floor(this.random() * lines.length)];
+      const jz = lines[Math.floor(this.random() * lines.length)];
+      const route = Math.abs(jx - x) + Math.abs(jz - z);
+      if (!fallback || route > fallback.route) fallback = { x: jx, z: jz, route };
+      if (route >= minimum) return { x: jx, z: jz, route };
     }
-    return null;
+    return fallback;
+  }
+
+  /**
+   * Line up the next job.
+   *
+   * A job is a list of junctions to reach in order: a delivery is one, a
+   * passenger is pick-up then drop-off, a courier run is four. The clock is
+   * set from the whole route measured along the streets, since that is what
+   * you will actually drive.
+   */
+  newMission() {
+    const type = pickWeighted(CITY.missionTypes, this.random);
+    const stops = [];
+    let fromX = this.car.x;
+    let fromZ = this.car.z;
+    let route = 0;
+
+    for (let i = 0; i < type.stops; i += 1) {
+      const minimum = i === 0 ? 120 : 90;
+      const stop = this.pickJunction(fromX, fromZ, minimum);
+      if (!stop) break;
+      stops.push(stop);
+      route += stop.route;
+      fromX = stop.x;
+      fromZ = stop.z;
+    }
+    if (!stops.length) {
+      this.mission = null;
+      this.beacon.visible = false;
+      return null;
+    }
+
+    const [lo, hi] = CITY.missionPay;
+    const pay = Math.round((lo + this.random() * (hi - lo)) * type.pay);
+    const limit = route / type.pace + CITY.missionGrace * stops.length;
+
+    this.mission = {
+      type: type.id,
+      stops,
+      stopIndex: 0,
+      x: stops[0].x,
+      z: stops[0].z,
+      pay,
+      bonus: Math.round(pay * CITY.missionBonus),
+      route: Math.round(route),
+      limit,
+      left: limit,
+      expired: false,
+    };
+    this.showBeacon();
+    return this.mission;
+  }
+
+  showBeacon() {
+    this.beacon.position.set(this.mission.x, 0, this.mission.z);
+    this.beacon.visible = true;
   }
 
   start(carSpec) {
     this.car.setCar(carSpec);
+    this.car.setHeadlights(this.nightlights);
     // Start on the middle street heading north, clear of the kerbs.
     const line = this.city.streetLines[
       Math.floor(this.city.streetLines.length / 2)];
@@ -722,14 +796,32 @@ export class CitySession {
     const dz = this.mission.z - this.car.z;
     if (dx * dx + dz * dz > CITY.missionArriveRadius ** 2) return;
 
+    // More stops to go: advance the beacon and say what just happened.
+    if (this.mission.stopIndex < this.mission.stops.length - 1) {
+      this.mission.stopIndex += 1;
+      const stop = this.mission.stops[this.mission.stopIndex];
+      this.mission.x = stop.x;
+      this.mission.z = stop.z;
+      this.showBeacon();
+      audio.coin();
+      haptics.pickup();
+      this.hud.toast(this.mission.type === 'passenger'
+        ? t('toast.pickedUp')
+        : t('toast.checkpoint', { done: this.mission.stopIndex,
+                                  total: this.mission.stops.length }), 1.6);
+      return;
+    }
+
     const onTime = !this.mission.expired;
-    const paid = this.mission.pay + (onTime ? this.mission.bonus : 0);
+    // The van earns its keep here: the fee and the bonus both scale with it.
+    const rate = this.car.spec.payMultiplier || 1;
+    const paid = Math.round(
+      (this.mission.pay + (onTime ? this.mission.bonus : 0)) * rate);
     this.stats.coins += paid;
     this.stats.deliveries += 1;
     if (onTime) this.stats.onTime += 1;
     audio.nitro();
     haptics.reward();
-    this.car.addNitro(0.5);
     this.hud.toast(onTime
       ? t('toast.deliveredOnTime', { coins: paid, bonus: this.mission.bonus })
       : t('toast.delivered', { coins: paid }), 2.2);
@@ -830,6 +922,7 @@ export class CitySession {
   /** Park the car somewhere photogenic for the menu. */
   poseCar(carSpec) {
     this.car.setCar(carSpec);
+    this.car.setHeadlights(this.nightlights);
     const line = this.city.streetLines[
       Math.floor(this.city.streetLines.length / 2)];
     this.car.place(line + this.city.laneOffsets[0], 0, Math.PI * 0.15);

@@ -63,6 +63,12 @@ export class Car {
     if (this.flare) this.group.remove(this.flare);
     this.flare = this.makeBoostFlare();
     this.group.add(this.flare);
+
+    // The beams are sized from the body, so they are rebuilt with the car.
+    if (this.beams) {
+      this.group.remove(this.beams);
+      this.beams = null;
+    }
   }
 
   makeBoostFlare() {
@@ -79,6 +85,59 @@ export class Car {
     }
     group.visible = false;
     return group;
+  }
+
+  /**
+   * Headlight beams: two shallow cones in front of the nose. They are just
+   * emissive geometry -- a real spotlight per car would cost a shadow-casting
+   * light each, and this reads the same at the distance the camera sits.
+   */
+  setHeadlights(on) {
+    if (on && !this.beams) {
+      const group = new THREE.Group();
+      const material = new THREE.MeshBasicMaterial({
+        color: 0xffe9b0,
+        transparent: true,
+        opacity: 0.10,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,   // light adds, it does not grey out
+        side: THREE.BackSide,               // only the far wall, so no doubling
+      });
+      for (const side of [-1, 1]) {
+        // Apex at the lamp, widening away down the road, and tipped down so
+        // the cone lands on the tarmac instead of hanging in the air.
+        const cone = new THREE.Mesh(
+          new THREE.ConeGeometry(1.05, 9, 12, 1, true), material);
+        cone.rotation.x = Math.PI / 2 - 0.055;
+        cone.position.set(side * 0.5, 0.52, -(this.size.length * 0.5 + 4.3));
+        group.add(cone);
+        const glow = new THREE.Mesh(
+          new THREE.SphereGeometry(0.19, 8, 6),
+          new THREE.MeshBasicMaterial({ color: 0xfff4d8 }));
+        glow.position.set(side * 0.5, 0.66, -(this.size.length * 0.5 - 0.05));
+        group.add(glow);
+      }
+        // Beams are geometry, not lights, so they cannot brighten the road.
+        // A warm pool on the tarmac ahead does that job for a fraction of the
+        // cost of a real spotlight, and it is what makes night driveable.
+        const pool = new THREE.Mesh(
+          new THREE.PlaneGeometry(7.5, 13),
+          new THREE.MeshBasicMaterial({
+            map: environment.beamTexture(),
+            transparent: true,
+            opacity: 0.30,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            color: 0xffe0a8,
+          }));
+        pool.rotation.x = -Math.PI / 2;
+        pool.position.set(0, 0.03, -(this.size.length * 0.5 + 5.0));
+        pool.renderOrder = -1;
+        group.add(pool);
+      this.beams = group;
+      this.group.add(group);
+    }
+    if (this.beams) this.beams.visible = !!on;
   }
 
   place(x, z, heading) {

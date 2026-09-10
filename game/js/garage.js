@@ -52,7 +52,8 @@ export function setPaint(car, color) {
  * `brakeScale` starts at 1 and only upgrades move it.
  */
 export function tunedSpec(car) {
-  const tuned = { ...car, paint: paint(car), brakeScale: 1 };
+  const tuned = { ...car, paint: paint(car), brakeScale: 1,
+                  payMultiplier: car.payMultiplier || 1 };
   for (const part of UPGRADES) {
     const level = save.upgradeLevel(car.id, part.id);
     if (!level) continue;

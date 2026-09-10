@@ -15,6 +15,11 @@ const browser = await chromium.launch({
   args: ['--use-gl=swiftshader','--enable-unsafe-swiftshader','--no-sandbox','--disable-dev-shm-usage'],
 });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+// Software rendering here manages a handful of frames per second, and
+// Playwright's actionability checks want the element stable across frames.
+// Give them room rather than skipping the check -- whether a button is
+// actually clickable is part of what these suites verify.
+page.setDefaultTimeout(60000);
 page.on('console', m => { if (m.type()==='error') problems.push('CONSOLE '+m.text()); });
 page.on('pageerror', e => problems.push('PAGEERROR '+e.message));
 
@@ -42,13 +47,15 @@ await page.click('#btn-settings-back');
 
 // buying a car with insufficient funds is refused, with funds succeeds
 await page.click('#btn-garage'); await page.waitForTimeout(200);
-const lockedDisabled = await page.evaluate(() => document.querySelectorAll('.car-card')[1].querySelector('button').disabled);
+const lockedDisabled = await page.evaluate(() =>
+  document.querySelector('.car-card[data-car="super"] .car-card__action').disabled);
 check('locked car is not purchasable at 0 coins', lockedDisabled);
 await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('dortyol.profile.v1')||'{}'); s.coins = 99999; localStorage.setItem('dortyol.profile.v1', JSON.stringify(s)); });
 await page.reload({ waitUntil: 'load' });
 await page.waitForFunction(() => document.getElementById('screen-menu')?.classList.contains('is-visible'), { timeout: 60000 });
 await page.click('#btn-garage'); await page.waitForTimeout(250);
-await page.click('.car-card:nth-child(3) .car-card__action'); await page.waitForTimeout(350);
+await page.click('.car-card[data-car="super"] .car-card__action');
+await page.waitForTimeout(350);
 const bought = await page.evaluate(() => ({ owned: JSON.parse(localStorage.getItem('dortyol.profile.v1')).owned, selected: game.sessions.city.car.spec.id }));
 check('buying + equipping the super car works', bought.owned.includes('super') && bought.selected === 'super', JSON.stringify(bought));
 await page.screenshot({ path: SHOTS+'/f-garage.png' });

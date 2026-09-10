@@ -24,10 +24,29 @@ export const TIME_OF_DAY = {
     hemiSky: '#bcd8f0', hemiGround: '#7d6647', hemiIntensity: 1.0,
     fogNear: 75, fogFar: 280,
   },
+  // Night leans on the emissive materials that are already in the models --
+  // lit windows, street lamps, signals and tail lights carry the scene, and
+  // the "sun" is a dim cool moon that only shapes the silhouettes.
+  night: {
+    top: '#050912', horizon: '#16233d', ground: '#0b0e15',
+    sun: '#8fa6dd', sunIntensity: 0.62,
+    hemiSky: '#33436c', hemiGround: '#15191f', hemiIntensity: 0.78,
+    fogNear: 40, fogFar: 210,
+    headlights: true,
+  },
 };
 
 export function preset(name) {
   return TIME_OF_DAY[name] || TIME_OF_DAY.dusk;
+}
+
+/** Names a player can pick between, plus 'auto'. */
+export const TIMES = ['auto', 'day', 'dusk', 'night'];
+
+export function resolveTime(choice) {
+  if (choice && choice !== 'auto' && TIME_OF_DAY[choice]) return choice;
+  const options = ['day', 'dusk', 'night'];
+  return options[Math.floor(Math.random() * options.length)];
 }
 
 export function applySky(scene, renderer, settings, fogRange) {
@@ -36,6 +55,9 @@ export function applySky(scene, renderer, settings, fogRange) {
   pmrem.compileEquirectangularShader();
   const environment = pmrem.fromEquirectangular(texture).texture;
 
+  // Replacing a sky means the old one is nobody's now.
+  if (scene.background && scene.background.dispose) scene.background.dispose();
+  if (scene.environment && scene.environment.dispose) scene.environment.dispose();
   scene.background = texture;
   scene.environment = environment;
   const near = fogRange ? fogRange[0] : settings.fogNear;
@@ -159,6 +181,26 @@ function makeSkyTexture(settings) {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
   return texture;
+}
+
+let beamTex = null;
+
+/** Soft round falloff, reused for the headlight pool on the road. */
+export function beamTexture() {
+  if (beamTex) return beamTex;
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(32, 32, 1, 32, 32, 31);
+  gradient.addColorStop(0, 'rgba(255,255,255,0.95)');
+  gradient.addColorStop(0.45, 'rgba(255,255,255,0.45)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 64, 64);
+  beamTex = new THREE.CanvasTexture(canvas);
+  beamTex.needsUpdate = true;
+  return beamTex;
 }
 
 function makeShadowTexture() {

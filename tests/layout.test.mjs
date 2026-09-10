@@ -39,6 +39,11 @@ const browser = await chromium.launch({
 const page = await browser.newPage({
   viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true,
 });
+// Software rendering here manages a handful of frames per second, and
+// Playwright's actionability checks want the element stable across frames.
+// Give them room rather than skipping the check -- whether a button is
+// actually clickable is part of what these suites verify.
+page.setDefaultTimeout(60000);
 const problems = [];
 page.on('pageerror', (e) => problems.push('PAGEERROR ' + e.message));
 

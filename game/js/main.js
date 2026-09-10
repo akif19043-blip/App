@@ -31,7 +31,7 @@ const MODELS = [
   'block_downtown', 'block_lowrise', 'block_park', 'block_industrial',
   'block_parking',
   // vehicles
-  'car_sport', 'car_muscle', 'car_super',
+  'car_hatch', 'car_sport', 'car_muscle', 'car_van', 'car_super',
   'traffic_sedan', 'traffic_hatch', 'traffic_suv',
   'traffic_truck', 'traffic_bus',
   // highway
@@ -81,7 +81,7 @@ class Game {
       this.hud.setProgress(done, total, name);
     });
 
-    this.timeOfDay = Math.random() < 0.5 ? 'dusk' : 'day';
+    this.timeOfDay = environment.resolveTime(save.get().settings.timeOfDay);
     this.session = this.ensureSession('city');
     const minimapCanvas = document.getElementById('minimap');
     this.minimap = new Minimap(minimapCanvas, assets.manifest.city,
@@ -213,6 +213,9 @@ class Game {
     audio.unlock();
     audio.setEnabled(save.get().settings.sound);
 
+    // A fresh look each run unless the player pinned one.
+    this.timeOfDay = environment.resolveTime(save.get().settings.timeOfDay);
+    if (this.session.setTimeOfDay) this.session.setTimeOfDay(this.timeOfDay);
     this.session.start(this.currentCar());
     input.reset();
     input.recentreTilt();

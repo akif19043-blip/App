@@ -18,6 +18,11 @@ const browser = await chromium.launch({
   args: ['--use-gl=swiftshader','--enable-unsafe-swiftshader','--no-sandbox','--disable-dev-shm-usage'],
 });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+// Software rendering here manages a handful of frames per second, and
+// Playwright's actionability checks want the element stable across frames.
+// Give them room rather than skipping the check -- whether a button is
+// actually clickable is part of what these suites verify.
+page.setDefaultTimeout(60000);
 page.on('console', m => { if (m.type()==='error') problems.push('CONSOLE '+m.text()); });
 page.on('pageerror', e => problems.push('PAGEERROR '+e.message));
 let failures = 0;
@@ -419,6 +424,91 @@ const map = await page.evaluate(() => {
 console.log('   minimap:', JSON.stringify(map));
 check('the minimap zooms in and out', map.near > map.far * 1.5);
 check('the zoomed minimap keeps the car centred', map.centred);
+
+// Jobs come in three shapes, and a multi-stop job is not done until every
+// stop has been reached.
+const jobs = await page.evaluate(() => {
+  const s = game.session, c = s.car;
+  for (const coin of s.coins) { coin.taken = true; coin.object.visible = false; }
+
+  const seen = {};
+  const runs = [];
+  for (let n = 0; n < 40; n += 1) {
+    const job = s.mission;
+    if (!job) break;
+    seen[job.type] = (seen[job.type] || 0) + 1;
+    const before = s.stats.coins;
+    const stops = job.stops.length;
+
+    // stopping short of the last stop must not pay
+    for (let i = 0; i < stops - 1; i += 1) {
+      c.place(s.mission.x, s.mission.z + 2, 0);
+      game.update(1 / 60);
+    }
+    const partial = s.stats.coins - before;
+
+    c.place(s.mission.x, s.mission.z + 2, 0);
+    game.update(1 / 60);
+    runs.push({ type: job.type, stops, pay: job.pay, partial,
+                earned: s.stats.coins - before });
+  }
+  s.scatterCoins(s.city.streetLines, s.city.halfExtent - 14);
+  return { seen, runs };
+});
+const kinds = Object.keys(jobs.seen);
+const multi = jobs.runs.filter((run) => run.stops > 1);
+console.log('   jobs:', JSON.stringify(jobs.seen),
+            JSON.stringify(jobs.runs.slice(0, 3)));
+check('all three job types come up', kinds.length === 3, kinds.join(', '));
+check('every job pays at least its fee',
+      jobs.runs.every((run) => run.earned >= run.pay));
+check('a multi-stop job pays nothing until the last stop',
+      multi.length > 0 && multi.every((run) => run.partial === 0),
+      multi.length + ' multi-stop jobs');
+check('longer jobs are worth more',
+      Math.max(...jobs.runs.filter((r) => r.stops > 2).map((r) => r.pay))
+      > Math.max(...jobs.runs.filter((r) => r.stops === 1).map((r) => r.pay)));
+
+// The van trades speed for delivery income; that has to actually pay out.
+const van = await page.evaluate(() => {
+  const s = game.session, c = s.car;
+  const fee = 1000;
+  const collect = (multiplier) => {
+    s.car.spec.payMultiplier = multiplier;
+    s.mission = { type: 'delivery', stops: [{ x: 0, z: 0 }], stopIndex: 0,
+                  x: 0, z: 0, pay: fee, bonus: 0, limit: 99, left: 99,
+                  expired: false };
+    const before = s.stats.coins;
+    c.place(0, 2, 0);
+    game.update(1 / 60);
+    return s.stats.coins - before;
+  };
+  const plain = collect(1);
+  const loaded = collect(1.35);
+  s.car.spec.payMultiplier = 1;
+  return { plain, loaded };
+});
+console.log('   van pay:', JSON.stringify(van));
+check('the van multiplier reaches the payout',
+      van.loaded === Math.round(van.plain * 1.35), JSON.stringify(van));
+
+// Night is a real lighting change, not just a darker sky.
+const night = await page.evaluate(() => {
+  const s = game.session;
+  s.setTimeOfDay('day');
+  const day = { fog: Math.round(s.scene.fog.far),
+                beams: !!(s.car.beams && s.car.beams.visible) };
+  s.setTimeOfDay('night');
+  const dark = { fog: Math.round(s.scene.fog.far),
+                 beams: !!(s.car.beams && s.car.beams.visible) };
+  s.setTimeOfDay('dusk');
+  return { day, dark, backToDusk: s.timeOfDay };
+});
+console.log('   night:', JSON.stringify(night));
+check('night turns the headlights on', night.dark.beams && !night.day.beams);
+check('night pulls the fog in', night.dark.fog < night.day.fog,
+      `${night.dark.fog} vs ${night.day.fog}`);
+check('the lighting can be switched back', night.backToDusk === 'dusk');
 
 const perf = await page.evaluate(() => {
   const s = game.session, c = s.car;

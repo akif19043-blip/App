@@ -37,11 +37,21 @@ export class World {
 
   /** Build sky, light and every pooled object. Called once. */
   build(timeOfDay = 'dusk') {
-    this.preset = environment.preset(timeOfDay);
-    environment.applySky(this.scene, this.renderer, this.preset);
-    this.sun = environment.applyLights(this.scene, this.preset, SHADOWS).sun;
+    this.setTimeOfDay(timeOfDay);
     this.buildRoad();
     this.buildScenery();
+  }
+
+  /** Swap the lighting. Only called between runs; it rebuilds the env map. */
+  setTimeOfDay(name) {
+    if (name === this.timeOfDay) return;
+    this.timeOfDay = name;
+    this.preset = environment.preset(name);
+    for (const light of this.lights || []) this.scene.remove(light);
+    environment.applySky(this.scene, this.renderer, this.preset);
+    const lights = environment.applyLights(this.scene, this.preset, SHADOWS);
+    this.sun = lights.sun;
+    this.lights = [lights.sun, lights.sun.target, lights.hemi];
   }
 
   buildRoad() {

@@ -123,6 +123,16 @@ export const CITY = {
   pedestrians: 14,            // people walking the pavements
   pedestrianRange: 150,       // metres from the player before they are moved
   missionPay: [140, 380],
+  /**
+   * Job types. `stops` is how many places you must reach, `pay` scales the
+   * fee, and `pace` is the average speed the clock assumes -- a courier run
+   * with four stops gets less slack per metre than a single drop.
+   */
+  missionTypes: [
+    { id: 'delivery', stops: 1, pay: 1.0, pace: 15, weight: 5 },
+    { id: 'passenger', stops: 2, pay: 1.5, pace: 15, weight: 3 },
+    { id: 'courier', stops: 4, pay: 2.1, pace: 16, weight: 2 },
+  ],
   missionPace: 15,            // m/s the time limit assumes you can average
   missionGrace: 18,           // seconds on top, for junctions and mistakes
   missionBonus: 0.6,          // fraction of the fee paid for beating the clock
@@ -152,7 +162,11 @@ export const PAINTS = [
 ];
 
 /**
- * Playable cars. `model` is the Blender asset name; `paint` recolours the
+ * Playable cars.
+ *
+ * `payMultiplier` scales delivery fees, which is how the van earns its place:
+ * it loses every race but pays best, so the choice is not simply "buy the
+ * fastest one you can afford". `model` is the Blender asset name; `paint` recolours the
  * shared CarPaint material at load time.
  */
 export const CARS = [
@@ -168,6 +182,17 @@ export const CARS = [
     handling: 1.0,
   },
   {
+    id: 'hatch',
+    model: 'car_hatch',
+    nameKey: 'car.hatch',
+    tagKey: 'car.hatch.tag',
+    paint: '#4bb3a0',
+    price: 900,
+    topSpeed: 52,
+    accel: 8.4,
+    handling: 1.12,
+  },
+  {
     id: 'muscle',
     model: 'car_muscle',
     nameKey: 'car.muscle',
@@ -177,6 +202,18 @@ export const CARS = [
     topSpeed: 71,
     accel: 11.8,
     handling: 0.8,
+  },
+  {
+    id: 'van',
+    model: 'car_van',
+    nameKey: 'car.van',
+    tagKey: 'car.van.tag',
+    paint: '#e0e4e8',
+    price: 5000,
+    topSpeed: 48,
+    accel: 7.0,
+    handling: 0.72,
+    payMultiplier: 1.35,
   },
   {
     id: 'super',

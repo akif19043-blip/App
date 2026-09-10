@@ -396,8 +396,80 @@ def traffic_bus(P):
         rim='AlloyDark')
 
 
+def car_hatch(P):
+    """Small three-door hatch -- cheap, slow, and easy to place in a gap."""
+    rows = [
+        (-1.86, 0.68, 0.30, 0.94, 0.54, 0.60, 0.52, 0.90),
+        (-1.72, 0.86, 0.24, 1.26, 0.64, 0.76, 0.50, 0.98),
+        (-1.34, 0.87, 0.24, 1.42, 0.62, 0.74, 0.50, 1.00),
+        (-1.00, 0.86, 0.24, 1.46, 0.64, 0.74, 0.52, 1.02),
+        (-0.26, 0.86, 0.24, 1.48, 0.66, 0.76, 0.54, 1.04),
+        ( 0.38, 0.86, 0.24, 1.44, 0.66, 0.76, 0.54, 1.04),
+        ( 0.74, 0.88, 0.24, 1.02, 0.66, 0.80, 0.52, 0.98),
+        ( 1.36, 0.86, 0.26, 0.96, 0.62, 0.76, 0.52, 0.92),
+        ( 1.76, 0.80, 0.30, 0.90, 0.56, 0.66, 0.52, 0.86),
+        ( 1.90, 0.66, 0.34, 0.84, 0.52, 0.56, 0.54, 0.80),
+    ]
+    body = build_body(P, rows, cabin=(3, 5))
+    details = []
+    details += lamps(P, 1.87, 0.48, 0.70, (0.28, 0.09, 0.16), 'LightWhite')
+    details += lamps(P, -1.84, 0.46, 0.98, (0.22, 0.08, 0.24), 'LightRed')
+    details.append(kit.box('grille', (0.74, 0.07, 0.12),
+                           (0, 1.89, 0.52), P['Trim']))
+    details.append(kit.box('spoiler', (1.30, 0.24, 0.05),
+                           (0, -1.74, 1.44), P[PAINT_SLOT], bevel=0.01))
+    for sx in (-1.0, 1.0):
+        details.append(kit.box('skirt', (0.08, 1.90, 0.08),
+                               (sx * 0.87, 0.0, 0.27), P['Chassis']))
+    details += mirrors(P, 0.90, 0.50, 1.14)
+    details += exhaust(P, 0.30, -1.88, 0.34, radius=0.04)
+    return kit.join([body] + details, 'Body'), dict(
+        r=0.30, w=0.22, x=0.78, front=1.18, rear=-1.20)
+
+
+def car_van(P):
+    """
+    Panel van. Slow and tall, but it is the one that pays: the game gives it a
+    higher delivery multiplier, so it is worth owning even though it loses
+    every race.
+    """
+    rows = [
+        (-2.72, 0.86, 0.34, 1.10, 0.68, 0.74, 0.60, 1.06),
+        (-2.58, 1.02, 0.30, 2.26, 0.82, 0.94, 0.58, 2.20),
+        (-1.40, 1.04, 0.28, 2.34, 0.82, 0.96, 0.56, 2.28),
+        (-0.20, 1.04, 0.28, 2.34, 0.84, 0.96, 0.58, 2.26),
+        ( 0.55, 1.03, 0.28, 2.30, 0.84, 0.94, 0.58, 1.42),
+        ( 1.30, 1.02, 0.28, 2.20, 0.82, 0.92, 0.58, 1.40),
+        ( 1.95, 0.98, 0.30, 1.90, 0.76, 0.86, 0.58, 1.30),
+        ( 2.35, 0.90, 0.34, 1.44, 0.68, 0.76, 0.60, 1.24),
+        ( 2.52, 0.76, 0.38, 1.16, 0.58, 0.64, 0.62, 1.10),
+    ]
+    # The cabin band is the windscreen and door glass only; the box behind it
+    # stays painted, which is what makes it read as a van and not a minibus.
+    body = build_body(P, rows, cabin=(5, 7), bevel=0.03)
+    details = []
+    details += lamps(P, 2.48, 0.60, 0.92, (0.30, 0.10, 0.22), 'LightWhite')
+    details += lamps(P, -2.66, 0.66, 1.10, (0.26, 0.09, 0.30), 'LightRed')
+    details.append(kit.box('grille', (1.02, 0.08, 0.22),
+                           (0, 2.50, 1.20), P['Trim']))
+    details.append(kit.box('bumper_f', (1.80, 0.16, 0.24),
+                           (0, 2.50, 0.62), P['Chassis']))
+    details.append(kit.box('bumper_r', (1.86, 0.16, 0.24),
+                           (0, -2.66, 0.60), P['Chassis']))
+    details.append(kit.box('door_seam', (2.10, 0.04, 1.60),
+                           (0, -2.62, 1.40), P['Trim']))
+    for sx in (-1.0, 1.0):
+        details.append(kit.box('flank', (0.06, 3.40, 0.34),
+                               (sx * 1.05, -0.60, 1.06), P['Trim']))
+    details += mirrors(P, 1.08, 1.60, 1.66)
+    return kit.join([body] + details, 'Body'), dict(
+        r=0.38, w=0.26, x=0.90, front=1.60, rear=-1.70)
+
+
 BUILDERS = {
+    'car_hatch': car_hatch,
     'car_sport': car_sport,
+    'car_van': car_van,
     'car_muscle': car_muscle,
     'car_super': car_super,
     'traffic_sedan': traffic_sedan,

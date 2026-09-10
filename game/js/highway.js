@@ -38,8 +38,14 @@ export class HighwaySession {
     this.pickups = new Pickups(this.scene, this.lanes);
   }
 
+  setTimeOfDay(name) {
+    this.world.setTimeOfDay(name);
+    this.player.setHeadlights(!!environment.preset(name).headlights);
+  }
+
   poseCar(carSpec) {
     this.player.setCar(carSpec);
+    this.player.setHeadlights(!!environment.preset(this.world.timeOfDay).headlights);
     this.player.reset();
     this.player.x = this.lanes[1];
     this.player.group.position.set(this.lanes[1], 0, 0);

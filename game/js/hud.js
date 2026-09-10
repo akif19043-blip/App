@@ -11,6 +11,7 @@ import * as audio from './audio.js';
 import * as garage from './garage.js';
 import { t, apply as applyStrings, language, setLanguage, LANGUAGES }
   from './i18n.js';
+import { TIMES } from './environment.js';
 import { CARS, PAINTS } from './config.js';
 
 const SCREENS = ['loading', 'menu', 'garage', 'settings', 'paused', 'over'];
@@ -51,6 +52,7 @@ export class Hud {
     this.toastTimer = 0;
     this.bindButtons();
     this.buildLanguagePicker();
+    this.buildTimePicker();
   }
 
   bindButtons() {
@@ -120,9 +122,30 @@ export class Hud {
         save.setSetting('language', setLanguage(entry.code));
         applyStrings();
         this.buildLanguagePicker();
+        this.buildTimePicker();
         this.renderGarage();
         this.refreshMenu();
         this.handlers.onLanguage(language());
+      });
+      host.appendChild(button);
+    }
+  }
+
+  /** Pin the lighting, or leave it random per run. */
+  buildTimePicker() {
+    const host = document.getElementById('time-options');
+    if (!host) return;
+    host.innerHTML = '';
+    const current = save.get().settings.timeOfDay || 'auto';
+    for (const time of TIMES) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'lang__option' + (time === current ? ' is-on' : '');
+      button.textContent = t('time.' + time);
+      button.addEventListener('click', () => {
+        audio.uiTap();
+        save.setSetting('timeOfDay', time);
+        this.buildTimePicker();
       });
       host.appendChild(button);
     }
@@ -208,6 +231,7 @@ export class Hud {
       const owned = save.owns(car.id);
       const selected = profile.selectedCar === car.id;
       const card = document.createElement('article');
+      card.dataset.car = car.id;      // stable handle; position is not one
       card.className = 'car-card'
         + (selected ? ' is-selected' : '')
         + (owned ? '' : ' is-locked');
@@ -217,6 +241,10 @@ export class Hud {
         <div class="car-card__body">
           <h3>${t(car.nameKey)}</h3>
           <p class="car-card__tag">${t(car.tagKey)}</p>
+          ${car.payMultiplier && car.payMultiplier !== 1
+            ? `<p class="car-card__badge">${t('garage.payBadge',
+                { percent: Math.round((car.payMultiplier - 1) * 100) })}</p>`
+            : ''}
           <dl class="car-card__stats">
             ${statBar(t('garage.statSpeed'), car.topSpeed / 90)}
             ${statBar(t('garage.statAccel'), car.accel / 16)}

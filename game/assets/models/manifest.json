@@ -256,6 +256,32 @@
     }
   },
   "models": {
+    "car_hatch": {
+      "file": "car_hatch.glb",
+      "kind": "player",
+      "tris": 1472,
+      "size": [
+        1.99,
+        3.905,
+        1.472
+      ],
+      "center": [
+        0.0,
+        -0.028,
+        0.744
+      ],
+      "min": [
+        -0.995,
+        -1.98,
+        0.008
+      ],
+      "max": [
+        0.995,
+        1.925,
+        1.48
+      ],
+      "bytes": 83360
+    },
     "car_sport": {
       "file": "car_sport.glb",
       "kind": "player",
@@ -333,6 +359,32 @@
         1.305
       ],
       "bytes": 90368
+    },
+    "car_van": {
+      "file": "car_van.glb",
+      "kind": "player",
+      "tris": 1216,
+      "size": [
+        2.35,
+        5.32,
+        2.33
+      ],
+      "center": [
+        0.0,
+        -0.08,
+        1.175
+      ],
+      "min": [
+        -1.175,
+        -2.74,
+        0.01
+      ],
+      "max": [
+        1.175,
+        2.58,
+        2.34
+      ],
+      "bytes": 69088
     },
     "traffic_sedan": {
       "file": "traffic_sedan.glb",

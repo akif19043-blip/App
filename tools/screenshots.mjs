@@ -52,6 +52,19 @@ async function open({ width, height, locale = 'tr-TR', coins = 26000 }) {
   return page;
 }
 
+/**
+ * Click without Playwright's actionability wait.
+ *
+ * The menu runs the full 3D scene behind it, and under software rendering the
+ * main thread is slow enough that the "element is stable across two frames"
+ * check can outlast the default timeout. Nothing here is testing whether the
+ * button is clickable -- the test suites do that -- so dispatch it directly.
+ */
+async function tap(page, selector) {
+  await page.$eval(selector, (el) => el.click());
+  await page.waitForTimeout(250);
+}
+
 /** Put the car somewhere specific and let the world settle around it. */
 async function pose(page, script, frames = 200) {
   await page.evaluate(({ body, count }) => {
@@ -101,7 +114,7 @@ const shots = [
 
 for (const shot of shots) {
   const page = await open(shot.size);
-  await page.click('#btn-play-city');
+  await tap(page, '#btn-play-city');
   await page.waitForTimeout(400);
   await pose(page, shot.script, shot.frames);
   await page.screenshot({ path: `${OUT}/${shot.name}.png` });
@@ -112,7 +125,7 @@ for (const shot of shots) {
 // Garage, with everything unlocked so the parts and paints are visible.
 {
   const page = await open({ width: 360, height: 640 });
-  await page.click('#btn-garage');
+  await tap(page, '#btn-garage');
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/4-garage.png` });
   console.log('4-garage');
@@ -122,7 +135,7 @@ for (const shot of shots) {
 // Highway mode.
 {
   const page = await open({ width: 360, height: 640 });
-  await page.click('#btn-play-highway');
+  await tap(page, '#btn-play-highway');
   await page.waitForTimeout(400);
   await page.evaluate(() => {
     for (let i = 0; i < 60 * 14; i += 1) {

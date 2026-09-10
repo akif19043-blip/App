@@ -32,7 +32,8 @@ PREVIEW_DIR = os.path.join(ROOT, 'docs', 'previews')
 
 # name -> (module, kind); kind drives how the game uses the model.
 ASSETS = (
-    [(n, vehicles, 'player') for n in ('car_sport', 'car_muscle', 'car_super')]
+    [(n, vehicles, 'player') for n in ('car_hatch', 'car_sport',
+                                      'car_muscle', 'car_super', 'car_van')]
     + [(n, vehicles, 'traffic') for n in ('traffic_sedan', 'traffic_hatch',
                                           'traffic_suv', 'traffic_truck',
                                           'traffic_bus')]

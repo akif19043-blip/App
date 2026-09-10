@@ -12,12 +12,17 @@ gerektirmez.
 
 | Mod | Ne yapıyorsun |
 |---|---|
-| **Serbest Sürüş** | Izgara sokaklı bir şehirde istediğin gibi gez. Çalışan trafik ışıkları, kırmızıda kuyruğa giren ve kavşakta dönen trafik, kaldırımlarda yürüyen insanlar, girilebilen otoparklar. Jeton topla, **süreli teslimatları** yetiştir. |
+| **Serbest Sürüş** | Izgara sokaklı bir şehirde istediğin gibi gez. Çalışan trafik ışıkları, kırmızıda kuyruğa giren ve kavşakta dönen trafik, kaldırımlarda yürüyen insanlar, girilebilen otoparklar. Jeton topla; **teslimat**, **yolcu** ve **kurye** işlerini süreye karşı yetiştir. |
 | **Trafik Yarışı** | Sonsuz otoyolda trafiği yararak skor topla. Hızlı gitmek ve sıyırarak geçmek ekstra puan. |
 
-Kazandığın jetonlarla garajdan araba alır, **motor / şanzıman / lastik / fren**
-takar ve **rengini** değiştirirsin. Her araç kendi donanımını ve rengini
-hatırlar; ilerleme telefonda kayıtlı kalır.
+Kazandığın jetonlarla garajdan **beş arabadan** birini alır, **motor /
+şanzıman / lastik / fren** takar ve **rengini** değiştirirsin. Arabalar sadece
+hızla ayrışmıyor: panelvan her yarışı kaybeder ama teslimatta **%35 fazla**
+kazandırır. Her araç kendi donanımını ve rengini hatırlar.
+
+Ayarlardan **gündüz / akşam / gece** seçebilir ya da her tura rastgele
+bırakabilirsin. Gecede binaların camları ve sokak lambaları yanar, arabanın
+farları yolu aydınlatır.
 
 ![Işıklı kavşak](store/screenshots/2-junction.png)
 ![Garaj](store/screenshots/4-garage.png)
@@ -110,7 +115,7 @@ boyutlarını, şerit konumlarını, şehir ızgarasını ve ada çarpışma şe
 dosyadan okur — yani oynanış her zaman gerçekten üretilmiş geometriyle aynı
 sayıları kullanır, kodda ikinci bir kopya tutulmaz.
 
-Toplam: 32 model, ~31.000 üçgen, ~3,1 MB paket.
+Toplam: 34 model, ~34.000 üçgen, ~3,2 MB paket.
 
 ## Test
 
@@ -133,7 +138,8 @@ Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Dört paket:
   ekranın sığması, kumandaların ekranda kalması ve göstergelerle çakışmaması.
 - **shell** — cihaz diline göre dil seçimi ve dil değiştirme; kalite
   gözcüsünün yavaş cihazda kademe düşürüp hızlı cihazda dokunmaması; ilk
-  kullanım rehberi; ayarların kaydedilip yeniden açılışta geri gelmesi.
+  kullanım rehberi; ayarların kaydedilip yeniden açılışta geri gelmesi;
+  garajdaki beş araba ve kazanç rozetinin görünmesi.
 
 ## Nasıl çalışıyor (kısa notlar)
 
@@ -171,6 +177,10 @@ durum arasında gidip gelen bir oyun, tek bir kötü durumdan daha kötüdür.
 **Yayalar iskeletsiz yürüyor.** Modelde sadece bacaklar ayrı nesne ve pivotları
 kalçada; oyun bacakları doğrudan sallar. Kaldırımda yürüdükleri için — arabanın
 giremediği alan — çarpışma kontrolü de gerekmez.
+
+**Farlar ışık değil, geometri.** Araç başına gölge düşüren gerçek bir spot
+ışığı yerine iki ince koni ve asfalta düşen yumuşak bir ışık havuzu var;
+kameranın durduğu mesafeden aynı okunuyor, maliyeti ise neredeyse sıfır.
 
 **Ses dosyası yok.** Motor sesi iki detune saw osilatör + alçak geçiren
 filtreden gürültü, lastik cızırtısı bant geçiren filtreli gürültü, müzik ise

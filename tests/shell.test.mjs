@@ -30,6 +30,11 @@ async function open(locale = 'tr-TR') {
   const page = await browser.newPage({
     viewport: { width: 390, height: 844 }, locale, hasTouch: true, isMobile: true,
   });
+  // Software rendering here manages a handful of frames per second, and
+  // Playwright's actionability checks want the element stable across frames.
+  // Give them room rather than skipping the check -- whether a button is
+  // actually clickable is part of what these suites verify.
+  page.setDefaultTimeout(60000);
   page.on('pageerror', (e) => problems.push('PAGEERROR ' + e.message));
   page.on('console', (m) => {
     if (m.type() === 'error') problems.push('CONSOLE ' + m.text());
@@ -182,6 +187,22 @@ async function open(locale = 'tr-TR') {
   }));
   check('settings survive a restart',
         restored.shadows === false && restored.lefty && !restored.checkbox);
+  await page.close();
+}
+
+// The garage ladder: five cars, priced in order, one of them a payer.
+{
+  const page = await open();
+  await page.click('#btn-garage');
+  await page.waitForTimeout(400);
+  const cars = await page.evaluate(() => ({
+    cards: document.querySelectorAll('.car-card').length,
+    badges: document.querySelectorAll('.car-card__badge').length,
+    names: [...document.querySelectorAll('.car-card h3')].map((h) => h.textContent),
+  }));
+  console.log('   garage:', JSON.stringify(cars));
+  check('the garage has five cars', cars.cards === 5, cars.cards + '');
+  check('the paying car is marked as such', cars.badges === 1);
   await page.close();
 }
 
