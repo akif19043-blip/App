@@ -1,0 +1,20 @@
+{
+  "name": "DEADLINE — Loot. Survive. Get Out.",
+  "short_name": "DEADLINE",
+  "description": "A browser-based multiplayer extraction shooter. Drop into Sector Zero, fill your bag, and reach an exit before the clock runs out.",
+  "start_url": "/menu",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#07090D",
+  "theme_color": "#07090D",
+  "orientation": "landscape",
+  "categories": ["games"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

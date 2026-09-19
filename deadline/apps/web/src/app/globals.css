@@ -1,0 +1,133 @@
+@import 'tailwindcss';
+
+/*
+  DEADLINE visual identity.
+  Cold near-black industrial surfaces, one hot signal colour, and rarity
+  colours that stay consistent between the menus and the raid HUD.
+*/
+@theme {
+  --color-void: #07090d;
+  --color-surface: #11151c;
+  --color-raised: #181e28;
+  --color-edge: #232c39;
+  --color-signal: #ff4438;
+  --color-caution: #ffb020;
+  --color-rare: #3b82f6;
+  --color-epic: #a855f7;
+  --color-legendary: #f59e0b;
+  --color-uncommon: #34d399;
+  --color-ink: #e6eaf2;
+  --color-muted: #8a94a6;
+
+  --font-display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* Subtle scanline + vignette: reads as a surveillance feed without hurting text. */
+.dl-backdrop::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 30%, transparent 35%, rgba(0, 0, 0, 0.72) 100%);
+  z-index: 1;
+}
+
+.dl-backdrop::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.018) 0px,
+    rgba(255, 255, 255, 0.018) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  z-index: 1;
+}
+
+.dl-heading {
+  font-family: var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.dl-panel {
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  border: 1px solid var(--color-edge);
+  backdrop-filter: blur(6px);
+}
+
+.dl-cut {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+
+.dl-glow-signal {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-signal) 45%, transparent),
+    0 0 26px -8px var(--color-signal);
+}
+
+@keyframes dl-pulse-danger {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.dl-danger-pulse {
+  animation: dl-pulse-danger 1.1s ease-in-out infinite;
+}
+
+@keyframes dl-scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.dl-scan-line {
+  animation: dl-scan 5.5s linear infinite;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-void);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-edge);
+  border: 2px solid var(--color-void);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-signal) 55%, var(--color-edge));
+}

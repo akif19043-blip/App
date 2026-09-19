@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+**/.next
+.deadline-demo
+.git
+*.log
+.env
+.env.local

@@ -1,0 +1,41 @@
+{
+  "name": "deadline",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DEADLINE \u2014 Loot. Survive. Get Out. Browser-based multiplayer extraction shooter.",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "pnpm build:packages && pnpm --filter @deadline/game-server build && pnpm --filter @deadline/web build",
+    "build:packages": "pnpm --filter \"./packages/*\" build",
+    "dev": "pnpm build:packages && concurrently -n server,web -c magenta,cyan \"pnpm dev:server\" \"pnpm dev:web\"",
+    "dev:server": "pnpm --filter @deadline/game-server dev",
+    "dev:web": "pnpm --filter @deadline/web dev",
+    "start:server": "pnpm --filter @deadline/game-server start",
+    "typecheck": "pnpm build:packages && pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm build:packages && pnpm -r test",
+    "test:watch": "pnpm --filter @deadline/game-core test:watch",
+    "clean": "pnpm -r exec rm -rf dist .next node_modules/.cache",
+    "db:seed:generate": "pnpm --filter @deadline/shared build && node scripts/generate-seed.mjs",
+    "test:e2e": "node scripts/e2e.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3",
+    "playwright": "^1.49.1",
+    "@eslint/js": "^9.19.0",
+    "eslint": "^9.19.0",
+    "typescript-eslint": "^8.23.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@tailwindcss/oxide",
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
+}
