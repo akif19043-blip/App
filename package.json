@@ -9,6 +9,7 @@
     "assets:preview": "python3 blender/build_all.py --preview",
     "store": "python3 blender/make_store.py",
     "sw": "python3 tools/make_sw.py",
+    "check": "node tools/check.mjs",
     "serve": "python3 tools/serve.py",
     "test": "node tests/run.mjs",
     "android:sync": "npx cap sync android",

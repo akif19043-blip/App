@@ -8,43 +8,16 @@
  * cannot test on.
  */
 
-import { chromium } from 'playwright';
+import { harness } from './harness.mjs';
 
-const URL = (process.env.GAME_URL || 'http://localhost:8000') + '/index.html';
 const KEY = 'dortyol.profile.v1';
 
-let failures = 0;
-const check = (name, ok, extra = '') => {
-  if (!ok) failures += 1;
-  console.log((ok ? 'PASS  ' : 'FAIL  ') + name + (extra ? '  ' + extra : ''));
-};
+const { check, open: openGame, finish } = await harness();
 
-const browser = await chromium.launch({
-  executablePath: process.env.CHROME_PATH || undefined,
-  args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox',
-         '--disable-dev-shm-usage'],
-});
-const problems = [];
-
-async function open(locale = 'tr-TR') {
-  const page = await browser.newPage({
-    viewport: { width: 390, height: 844 }, locale, hasTouch: true, isMobile: true,
-  });
-  // Software rendering here manages a handful of frames per second, and
-  // Playwright's actionability checks want the element stable across frames.
-  // Give them room rather than skipping the check -- whether a button is
-  // actually clickable is part of what these suites verify.
-  page.setDefaultTimeout(60000);
-  page.on('pageerror', (e) => problems.push('PAGEERROR ' + e.message));
-  page.on('console', (m) => {
-    if (m.type() === 'error') problems.push('CONSOLE ' + m.text());
-  });
-  await page.goto(URL, { waitUntil: 'load' });
-  await page.waitForFunction(
-    () => document.getElementById('screen-menu')?.classList.contains('is-visible'),
-    { timeout: 120000 });
-  return page;
-}
+// Every test here that is not about language wants the default one, so say so
+// once: a page opened without a locale would follow whatever the machine
+// running the suite happens to prefer.
+const open = (locale = 'tr-TR') => openGame({ locale });
 
 // --- language --------------------------------------------------------------
 {
@@ -55,6 +28,12 @@ async function open(locale = 'tr-TR') {
     play: document.querySelector('#btn-play-city span').textContent,
     garage: document.querySelector('#btn-garage .tile__label').textContent.trim(),
     title: document.title,
+    // The page description is metadata, but it is player-facing metadata: it
+    // is what a share card and the installed listing quote.
+    description: document.querySelector('meta[name="description"]').content,
+    // The coin pill is an emoji and a number. Without a label read to
+    // screen readers, it announces as "0".
+    coinLabel: document.querySelector('.menu-top .pill .a11y-only').textContent,
   }));
   const turkish = await read(tr);
   const english = await read(en);
@@ -64,6 +43,13 @@ async function open(locale = 'tr-TR') {
   check('an English device gets English',
         english.lang === 'en' && english.garage === 'GARAGE');
   check('the title carries the brand', english.title.startsWith('Dörtyol'));
+  check('the page description follows the language',
+        turkish.description !== english.description
+        && /low-poly/.test(english.description),
+        JSON.stringify([turkish.description, english.description]));
+  check('the coin counter is named for screen readers',
+        turkish.coinLabel === 'JETON' && english.coinLabel === 'COINS',
+        JSON.stringify([turkish.coinLabel, english.coinLabel]));
 
   // switching in settings re-renders the screens that build text at runtime
   await en.click('#btn-settings');
@@ -216,10 +202,4 @@ async function open(locale = 'tr-TR') {
   await page.close();
 }
 
-await browser.close();
-if (problems.length) {
-  failures += 1;
-  console.log(problems.slice(0, 6).join('\n'));
-}
-console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
-process.exit(failures ? 1 : 0);
+await finish();

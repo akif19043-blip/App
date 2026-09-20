@@ -347,4 +347,8 @@ export function apply(root = document) {
   });
   const title = document.querySelector('title');
   if (title) title.textContent = t('app.name') + ' — ' + t('app.tagline');
+  // Share cards and the installed app's listing read this, and both should
+  // read it in the language the player chose.
+  const description = document.querySelector('meta[name="description"]');
+  if (description) description.setAttribute('content', t('app.description'));
 }

@@ -1,0 +1,45 @@
+# The same two commands a contributor runs, run on every push.
+#
+# `check` is split out from `test` so the cheap answer arrives on its own: the
+# gate needs no dependencies and no browser, so it reports in seconds while
+# the browser suites are still installing Chromium.
+name: checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    name: standards gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # No `npm install`: tools/check.mjs has no dependencies, on purpose.
+      - run: node tools/check.mjs
+
+  test:
+    name: browser suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # package-lock.json is not committed, so this is `install`, not `ci`.
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+
+      # The suites screenshot every screen at every size as they go. When a
+      # layout check fails, the picture is the answer.
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-screenshots
+          path: .test-shots/
+          if-no-files-found: ignore
+          retention-days: 7

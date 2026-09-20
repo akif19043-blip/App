@@ -148,6 +148,7 @@ def main():
     if not args.only:
         with open(os.path.join(MODEL_DIR, 'manifest.json'), 'w') as fh:
             json.dump(manifest, fh, indent=2)
+            fh.write('\n')          # a text file ends in a newline
         print('manifest.json written')
 
     total = sum(m['tris'] for m in manifest['models'].values())

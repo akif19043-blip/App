@@ -9,9 +9,7 @@
  * These are pure DOM measurements; no simulation is stepped.
  */
 
-import { chromium } from 'playwright';
-
-const SHOTS = process.env.SHOT_DIR || '.test-shots';
+import { harness, SHOTS } from './harness.mjs';
 
 const VIEWPORTS = [
   { name: 'small phone portrait', width: 360, height: 640 },
@@ -25,33 +23,8 @@ const VIEWPORTS = [
 const SCREENS = ['menu', 'garage', 'records', 'settings', 'paused', 'over'];
 const CONTROLS = ['#btn-left', '#btn-right', '#btn-brake', '#btn-gas', '#btn-nitro'];
 
-let failures = 0;
-const check = (name, ok, extra = '') => {
-  if (!ok) failures += 1;
-  console.log((ok ? 'PASS  ' : 'FAIL  ') + name + (extra ? '  ' + extra : ''));
-};
-
-const browser = await chromium.launch({
-  executablePath: process.env.CHROME_PATH || undefined,
-  args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox',
-         '--disable-dev-shm-usage'],
-});
-const page = await browser.newPage({
-  viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true,
-});
-// Software rendering here manages a handful of frames per second, and
-// Playwright's actionability checks want the element stable across frames.
-// Give them room rather than skipping the check -- whether a button is
-// actually clickable is part of what these suites verify.
-page.setDefaultTimeout(60000);
-const problems = [];
-page.on('pageerror', (e) => problems.push('PAGEERROR ' + e.message));
-
-await page.goto((process.env.GAME_URL || 'http://localhost:8000') + '/index.html',
-                { waitUntil: 'load' });
-await page.waitForFunction(
-  () => document.getElementById('screen-menu')?.classList.contains('is-visible'),
-  { timeout: 120000 });
+const { check, open, finish } = await harness();
+const page = await open();
 
 // Populate the garage first. Its panel is only as tall as its contents, and
 // those are built on demand -- measuring it empty would prove nothing.
@@ -177,10 +150,4 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
-await browser.close();
-if (problems.length) {
-  failures += 1;
-  console.log(problems.join('\n'));
-}
-console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
-process.exit(failures ? 1 : 0);
+await finish();

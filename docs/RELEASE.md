@@ -24,6 +24,11 @@ about 4 fps, which says nothing about real hardware.
 
 Before you ship, in this order:
 
+0. `npm run check && npm test` — green. The gate catches the release-shaped
+   mistakes that no browser test would: a stale offline cache, a string that
+   only exists in one language, a version that moved in `package.json` but not
+   in `android/app/build.gradle`. [ENGINEERING-STANDARDS.md](ENGINEERING-STANDARDS.md)
+   says what each check is defending.
 1. Open `game/index.html` on your own phone (`npm run serve`, then the URL it
    prints) and drive for a few minutes. If it stutters, the in-game watchdog
    will drop the quality by itself — note whether it does, and whether the
@@ -99,6 +104,10 @@ npm run android:release   # android/app/build/outputs/bundle/release/app-release
 versionCode 2            # must increase every upload
 versionName "1.1.0"
 ```
+
+`versionName` has to match `package.json`'s `version`, and `npm run check`
+fails until it does — one number in two files is exactly the kind of thing
+that gets half-updated on a release day.
 
 Then `npm run android:release` again and upload the new bundle.
 
