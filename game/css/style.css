@@ -618,6 +618,21 @@ html, body {
 .pill strong { font-size: 14px; }
 .pill__label { font-size: 10px; letter-spacing: 0.12em; color: var(--muted); }
 
+/* Read aloud, never drawn. The coin pill shows a 🪙 because a word would not
+   fit, but "0" on its own tells a screen reader nothing. */
+.a11y-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* The two things you actually came here to press. */
 .plate {
   --lip: #000;

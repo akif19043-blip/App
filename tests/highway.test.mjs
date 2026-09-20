@@ -7,40 +7,22 @@
  * See city.test.mjs for why game time is stepped rather than waited on.
  */
 
-import { chromium } from 'playwright';
-const SHOTS = process.env.SHOT_DIR || '.test-shots';
-const problems = [];
-const browser = await chromium.launch({
-  executablePath: process.env.CHROME_PATH || undefined,
-  args: ['--use-gl=swiftshader','--enable-unsafe-swiftshader','--no-sandbox','--disable-dev-shm-usage'],
-});
-const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-// Software rendering here manages a handful of frames per second, and
-// Playwright's actionability checks want the element stable across frames.
-// Give them room rather than skipping the check -- whether a button is
-// actually clickable is part of what these suites verify.
-page.setDefaultTimeout(60000);
-page.on('console', m => { if (m.type()==='error') problems.push('CONSOLE '+m.text()); });
-page.on('pageerror', e => problems.push('PAGEERROR '+e.message));
+import { harness, SHOTS } from './harness.mjs';
 
-let failures = 0;
-const check = (name, ok, extra='') => {
-  if (!ok) failures += 1;
-  console.log((ok ? 'PASS  ' : 'FAIL  ') + name + (extra ? '  ' + extra : ''));
-};
-
-await page.goto((process.env.GAME_URL || 'http://localhost:8000') + '/index.html', { waitUntil: 'load' });
-await page.waitForFunction(() => document.getElementById('screen-menu')?.classList.contains('is-visible'), { timeout: 60000 });
+const { check, open, reload, finish } = await harness();
+const page = await open();
 check('assets load and menu appears', true);
 
 // service worker registers
-const swOk = await page.evaluate(() => navigator.serviceWorker.ready.then(r => !!r.active).catch(() => false));
+const swOk = await page.evaluate(
+  () => navigator.serviceWorker.ready.then(r => !!r.active).catch(() => false));
 check('service worker registers', swOk);
 
 // settings toggles
 await page.click('#btn-settings'); await page.waitForTimeout(200);
 await page.click('#toggle-throttle'); await page.waitForTimeout(150);
-const gasHidden = await page.evaluate(() => document.getElementById('btn-gas').classList.contains('is-hidden'));
+const gasHidden = await page.evaluate(
+  () => document.getElementById('btn-gas').classList.contains('is-hidden'));
 check('auto throttle hides the gas pedal', gasHidden);
 await page.click('#toggle-throttle'); await page.waitForTimeout(120);
 await page.click('#btn-settings-back');
@@ -50,14 +32,23 @@ await page.click('#btn-garage'); await page.waitForTimeout(200);
 const lockedDisabled = await page.evaluate(() =>
   document.querySelector('.car-card[data-car="super"] .car-card__action').disabled);
 check('locked car is not purchasable at 0 coins', lockedDisabled);
-await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('dortyol.profile.v1')||'{}'); s.coins = 99999; localStorage.setItem('dortyol.profile.v1', JSON.stringify(s)); });
-await page.reload({ waitUntil: 'load' });
-await page.waitForFunction(() => document.getElementById('screen-menu')?.classList.contains('is-visible'), { timeout: 60000 });
+await page.evaluate(() => {
+  const key = 'dortyol.profile.v1';
+  const profile = JSON.parse(localStorage.getItem(key) || '{}');
+  profile.coins = 99999;
+  localStorage.setItem(key, JSON.stringify(profile));
+});
+await reload(page);
 await page.click('#btn-garage'); await page.waitForTimeout(250);
 await page.click('.car-card[data-car="super"] .car-card__action');
 await page.waitForTimeout(350);
-const bought = await page.evaluate(() => ({ owned: JSON.parse(localStorage.getItem('dortyol.profile.v1')).owned, selected: game.sessions.city.car.spec.id }));
-check('buying + equipping the super car works', bought.owned.includes('super') && bought.selected === 'super', JSON.stringify(bought));
+const bought = await page.evaluate(() => ({
+  owned: JSON.parse(localStorage.getItem('dortyol.profile.v1')).owned,
+  selected: game.sessions.city.car.spec.id,
+}));
+check('buying + equipping the super car works',
+      bought.owned.includes('super') && bought.selected === 'super',
+      JSON.stringify(bought));
 await page.screenshot({ path: SHOTS+'/f-garage.png' });
 await page.click('#btn-garage-back');
 
@@ -84,7 +75,8 @@ const run = await page.evaluate(() => {
       gap -= Math.abs(lane - p.x) * 5;
       if (gap > bestGap) { bestGap = gap; best = lane; }
     }
-    game.testInput = { steer: Math.max(-1, Math.min(1, (best - p.x) * 1.5)), throttle: 1, brake: false };
+    const steer = Math.max(-1, Math.min(1, (best - p.x) * 1.5));
+    game.testInput = { steer, throttle: 1, brake: false };
     if (bestGap < 55 && Math.abs(best - p.x) > 1.0) {
       game.testInput.brake = true; game.testInput.throttle = 0;
     }
@@ -188,7 +180,10 @@ const rebase = await page.evaluate(() => {
   game.startRun('highway');
   game.testInput = { steer: 0, throttle: 1, brake: false };
   let guard = 0;
-  while (game.session.player.distance < 12600 && guard++ < 200000) { game.testInput={steer:0,throttle:1,brake:false}; game.update(1/60); }
+  while (game.session.player.distance < 12600 && guard++ < 200000) {
+    game.testInput = { steer: 0, throttle: 1, brake: false };
+    game.update(1/60);
+  }
   const p = game.session.player;
   const nearestTile = Math.min(...game.session.world.tiles.map(t => Math.abs(t.position.z - p.z)));
   const out = { distance: Math.round(p.distance), z: Math.round(p.z),
@@ -209,8 +204,4 @@ await page.setViewportSize({ width: 844, height: 390 }); await page.waitForTimeo
 await page.screenshot({ path: SHOTS+'/f-landscape.png' });
 await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(500);
 
-console.log(problems.length ? 'JS PROBLEMS:\n'+problems.slice(0,8).join('\n') : 'PASS  no console/page errors');
-await browser.close();
-if (problems.length) failures += 1;
-console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
-process.exit(failures ? 1 : 0);
+await finish();

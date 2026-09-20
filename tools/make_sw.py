@@ -5,15 +5,23 @@ make_sw.py -- regenerate the service worker's precache list from disk.
 Run it after adding or rebuilding assets:
 
     python3 tools/make_sw.py
+    python3 tools/make_sw.py --check   # fail instead of writing, for the gate
 
 Keeping the list generated means the offline cache can never drift out of sync
 with what actually shipped, and the cache name changes whenever any file's
 content changes, so browsers pick up a new build instead of serving a stale one.
+
+Generated-but-committed files rot silently: edit a module, forget to rerun
+this, and returning players keep the old cache forever because its name never
+changed. --check is what stops that -- it rebuilds the file in memory and
+compares, so the standards gate can fail the build instead of a player finding
+out months later.
 """
 
 import hashlib
 import json
 import os
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GAME = os.path.join(ROOT, 'game')
@@ -94,20 +102,36 @@ self.addEventListener('fetch', (event) => {
 '''
 
 
-def main():
+def render():
+    """The service worker this tree should have, as a string."""
     files = collect()
-    assets = ['./'] + files
-    body = TEMPLATE % {
+    return files, TEMPLATE % {
         'hash': fingerprint(files),
-        'assets': json.dumps(assets, indent=2),
+        'assets': json.dumps(['./'] + files, indent=2),
     }
+
+
+def main(argv):
+    check_only = '--check' in argv[1:]
+    files, body = render()
     out = os.path.join(GAME, 'sw.js')
+    rel = os.path.relpath(out, ROOT)
+
+    if check_only:
+        current = open(out).read() if os.path.exists(out) else ''
+        if current == body:
+            print('%s: up to date (%d files)' % (rel, len(files)))
+            return 0
+        print('%s is stale -- run: python3 tools/make_sw.py' % rel)
+        return 1
+
     with open(out, 'w') as fh:
         fh.write(body)
     total = sum(os.path.getsize(os.path.join(GAME, f)) for f in files)
     print('%s: %d files, %.1f MB precached'
-          % (os.path.relpath(out, ROOT), len(files), total / 1048576.0))
+          % (rel, len(files), total / 1048576.0))
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main(sys.argv))

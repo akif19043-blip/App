@@ -9,15 +9,37 @@
 
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = process.env.PORT || 8123;
 const URL = `http://localhost:${PORT}`;
-const SUITES = ['city.test.mjs', 'highway.test.mjs', 'layout.test.mjs',
-                'shell.test.mjs'];
+
+/**
+ * Every suite in this directory, cheapest first.
+ *
+ * Found on disk rather than listed by hand: a list is one more place to
+ * forget, and a suite that is never named is a suite that never runs -- which
+ * looks exactly like a suite that passes.
+ *
+ * A suite that never opens the browser runs in a second or two, so those go
+ * first: there is no sense spending five minutes rendering a city to find out
+ * a translation was missing. Which suites those are is read from the suites
+ * themselves rather than listed here, for the same reason.
+ */
+function suites() {
+  const found = readdirSync(join(ROOT, 'tests'))
+    .filter((name) => name.endsWith('.test.mjs'))
+    .sort();
+  const needsBrowser = (name) => /harness\.mjs|playwright/
+    .test(readFileSync(join(ROOT, 'tests', name), 'utf8'));
+  return [...found.filter((name) => !needsBrowser(name)),
+          ...found.filter(needsBrowser)];
+}
+
+const SUITES = suites();
 
 /**
  * Find a Chromium to drive.
@@ -47,11 +69,40 @@ if (CHROME) console.log('using chromium at ' + CHROME);
 const SHOT_DIR = join(ROOT, '.test-shots');
 mkdirSync(SHOT_DIR, { recursive: true });
 
+/**
+ * Refuse to run against a server we did not start.
+ *
+ * Our own server cannot take a port something else is holding: it dies on the
+ * spot, silently, and the suites then test whatever *is* answering -- another
+ * run, or a `npm run serve` from this morning pointed at a different
+ * checkout. That reads as a pass, which is the worst way to be wrong.
+ */
+async function portIsFree() {
+  try {
+    await fetch(`${URL}/index.html`);
+    return false;
+  } catch (err) {
+    return true;                    // nothing listening, which is what we want
+  }
+}
+
+if (!await portIsFree()) {
+  console.error(`something is already serving port ${PORT}. Stop it, or run`
+                + ' with a different port: PORT=8124 npm test');
+  process.exit(1);
+}
+
 const server = spawn('python3', [join(ROOT, 'tools', 'serve.py'), String(PORT)],
                      { cwd: ROOT, stdio: 'ignore' });
+let serverExited = false;
+server.on('exit', () => { serverExited = true; });
 
 async function waitForServer(attempts = 40) {
   for (let i = 0; i < attempts; i += 1) {
+    if (serverExited) {
+      console.error('tools/serve.py exited before it served anything');
+      return false;
+    }
     try {
       const response = await fetch(`${URL}/index.html`);
       if (response.ok) return true;

@@ -10,29 +10,10 @@
  * `game.testInput` -- the same controls object the touch pads fill in.
  */
 
-import { chromium } from 'playwright';
-const SHOTS = process.env.SHOT_DIR || '.test-shots';
-const problems = [];
-const browser = await chromium.launch({
-  executablePath: process.env.CHROME_PATH || undefined,
-  args: ['--use-gl=swiftshader','--enable-unsafe-swiftshader','--no-sandbox','--disable-dev-shm-usage'],
-});
-const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-// Software rendering here manages a handful of frames per second, and
-// Playwright's actionability checks want the element stable across frames.
-// Give them room rather than skipping the check -- whether a button is
-// actually clickable is part of what these suites verify.
-page.setDefaultTimeout(60000);
-page.on('console', m => { if (m.type()==='error') problems.push('CONSOLE '+m.text()); });
-page.on('pageerror', e => problems.push('PAGEERROR '+e.message));
-let failures = 0;
-const check = (n, ok, extra='') => {
-  if (!ok) failures += 1;
-  console.log((ok ? 'PASS  ' : 'FAIL  ') + n + (extra ? '  ' + extra : ''));
-};
+import { harness, SHOTS } from './harness.mjs';
 
-await page.goto((process.env.GAME_URL || 'http://localhost:8000') + '/index.html', { waitUntil: 'load' });
-await page.waitForFunction(() => document.getElementById('screen-menu')?.classList.contains('is-visible'), { timeout: 90000 });
+const { check, open, reload, finish } = await harness();
+const page = await open();
 await page.waitForTimeout(1200);
 await page.screenshot({ path: SHOTS+'/c1-menu.png' });
 
@@ -52,16 +33,21 @@ check('mission assigned', init.mission);
 const drive = await page.evaluate(() => {
   const c = game.session.car;
   const h0 = c.heading, x0 = c.x, z0 = c.z;
-  for (let i=0;i<180;i++) { game.testInput={steer:0,throttle:1,brake:false}; game.update(1/60); }  // 3 s straight
+  for (let i = 0; i < 180; i++) {                                  // 3 s straight
+    game.testInput = { steer: 0, throttle: 1, brake: false };
+    game.update(1/60);
+  }
   const straight = { dz: +(c.z - z0).toFixed(1), dx: +(c.x - x0).toFixed(2), kmh: c.kmh };
-  game.testInput = { steer: 1, throttle: 1, brake: false };                                             // full right
+  game.testInput = { steer: 1, throttle: 1, brake: false };        // full right
   for (let i=0;i<150;i++) game.update(1/60);
   game.testInput = { steer: 0, throttle: 1, brake: false };
   return { straight, headingChange: +(c.heading - h0).toFixed(2), kmh: c.kmh,
            x: +c.x.toFixed(1), z: +c.z.toFixed(1) };
 });
 console.log('   drive:', JSON.stringify(drive));
-check('accelerates forward along -Z', drive.straight.dz < -20 && Math.abs(drive.straight.dx) < 2, JSON.stringify(drive.straight));
+check('accelerates forward along -Z',
+      drive.straight.dz < -20 && Math.abs(drive.straight.dx) < 2,
+      JSON.stringify(drive.straight));
 check('steering changes heading', Math.abs(drive.headingChange) > 1.0, drive.headingChange+' rad');
 await page.screenshot({ path: SHOTS+'/c2-drive.png' });
 
@@ -229,8 +215,7 @@ await page.evaluate(() => {
   profile.upgrades = {};
   localStorage.setItem(key, JSON.stringify(profile));
 });
-await page.reload({ waitUntil: 'load' });
-await page.waitForFunction(() => document.getElementById('screen-menu')?.classList.contains('is-visible'), { timeout: 120000 });
+await reload(page);
 await page.click('#btn-garage');
 await page.waitForTimeout(300);
 
@@ -263,8 +248,7 @@ const broke = await page.evaluate(() => {
   localStorage.setItem(key, JSON.stringify(profile));
   return null;
 });
-await page.reload({ waitUntil: 'load' });
-await page.waitForFunction(() => document.getElementById('screen-menu')?.classList.contains('is-visible'), { timeout: 120000 });
+await reload(page);
 await page.click('#btn-garage');
 await page.waitForTimeout(300);
 const locked = await page.evaluate(() =>
@@ -775,7 +759,10 @@ const bump = await page.evaluate(() => {
   const [bx, bz] = s.city.blockCenters[index];
   // one street north of it, pointing at it: heading 0 drives along -Z
   c.place(bx, bz + s.city.pitch / 2, 0);
-  for (let i=0;i<240;i++) { game.testInput = { steer: 0, throttle: 1, brake: false }; game.update(1/60); }
+  for (let i = 0; i < 240; i++) {
+    game.testInput = { steer: 0, throttle: 1, brake: false };
+    game.update(1/60);
+  }
   const half = s.city.block / 2;
   return { kind: s.blocks[index].kind, z: +c.z.toFixed(1),
            blockEdge: +(bz + half).toFixed(1), inside: Math.abs(c.z - bz) < half,
@@ -926,7 +913,10 @@ const bounds = await page.evaluate(() => {
   const c = game.session.car;
   const half = game.session.city.halfExtent;
   c.place(0, half - 40, Math.PI);
-  for (let i=0;i<420;i++) { game.testInput = { steer: 0, throttle: 1, brake: false }; game.update(1/60); }
+  for (let i = 0; i < 420; i++) {
+    game.testInput = { steer: 0, throttle: 1, brake: false };
+    game.update(1/60);
+  }
   return { z: +c.z.toFixed(1), half: +half.toFixed(1), contained: c.z < half };
 });
 console.log('   bounds:', JSON.stringify(bounds));
@@ -971,14 +961,22 @@ await page.screenshot({ path: SHOTS+'/c3-city.png' });
 // coins are banked to the profile
 const owed = await page.evaluate(() => game.session.stats.coins);
 await page.click('#btn-pause'); await page.waitForTimeout(250);
-const banked = await page.evaluate(() => JSON.parse(localStorage.getItem('dortyol.profile.v1')).coins);
+const banked = await page.evaluate(
+  () => JSON.parse(localStorage.getItem('dortyol.profile.v1')).coins);
 check('earnings are banked on pause', banked >= owed, `${banked} banked for ${owed} earned`);
 await page.click('#btn-quit'); await page.waitForTimeout(400);
 
 // highway mode still works
 await page.click('#btn-play-highway'); await page.waitForTimeout(600);
-const hw = await page.evaluate(() => { for (let i=0;i<300;i++) { game.testInput={steer:0,throttle:1,brake:false}; game.update(1/60); }
-  return { mode: game.mode, dist: Math.round(game.session.player.distance), score: Math.round(game.session.run.score) }; });
+const hw = await page.evaluate(() => {
+  for (let i = 0; i < 300; i++) {
+    game.testInput = { steer: 0, throttle: 1, brake: false };
+    game.update(1/60);
+  }
+  return { mode: game.mode,
+           dist: Math.round(game.session.player.distance),
+           score: Math.round(game.session.run.score) };
+});
 console.log('   highway:', JSON.stringify(hw));
 check('highway mode still runs', hw.mode === 'highway' && hw.dist > 100);
 await page.screenshot({ path: SHOTS+'/c4-highway.png' });
@@ -986,8 +984,4 @@ await page.screenshot({ path: SHOTS+'/c4-highway.png' });
 await page.setViewportSize({ width: 844, height: 390 }); await page.waitForTimeout(600);
 await page.screenshot({ path: SHOTS+'/c5-landscape.png' });
 
-console.log(problems.length ? 'JS PROBLEMS:\n'+problems.slice(0,8).join('\n') : 'PASS  no console/page errors');
-await browser.close();
-if (problems.length) failures += 1;
-console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
-process.exit(failures ? 1 : 0);
+await finish();

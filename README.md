@@ -96,8 +96,13 @@ android/           Capacitor Android projesi
 store/             Play için ikon, görsel, ekran görüntüsü ve metinler
 tools/             yerel sunucu, çevrimdışı önbellek, Android ikonları,
                    mağaza ekran görüntüleri
+  check.mjs        standart denetimi (`npm run check`)
 tests/             gerçek tarayıcıda çalışan oyun testleri
+  harness.mjs      bütün paketlerin paylaştığı tarayıcı kurulumu
+CLAUDE.md          depoda çalışmaya başlarken okunacak özet
 docs/RELEASE.md    Play'e çıkarma rehberi
+docs/ENGINEERING-STANDARDS.md
+                   bu depodaki çalışma standardı ve denetimin ne koruduğu
 ```
 
 ## Varlıkları yeniden üretmek
@@ -123,10 +128,21 @@ Toplam: 34 model, ~34.000 üçgen, ~3,2 MB paket.
 
 ```bash
 npm install
-npm test
+npm run check      # standart denetimi: ~1 sn, tarayıcı gerekmez
+npm test           # önce hızlı paketler, sonra dört tarayıcı paketi
 ```
 
-Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Dört paket:
+Altı paket var. İkisi tarayıcı açmadığı için saniyeler sürer ve önce çalışır:
+
+- **standards** — deponun kendi kuralları (`tools/check.mjs`): eksik ya da
+  kullanılmayan metin, bayat çevrimdışı önbellek, `index.html`'de karşılığı
+  olmayan eleman kimliği, dosyalar arasında kayan sürüm, sahipsiz modül,
+  kopuk bağlantı, ayrıştırılamayan kaynak.
+- **gate** — denetimin gerçekten ısırdığı: deponun tek kullanımlık bir
+  kopyasına her kuralın yakalaması gereken hata tek tek ekilir ve **o** kuralın
+  kırmızıya döndüğü doğrulanır. Asıl çalışma kopyasına dokunulmaz.
+
+Kalan dördü oyunu gerçek bir tarayıcıda (headless Chromium) açar:
 
 - **city** — şehrin kurulması; direksiyonun doğru yöne dönmesi; ışık fazları;
   3 dakikalık simülasyonda hiçbir trafik aracının adaya girmemesi, kırmızıda
@@ -148,6 +164,14 @@ Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Dört paket:
   gözcüsünün yavaş cihazda kademe düşürüp hızlı cihazda dokunmaması; ilk
   kullanım rehberi; ayarların kaydedilip yeniden açılışta geri gelmesi;
   garajdaki beş araba ve kazanç rozetinin görünmesi.
+
+Yeni paket eklemek için `tests/` içine bir `*.test.mjs` bırakmak yeterli:
+koşucu diskten buluyor, tarayıcı gerektirmeyenleri öne alıyor.
+
+Hangi kuralın neyi koruduğunu ve bu depoda işin ne zaman "bitmiş" sayıldığını
+**[docs/ENGINEERING-STANDARDS.md](docs/ENGINEERING-STANDARDS.md)** anlatıyor.
+`npm run check` ve `npm test` her `push` ve her pull request'te GitHub Actions
+üzerinde de çalışıyor.
 
 ## Nasıl çalışıyor (kısa notlar)
 
