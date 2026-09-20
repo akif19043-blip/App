@@ -13,7 +13,13 @@ import {
   type MapDefinition,
   type Vec3,
 } from '@deadline/shared';
-import { rollAILoot, rollContainer, type LootRollEntry } from '@deadline/game-core';
+import {
+  findClearPosition,
+  rollAILoot,
+  rollContainer,
+  type CollisionWorld,
+  type LootRollEntry,
+} from '@deadline/game-core';
 import { ContainerState } from '../rooms/state.js';
 import type { RaidPlayer } from '../rooms/raidPlayer.js';
 import { addReserveAmmo, isAmmoItem } from '../rooms/raidPlayer.js';
@@ -41,6 +47,7 @@ export interface LootSystemHost {
   readonly roomId: string;
   readonly config: GameConfig;
   readonly map: MapDefinition;
+  readonly world: CollisionWorld;
   readonly seed: number;
   addContainerToState(container: ContainerState): void;
   removeContainerFromState(id: string): void;
@@ -341,9 +348,17 @@ export class LootSystem {
       const rng = makeRng(hashString(`${this.host.seed}:supply_drop`));
       const zone = rng.pick(zones);
       const poi = this.host.map.pois.find((entry) => entry.id === zone.poiId);
+      // The jittered district centre can land inside a building; a crate
+      // nobody can reach is worse than no crate at all.
+      const landing = findClearPosition(
+        this.host.world,
+        zone.position.x + rng.float(-14, 14),
+        zone.position.z + rng.float(-14, 14),
+        1.6,
+      );
       this.supplyDropTarget = {
-        x: zone.position.x + rng.float(-12, 12),
-        z: zone.position.z + rng.float(-12, 12),
+        x: landing.x,
+        z: landing.z,
         poiName: poi?.name ?? zone.poiId,
       };
       this.supplyDropAnnounced = true;

@@ -264,7 +264,9 @@ describe('raid integration', () => {
       x: nearest.container.x,
       z: nearest.container.z,
     });
-    await waitFor(() => distance2D(me(), nearest.container) < 2, 'teleport to container');
+    // The teleport lands on walkable ground near the crate, not on top of it;
+    // interaction range is what actually matters.
+    await waitFor(() => distance2D(me(), nearest.container) < 3, 'teleport to container');
 
     room.send(ClientMessage.Interact, { containerId: nearest.id });
     await waitFor(() => openedContainer !== null, 'container to open');

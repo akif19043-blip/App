@@ -19,7 +19,9 @@ const HIP_OFFSET = new THREE.Vector3(0.95, 1.72, 5.1);
 const ADS_OFFSET = new THREE.Vector3(0.6, 1.66, 2.1);
 
 /** Minimum distance the camera may sit from the character's head. */
-const MIN_CAMERA_DISTANCE = 1.05;
+const MIN_CAMERA_DISTANCE = 1.35;
+/** Below this the character is faded out so it stops filling the screen. */
+export const AVATAR_FADE_DISTANCE = 2.4;
 /** Clearance kept between the camera and whatever it hit. */
 const WALL_MARGIN = 0.38;
 
@@ -31,6 +33,21 @@ export class CameraRig {
   private smoothedPosition = new THREE.Vector3();
   private smoothedDistance = HIP_OFFSET.z;
   private initialised = false;
+
+  /** How far the camera currently sits from the character's head. */
+  get distance(): number {
+    return this.smoothedDistance;
+  }
+
+  /**
+   * 0 when the camera is pressed right up against the character (hide it),
+   * 1 once it is far enough back to draw normally.
+   */
+  get avatarOpacity(): number {
+    const span = AVATAR_FADE_DISTANCE - MIN_CAMERA_DISTANCE;
+    const t = (this.smoothedDistance - MIN_CAMERA_DISTANCE) / Math.max(0.01, span);
+    return Math.max(0, Math.min(1, t));
+  }
 
   constructor(aspect: number, options: CameraRigOptions) {
     this.camera = new THREE.PerspectiveCamera(74, aspect, 0.05, 900);
@@ -113,7 +130,7 @@ export class CameraRig {
       this.smoothedDistance =
         allowed < this.smoothedDistance
           ? allowed
-          : THREE.MathUtils.lerp(this.smoothedDistance, allowed, Math.min(1, dt * 4));
+          : THREE.MathUtils.lerp(this.smoothedDistance, allowed, Math.min(1, dt * 6));
 
       desired.copy(head).add(direction.clone().multiplyScalar(this.smoothedDistance));
     }

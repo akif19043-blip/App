@@ -60,7 +60,7 @@ async function main() {
       LOBBY_FILL_SECONDS: '0',
       COUNTDOWN_SECONDS: '1',
       MATCH_DURATION_SECONDS: '600',
-      MAX_AI_ENEMIES: '26',
+      MAX_AI_ENEMIES: '12',
       LOG_LEVEL: 'error',
       SUPABASE_URL: '',
       SUPABASE_SERVICE_ROLE_KEY: '',
@@ -113,14 +113,29 @@ async function main() {
     await page.waitForTimeout(500);
 
     const panel = page.locator('div:has(> h3:text("DEBUG — DEV ONLY"))');
-    for (const district of ['Market', 'Police', 'Warehouse', 'Train', 'Apartment']) {
-      const button = panel.locator(`button:has-text("${district}")`).first();
+    for (const district of [
+      'Market Street',
+      'Police Station',
+      'Warehouse District',
+      'Train Station',
+      'Apartment Blocks',
+      'Underground Bunker',
+    ]) {
+      const button = panel
+        .locator('button', { hasText: new RegExp(`^${district}$`, 'i') })
+        .first();
       if ((await button.count()) === 0) continue;
-      // Top up before each hop: these districts are guarded.
-      await panel.locator('button:has-text("Heal + full armour")').click();
-      await button.click();
-      await page.waitForTimeout(2_500);
-      await page.screenshot({ path: join(OUT, `${district.toLowerCase()}.png`) });
+      // These districts are guarded; top up on arrival as well as departure,
+      // otherwise the capture run keeps ending in a post-match screen.
+      const heal = panel.locator('button:has-text("Heal + full armour")');
+      await heal.click({ force: true });
+      await button.click({ force: true });
+      await page.waitForTimeout(1_800);
+      await heal.click({ force: true }).catch(() => undefined);
+      await page.waitForTimeout(700);
+      await page.screenshot({
+        path: join(OUT, `${district.toLowerCase().replace(/\s+/g, '-')}.png`),
+      });
     }
 
     // Loot window + inventory.

@@ -8,7 +8,6 @@ import {
   COMBAT,
   CLIENT_MESSAGE_SCHEMAS,
   ClientMessage,
-  MOVEMENT,
   PlayerRaidState,
   RaidPhase,
   RaidResult,
@@ -33,6 +32,7 @@ import {
 import {
   CollisionWorld,
   applyRaidToMissions,
+  findClearPosition,
   maxLegalDistance,
   pickSafeSpawn,
   stepMovement,
@@ -136,6 +136,7 @@ export class RaidRoom extends Room<RaidState> {
       roomId: this.roomId,
       config: this.config,
       map: this.map,
+      world: this.world,
       seed: this.seed,
       addContainerToState: (container: ContainerState) =>
         this.state.containers.set(container.id, container),
@@ -1226,15 +1227,11 @@ export class RaidRoom extends Room<RaidState> {
       }
       case 'teleport': {
         if (command.x === undefined || command.z === undefined) break;
-        // Resolve against the world so a debug teleport cannot drop the player
-        // inside a building.
-        const resolved = this.world.resolveCircle(
-          command.x,
-          command.z,
-          MOVEMENT.playerRadius,
-          0,
-          MOVEMENT.playerHeight,
-        );
+        // Put the player on walkable ground near the target rather than flush
+        // against whatever building sits on the coordinate. The clearance is
+        // only a little over the player radius so the landing stays close
+        // enough to interact with whatever was being aimed at.
+        const resolved = findClearPosition(this.world, command.x, command.z, 1.1);
         player.movement.x = resolved.x;
         player.movement.z = resolved.z;
         player.movement.vx = 0;

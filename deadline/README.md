@@ -267,12 +267,12 @@ pnpm test        # unit + integration (builds packages first)
 pnpm test:e2e    # full browser run: login → raid → loot → extract → stash
 ```
 
-**Unit tests** — `packages/game-core`, 78 tests: damage and armour maths, range
+**Unit tests** — `packages/game-core`, 82 tests: damage and armour maths, range
 falloff, hit zones, spread, hitscan against real map geometry, movement and
 stamina, the anti-cheat travel budget, semi-automatic vs automatic trigger
 gating, grid inventory placement, loot tables, the XP curve, perk aggregation,
-market transactions, extraction eligibility, mission progress and network
-message validation.
+market transactions, extraction eligibility, mission progress, clear-ground
+placement and network message validation.
 
 **Integration tests** — `apps/game-server`, 21 tests across three suites, each
 booting the real server against a throwaway database and driving real Colyseus

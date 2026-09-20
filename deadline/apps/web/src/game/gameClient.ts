@@ -473,7 +473,6 @@ export class GameClient {
     }
 
     this.syncEntitiesFromState(now);
-    this.updateLocalAvatar(dt);
 
     this.quality.update(dt);
     const shake = this.effects.update(dt);
@@ -485,6 +484,7 @@ export class GameClient {
       shake,
       dt,
     );
+    this.updateLocalAvatar(dt);
     this.worldScene.update(this.elapsed, this.cameraRig.camera.position);
     this.updateHud(dt, now);
     this.renderer.render(this.worldScene.scene, this.cameraRig.camera);
@@ -684,6 +684,18 @@ export class GameClient {
       Math.min(1, dt * 16),
     );
     this.localAvatar.scale.y = this.movement.crouching ? 0.68 : 1;
+
+    // Backed into a wall the camera has nowhere to go, so the character would
+    // fill the screen. Fade it out instead of blinding the player.
+    const opacity = this.cameraRig.avatarOpacity;
+    this.localAvatar.visible = opacity > 0.02;
+    for (const child of this.localAvatar.children) {
+      const material = (child as THREE.Mesh).material as THREE.Material | undefined;
+      if (!material) continue;
+      material.transparent = opacity < 1;
+      material.opacity = opacity;
+      material.depthWrite = opacity > 0.65;
+    }
   }
 
   private updateHud(dt: number, now: number): void {

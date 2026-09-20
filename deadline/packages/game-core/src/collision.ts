@@ -239,3 +239,56 @@ export function rayCylinder(
   }
   return null;
 }
+
+/**
+ * Find walkable ground near a target point.
+ *
+ * Anything the server places at a computed position — a supply drop at a
+ * jittered district centre, a dropped stack, a debug teleport — can land
+ * inside a building. This spirals outward from the target and returns the
+ * first spot with real clearance, so placed objects stay reachable.
+ *
+ * Falls back to the collision-resolved position when the area is solid, which
+ * is still better than the raw input.
+ */
+export function findClearPosition(
+  world: CollisionWorld,
+  x: number,
+  z: number,
+  clearance = 1.2,
+  maxRadius = 26,
+): { x: number; z: number } {
+  if (isClear(world, x, z, clearance)) return { x, z };
+
+  const ringStep = 2.5;
+  for (let radius = ringStep; radius <= maxRadius; radius += ringStep) {
+    const samples = Math.max(8, Math.round((radius * Math.PI * 2) / 3));
+    for (let i = 0; i < samples; i += 1) {
+      // Offset each ring so successive rings do not sample the same bearings.
+      const angle = (i / samples) * Math.PI * 2 + radius * 0.37;
+      const cx = x + Math.cos(angle) * radius;
+      const cz = z + Math.sin(angle) * radius;
+      if (Math.abs(cx) > world.halfSize - 2 || Math.abs(cz) > world.halfSize - 2) continue;
+      if (isClear(world, cx, cz, clearance)) return { x: cx, z: cz };
+    }
+  }
+
+  return world.resolveCircle(x, z, clearance, 0, 1.8);
+}
+
+/** True when nothing taller than a kerb sits within `clearance` of the point. */
+function isClear(world: CollisionWorld, x: number, z: number, clearance: number): boolean {
+  for (const obstacle of world.query(x, z, clearance + 0.5)) {
+    const box = obstacle.box;
+    if (box.maxY <= 0.35) continue;
+    if (
+      x > box.minX - clearance &&
+      x < box.maxX + clearance &&
+      z > box.minZ - clearance &&
+      z < box.maxZ + clearance
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
