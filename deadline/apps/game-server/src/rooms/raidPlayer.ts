@@ -1,6 +1,7 @@
 import {
   AmmoType,
   COMBAT,
+  ItemCategory,
   MOVEMENT,
   PlayerRaidState,
   aggregatePerks,
@@ -28,7 +29,9 @@ export type WeaponSlot = 'primary' | 'secondary';
  * and anti-cheat counters stay here so a modified client cannot read them.
  */
 export interface RaidPlayer {
-  readonly sessionId: string;
+  /** Reassigned on reconnect, so the same runtime object keeps serving the
+   * player across a dropped socket. */
+  sessionId: string;
   readonly userId: string;
   readonly username: string;
   readonly isBot: boolean;
@@ -191,7 +194,7 @@ export function createRaidPlayer(params: CreatePlayerParams): RaidPlayer {
 }
 
 export function isAmmoItem(definition: ItemDefinition): boolean {
-  return definition.category === 'ammo';
+  return definition.category === ItemCategory.Ammo;
 }
 
 export function addReserveAmmo(

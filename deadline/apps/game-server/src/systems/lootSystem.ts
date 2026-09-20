@@ -1,6 +1,7 @@
 import {
   COMBAT,
   ContainerType,
+  Rarity,
   ServerMessage,
   distance2D,
   getItem,
@@ -186,7 +187,11 @@ export class LootSystem {
     }
 
     const inventory = target === 'secure' ? player.secure : player.backpack;
-    if (target === 'secure' && definition.rarity === 'legendary' && !this.host.config.allowLegendaryInSecure) {
+    if (
+      target === 'secure' &&
+      definition.rarity === Rarity.Legendary &&
+      !this.host.config.allowLegendaryInSecure
+    ) {
       return 'legendary_not_allowed';
     }
 

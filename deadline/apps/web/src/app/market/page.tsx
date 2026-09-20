@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { ItemCategory, sellPrice } from '@deadline/shared';
+import { sellPrice } from '@deadline/shared';
 import { Shell } from '@/components/Shell';
 import { loadMarket } from '@/lib/queries';
 import { getSessionUser } from '@/lib/session';
@@ -30,7 +30,6 @@ export default async function MarketPage() {
           rarity: row.rarity,
           quantity: row.quantity,
           unitSellPrice: sellPrice(row.itemId, 1),
-          category: (row.itemId.startsWith('ammo_') ? ItemCategory.Ammo : 'other') as string,
         }))}
       />
     </Shell>

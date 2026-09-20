@@ -22,15 +22,23 @@ export function InventoryOverlay({
   hud: HudSnapshot;
   onClose: () => void;
 }) {
-  const [dragging, setDragging] = useState<{ entryId: string; from: 'backpack' | 'secure' } | null>(
-    null,
-  );
+  const [dragging, setDragging] = useState<{
+    entryId: string;
+    from: 'backpack' | 'secure';
+    x: number;
+    y: number;
+  } | null>(null);
 
   const backpack = hud.inventory.backpack;
   const secure = hud.inventory.secure;
 
   const onDrop = (container: 'backpack' | 'secure', x: number, y: number): void => {
     if (!dragging) return;
+    // Dropping a stack back where it came from is a no-op, not a round trip.
+    if (dragging.from === container && dragging.x === x && dragging.y === y) {
+      setDragging(null);
+      return;
+    }
     client.current?.moveItem(dragging.entryId, container, x, y, false);
     setDragging(null);
   };
@@ -63,7 +71,7 @@ export function InventoryOverlay({
               inventory={backpack}
               width={INVENTORY.backpackWidth}
               height={INVENTORY.backpackHeight}
-              onDragStart={(entryId) => setDragging({ entryId, from: 'backpack' })}
+              onDragStart={(entryId, x, y) => setDragging({ entryId, from: 'backpack', x, y })}
               onDrop={(x, y) => onDrop('backpack', x, y)}
               onUse={(entryId) => client.current?.useItem(entryId)}
               onDropItem={(entryId) => client.current?.dropItem(entryId)}
@@ -79,7 +87,7 @@ export function InventoryOverlay({
               width={INVENTORY.secureWidth}
               height={INVENTORY.secureHeight}
               accent="border-uncommon/40"
-              onDragStart={(entryId) => setDragging({ entryId, from: 'secure' })}
+              onDragStart={(entryId, x, y) => setDragging({ entryId, from: 'secure', x, y })}
               onDrop={(x, y) => onDrop('secure', x, y)}
               onUse={(entryId) => client.current?.useItem(entryId)}
               onDropItem={(entryId) => client.current?.dropItem(entryId)}
@@ -111,7 +119,7 @@ function Grid({
   width: number;
   height: number;
   accent?: string;
-  onDragStart: (entryId: string) => void;
+  onDragStart: (entryId: string, x: number, y: number) => void;
   onDrop: (x: number, y: number) => void;
   onUse: (entryId: string) => void;
   onDropItem: (entryId: string) => void;
@@ -145,7 +153,7 @@ function Grid({
           <div
             key={entry.id}
             draggable
-            onDragStart={() => onDragStart(entry.id)}
+            onDragStart={() => onDragStart(entry.id, entry.x, entry.y)}
             onDoubleClick={() => onUse(entry.id)}
             onContextMenu={(event) => {
               event.preventDefault();

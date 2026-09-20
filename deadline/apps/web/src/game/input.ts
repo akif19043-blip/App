@@ -34,6 +34,12 @@ export interface InputOptions {
   sensitivity: number;
   invertY: boolean;
   onAction(action: InputAction): void;
+  /**
+   * Whether clicking the 3D view may capture the pointer. Returns false while
+   * an overlay is open, so a click aimed at the loot list or the inventory is
+   * not swallowed by the canvas grabbing pointer lock instead.
+   */
+  canCapturePointer?(): boolean;
 }
 
 export class InputController {
@@ -59,6 +65,7 @@ export class InputController {
 
   requestPointerLock(): void {
     if (this.pointerLocked || this.disposed) return;
+    if (this.options.canCapturePointer?.() === false) return;
     void this.element.requestPointerLock?.();
   }
 
@@ -177,6 +184,8 @@ export class InputController {
 
   private readonly onMouseDown = (event: MouseEvent): void => {
     if (!this.pointerLocked) {
+      // Clicking the world re-captures the mouse — unless a panel is open, in
+      // which case the click belongs to the panel.
       this.requestPointerLock();
       return;
     }

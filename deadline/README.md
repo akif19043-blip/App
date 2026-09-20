@@ -63,7 +63,8 @@ Everything in this list is exercised by the automated tests
 | Mid-raid supply drop event | ✅ |
 | Key-gated caches (Police Armory, Bunker Vault) | ✅ |
 | Reconnect inside a grace window; MIA if you do not come back | ✅ |
-| Adaptive render quality, synthesised audio, in-raid debug tools | ✅ |
+| Adaptive render quality that steps down on weak hardware | ✅ |
+| Synthesised audio, in-raid debug tools, dev-only admin view | ✅ |
 
 See [Known limitations](#known-limitations) for what is deliberately *not* done.
 
@@ -236,6 +237,9 @@ pnpm --filter @deadline/shared dev
 pnpm --filter @deadline/game-core dev
 ```
 
+`/admin` is a development-only view of the raid ledger and economy numbers; it
+404s in production builds.
+
 ### Controls
 
 | Key | Action |
@@ -251,7 +255,7 @@ pnpm --filter @deadline/game-core dev
 | `Tab` | Inventory (the raid does **not** pause) |
 | `1` / `2` | Primary / secondary weapon |
 | `X` | Start extraction (inside one of your zones) |
-| `` ` `` | Debug panel (development only) |
+| `` ` `` | Debug panel (development only — releases the mouse while open) |
 | `Esc` | Release the mouse |
 
 ---
@@ -263,20 +267,32 @@ pnpm test        # unit + integration (builds packages first)
 pnpm test:e2e    # full browser run: login → raid → loot → extract → stash
 ```
 
-**Unit tests** (`packages/game-core`, 73 tests) cover damage and armour maths,
-range falloff, hit zones, spread, hitscan against real map geometry, movement
-and stamina, the anti-cheat travel budget, grid inventory placement, loot
-tables, the XP curve, perk aggregation, market transactions, extraction
-eligibility, mission progress and network message validation.
+**Unit tests** — `packages/game-core`, 78 tests: damage and armour maths, range
+falloff, hit zones, spread, hitscan against real map geometry, movement and
+stamina, the anti-cheat travel budget, semi-automatic vs automatic trigger
+gating, grid inventory placement, loot tables, the XP curve, perk aggregation,
+market transactions, extraction eligibility, mission progress and network
+message validation.
 
-**Integration tests** (`apps/game-server`) boot the real server against a
-throwaway database and drive a real Colyseus client through a raid: join,
-deploy, move under server authority, get a teleport rejected, open a container,
-take loot, fire a weapon, have the fire-rate validator reject a burst, extract,
-and verify the raid was written to the database.
+**Integration tests** — `apps/game-server`, 21 tests across three suites, each
+booting the real server against a throwaway database and driving real Colyseus
+clients:
 
-**End-to-end** (`scripts/e2e.mjs`) runs the built web app and a real Chromium
-through the whole product flow and fails on console errors.
+- `raid.integration.test.ts` — one operator through a full raid: join, deploy,
+  move under server authority, have a 500 m teleport rejected, open a
+  container, take loot, fire, have the fire-rate validator reject a burst,
+  extract, and verify the raid landed in the database.
+- `multiplayer.integration.test.ts` — **two** independent clients in one room:
+  they see each other, movement replicates, one kills the other through the
+  authoritative combat pipeline, the kill is credited, and the killer searches
+  the body.
+- `reconnect.integration.test.ts` — a dropped socket keeps the body in the
+  world, a reconnect hands back the same operator (position, loot, exits), and
+  never coming back is MIA.
+
+**End-to-end** — `scripts/e2e.mjs` runs the built web app and a real Chromium
+through the whole product flow (27 assertions), including that holding the
+trigger on a semi-automatic fires exactly once, and fails on console errors.
 
 `scripts/screenshots.mjs` captures the game from each district — useful when
 tuning lighting or HUD layout.
@@ -379,6 +395,10 @@ than one that does not:
   presence/driver (dependencies are compatible, wiring is not done).
 - **The file-backed demo database is not production storage.** It exists so the
   game is playable with zero configuration.
+- **No minimap.** The HUD has a compass and bearing/distance readouts for your
+  assigned exits; a minimap is listed as optional in the design and was not
+  built.
+- **No grenades or vaulting.** Both are named as later-phase in the design.
 - **Mobile is out of scope** for this slice. The layout is desktop-first and the
   controls assume a mouse and keyboard; the PWA manifest is in place for later.
 

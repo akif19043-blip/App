@@ -51,7 +51,15 @@ async function bootstrap(): Promise<void> {
 
   const httpServer = http.createServer(app);
   const gameServer = new Server({
-    transport: new WebSocketTransport({ server: httpServer }),
+    transport: new WebSocketTransport({
+      server: httpServer,
+      // Browsers on weak hardware (or a backgrounded tab) can starve their
+      // event loop for seconds at a time. A generous keepalive stops the
+      // transport dropping a player who is only struggling to render, and
+      // leaves reconnection for sockets that have genuinely gone.
+      pingInterval: Number(process.env['WS_PING_INTERVAL_MS'] ?? 6_000),
+      pingMaxRetries: Number(process.env['WS_PING_MAX_RETRIES'] ?? 5),
+    }),
   });
 
   gameServer.define('raid', RaidRoom).filterBy(['mapId']);

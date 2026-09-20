@@ -4,6 +4,7 @@ import {
   AnalyticsEvent,
   BotDifficulty,
   ContainerType,
+  DAILY_MISSION_POOL,
   COMBAT,
   CLIENT_MESSAGE_SCHEMAS,
   ClientMessage,
@@ -11,6 +12,7 @@ import {
   PlayerRaidState,
   RaidPhase,
   RaidResult,
+  Rarity,
   SECTOR_ZERO,
   ServerMessage,
   calculateRaidXp,
@@ -103,6 +105,10 @@ export class RaidRoom extends Room<RaidState> {
 
   override async onCreate(options: { mapId?: string }): Promise<void> {
     this.maxClients = this.config.maxPlayers;
+    // A lobby nobody is in should go away; a raid in progress must not, or the
+    // disconnect grace window (and every body still in the world) vanishes the
+    // moment the last socket drops.
+    this.autoDispose = true;
     this.map = getMap(options?.mapId ?? 'sector_zero') ?? SECTOR_ZERO;
     this.seed = hashString(`${this.roomId}:${Date.now()}`) >>> 0;
     this.rng = makeRng(this.seed);
@@ -244,15 +250,6 @@ export class RaidRoom extends Room<RaidState> {
       throw new Error('raid_finished');
     }
 
-    // Reconnect: hand the session back to the disconnected body.
-    const existing = [...this.runtimePlayers.values()].find(
-      (player) => player.userId === auth.userId && player.disconnectedAt !== null,
-    );
-    if (existing) {
-      this.reattach(existing, client);
-      return;
-    }
-
     const persistence = this.persistence;
     let manifest: DeployManifest = {
       loadoutId: null,
@@ -304,19 +301,7 @@ export class RaidRoom extends Room<RaidState> {
       demo: auth.demo,
     });
 
-    client.send(ServerMessage.Welcome, {
-      sessionId: client.sessionId,
-      userId: auth.userId,
-      username: auth.username,
-      mapId: this.map.id,
-      seed: this.seed,
-      assignedExtractions: player.assignedExtractions,
-      serverTickRate: this.config.serverTickRate,
-      matchDurationSeconds: this.config.matchDurationSeconds,
-      extractionTimeSeconds: this.config.extractionTimeSeconds,
-      isBotFilled: this.config.enableBots,
-      debugEnabled: serverConfig.debugTools,
-    });
+    this.sendWelcome(client, player);
     this.sendInventory(player);
 
     this.broadcast(ServerMessage.PlayerJoined, {
@@ -349,7 +334,9 @@ export class RaidRoom extends Room<RaidState> {
       return;
     }
 
-    // Disconnect abuse guard: the body stays in the world for a grace period.
+    // Disconnect abuse guard: the body stays in the world, still shootable and
+    // still lootable, while the seat is held open for a reconnect. Leaving and
+    // never coming back is MIA — so dropping the connection is not an escape.
     player.disconnectedAt = Date.now();
     player.schema.connected = false;
     this.broadcast(ServerMessage.PlayerLeft, {
@@ -357,6 +344,41 @@ export class RaidRoom extends Room<RaidState> {
       username: player.username,
       reason: 'disconnected',
     });
+
+    try {
+      // A player who *chose* to leave does not get a held seat: quitting a
+      // raid costs you the raid, same as running out of time.
+      if (consented) throw new Error('consented_leave');
+
+      // allowReconnection resolves with the *new* client for the restored
+      // seat; the one captured above is already closed.
+      const reconnected = await this.allowReconnection(
+        client,
+        this.config.disconnectGraceSeconds,
+      );
+      player.disconnectedAt = null;
+      player.schema.connected = true;
+      this.sendWelcome(reconnected, player);
+      this.sendInventory(player);
+      log.info('raid.player_reconnected', {
+        roomId: this.roomId,
+        userId: player.userId,
+        sessionId: client.sessionId,
+      });
+    } catch {
+      if (player.resolved) {
+        this.removePlayer(player.sessionId);
+        return;
+      }
+      log.info('raid.player_mia', {
+        roomId: this.roomId,
+        userId: player.userId,
+        reason: consented ? 'consented_leave' : 'disconnect_grace_expired',
+      });
+      player.schema.raidState = PlayerRaidState.MIA;
+      await this.resolvePlayer(player, RaidResult.MIA);
+      this.removePlayer(player.sessionId);
+    }
   }
 
   override onDispose(): void {
@@ -540,11 +562,10 @@ export class RaidRoom extends Room<RaidState> {
         this.trackPoiVisits(player);
       }
       if (isAlive(player)) alive += 1;
-      this.checkDisconnectTimeout(player);
     }
     this.state.alivePlayers = alive;
 
-    if (this.match.isRunning() && this.everybodyResolved()) {
+    if (this.match.isRunning() && (this.everybodyResolved() || this.raidAbandoned())) {
       this.match.endEarly();
     }
   }
@@ -651,6 +672,9 @@ export class RaidRoom extends Room<RaidState> {
     if (phase === RaidPhase.Countdown) {
       this.fillWithBots();
       this.lock();
+      // From here the room owns its own lifetime: it disposes when the raid
+      // ends, not when the last client happens to be offline.
+      this.autoDispose = false;
     }
     if (phase === RaidPhase.FinalPhase) {
       this.announce('DEADLINE APPROACHING — 02:00', 'danger');
@@ -683,6 +707,7 @@ export class RaidRoom extends Room<RaidState> {
     }
 
     // Give clients a moment to render the post-match screen before disposing.
+    this.autoDispose = true;
     this.clock.setTimeout(() => {
       this.disconnect().catch(() => undefined);
     }, 8_000);
@@ -967,47 +992,20 @@ export class RaidRoom extends Room<RaidState> {
     this.bots.unregister(sessionId);
   }
 
-  private reattach(player: RaidPlayer, client: Client): void {
-    const previousSessionId = player.sessionId;
-    this.runtimePlayers.delete(previousSessionId);
-    this.state.players.delete(previousSessionId);
-
-    const reattached: RaidPlayer = { ...player, sessionId: client.sessionId };
-    reattached.disconnectedAt = null;
-    reattached.schema.sessionId = client.sessionId;
-    reattached.schema.connected = true;
-    this.runtimePlayers.set(client.sessionId, reattached);
-    this.state.players.set(client.sessionId, reattached.schema);
-
+  /** Everything a client needs on join, and again on a successful reconnect. */
+  private sendWelcome(client: Client, player: RaidPlayer): void {
     client.send(ServerMessage.Welcome, {
       sessionId: client.sessionId,
-      userId: reattached.userId,
-      username: reattached.username,
+      userId: player.userId,
+      username: player.username,
       mapId: this.map.id,
       seed: this.seed,
-      assignedExtractions: reattached.assignedExtractions,
+      assignedExtractions: player.assignedExtractions,
       serverTickRate: this.config.serverTickRate,
       matchDurationSeconds: this.config.matchDurationSeconds,
       extractionTimeSeconds: this.config.extractionTimeSeconds,
       isBotFilled: this.config.enableBots,
       debugEnabled: serverConfig.debugTools,
-    });
-    this.sendInventory(reattached);
-    log.info('raid.player_reconnected', {
-      roomId: this.roomId,
-      userId: reattached.userId,
-      sessionId: client.sessionId,
-    });
-  }
-
-  private checkDisconnectTimeout(player: RaidPlayer): void {
-    if (player.disconnectedAt === null || player.resolved) return;
-    const elapsed = (Date.now() - player.disconnectedAt) / 1000;
-    if (elapsed < this.config.disconnectGraceSeconds) return;
-    // Left and never came back: treated as MIA, so loot is not kept.
-    player.schema.raidState = PlayerRaidState.MIA;
-    void this.resolvePlayer(player, RaidResult.MIA).then(() => {
-      this.removePlayer(player.sessionId);
     });
   }
 
@@ -1050,6 +1048,18 @@ export class RaidRoom extends Room<RaidState> {
       if (!player.isBot) count += 1;
     }
     return count;
+  }
+
+  /**
+   * True when no human is left to resolve — everyone has been written off as
+   * MIA after their grace period expired. Without this the room would tick an
+   * empty raid all the way to the timer.
+   */
+  private raidAbandoned(): boolean {
+    for (const player of this.runtimePlayers.values()) {
+      if (!player.isBot) return false;
+    }
+    return true;
   }
 
   private everybodyResolved(): boolean {
@@ -1135,7 +1145,7 @@ export class RaidRoom extends Room<RaidState> {
     const definition = getItem(entry.itemId);
     if (
       request.toContainer === 'secure' &&
-      definition?.rarity === 'legendary' &&
+      definition?.rarity === Rarity.Legendary &&
       !this.config.allowLegendaryInSecure
     ) {
       return 'legendary_not_allowed';
@@ -1269,13 +1279,5 @@ export class RaidRoom extends Room<RaidState> {
   }
 }
 
-/** Ids of the daily mission pool, resolved once at module load. */
-const DAILY_POOL_IDS: string[] = [
-  'daily_kill_ai_10',
-  'daily_extract_2',
-  'daily_loot_15k',
-  'daily_kill_player_1',
-  'daily_visit_hospital',
-  'daily_visit_warehouse',
-  'daily_collect_battery',
-];
+/** Ids of the daily mission pool, derived from the shared catalogue. */
+const DAILY_POOL_IDS: string[] = DAILY_MISSION_POOL.map((mission) => mission.id);

@@ -10,16 +10,18 @@ import {
   getMap,
   getWeaponDefinition,
   makeRng,
-  shotIntervalSeconds,
   type MapDefinition,
   type WeaponDefinition,
 } from '@deadline/shared';
 import {
   CollisionWorld,
   createMovementState,
+  createTriggerState,
+  pullTrigger,
   recoilKick,
   stepMovement,
   type MovementState,
+  type TriggerState,
 } from '@deadline/game-core';
 import { CameraRig } from './camera';
 import { ContainerPool, EntityPool } from './entities';
@@ -90,8 +92,7 @@ export class GameClient {
   private running = false;
   private elapsed = 0;
 
-  private lastShotAt = 0;
-  private consecutiveShots = 0;
+  private readonly trigger: TriggerState = createTriggerState();
   private shotCounter = 0;
   private readonly rng = makeRng(Math.floor(Math.random() * 1e9));
 
@@ -130,9 +131,18 @@ export class GameClient {
     this.renderer?.dispose();
   }
 
-  /** Called by React when the inventory overlay opens or closes. */
+  /**
+   * Single owner of the inventory toggle.
+   *
+   * The keybinding lives in the input controller and the overlay lives in
+   * React; routing both through here (and mirroring the flag into the HUD
+   * store) is what stops one Tab press from toggling two independent booleans.
+   */
   setInventoryOpen(open: boolean): void {
+    if (this.inventoryOpen === open) return;
     this.inventoryOpen = open;
+    hudStore.patch({ inventoryOpen: open });
+    hudStore.flushNow();
     this.syncPointerLock();
   }
 
@@ -187,14 +197,19 @@ export class GameClient {
    * Without this the canvas swallows every click meant for the HUD.
    */
   private syncPointerLock(): void {
+    if (this.overlayOpen()) this.input?.releasePointerLock();
+    else this.input?.requestPointerLock();
+  }
+
+  /** True while any panel that needs a cursor is on screen. */
+  private overlayOpen(): boolean {
     const snapshot = hudStore.current;
-    const overlayOpen =
+    return (
       this.inventoryOpen ||
       snapshot.lootOffer !== null ||
       snapshot.showDebugPanel ||
-      snapshot.summary !== null;
-    if (overlayOpen) this.input?.releasePointerLock();
-    else this.input?.requestPointerLock();
+      snapshot.summary !== null
+    );
   }
 
   // ------------------------------------------------------------------- setup
@@ -258,6 +273,7 @@ export class GameClient {
       sensitivity: this.options.sensitivity,
       invertY: this.options.invertY,
       onAction: (action) => this.handleAction(action),
+      canCapturePointer: () => !this.overlayOpen(),
     });
   }
 
@@ -407,10 +423,22 @@ export class GameClient {
         }
       },
       onPong: (latency) => hudStore.patch({ ping: latency }),
-      onLeave: (code) => {
-        hudStore.patch({ connected: false });
+      onReconnecting: (attempt, maxAttempts) => {
+        hudStore.patch({ reconnecting: { attempt, maxAttempts } });
         hudStore.flushNow();
-        if (code !== 1000) this.options.onDisconnect(`connection closed (${code})`);
+      },
+      onReconnected: () => {
+        hudStore.patch({ reconnecting: null, connected: true, connectionError: null });
+        hudStore.flushNow();
+      },
+      onLeave: (code) => {
+        hudStore.patch({ connected: false, reconnecting: null });
+        hudStore.flushNow();
+        if (code !== 1000) {
+          this.options.onDisconnect(
+            `connection lost (${code}) — your operator was left in the sector`,
+          );
+        }
       },
       onError: (message) => {
         hudStore.patch({ connectionError: message });
@@ -571,41 +599,35 @@ export class GameClient {
   }
 
   private handleFiring(frame: InputFrame, _dt: number): void {
-    if (this.inventoryOpen) return;
     const me = this.localPlayer();
-    if (!me || me.raidState !== PlayerRaidState.Alive) return;
     const weapon = this.currentWeapon();
-    if (!weapon) return;
-    if (!frame.firing) {
-      // Releasing the trigger settles the recoil pattern.
-      if (performance.now() - this.lastShotAt > 400) this.consecutiveShots = 0;
-      return;
-    }
-    if (!weapon.automatic && this.lastShotAt > 0 && this.triggerHeld) return;
+    const blocked = this.inventoryOpen || !me || me.raidState !== PlayerRaidState.Alive || !weapon;
 
-    const now = performance.now();
-    const interval = shotIntervalSeconds(weapon) * 1000;
-    if (now - this.lastShotAt < interval) return;
-    if (me.ammoInMag <= 0) {
+    if (!weapon) return;
+    // Still advance the trigger when firing is blocked, so releasing the mouse
+    // inside a menu re-arms a semi-automatic weapon like it would outside one.
+    const wantsToFire = pullTrigger(this.trigger, {
+      weapon,
+      firing: frame.firing && !blocked,
+      now: performance.now(),
+    });
+    if (!wantsToFire || blocked) return;
+
+    if (me!.ammoInMag <= 0) {
       this.network.sendReload();
       return;
     }
 
-    this.lastShotAt = now;
-    this.triggerHeld = !weapon.automatic;
-    this.consecutiveShots = Math.min(40, this.consecutiveShots + 1);
     this.shotCounter += 1;
     this.network.sendFire(this.yaw, this.pitch, this.shotCounter);
 
     const kick = recoilKick(
       weapon,
-      { ads: frame.ads, consecutiveShots: this.consecutiveShots },
+      { ads: frame.ads, consecutiveShots: this.trigger.consecutiveShots },
       this.rng,
     );
     this.effects.addRecoil(kick.pitch, kick.yaw);
   }
-
-  private triggerHeld = false;
 
   private syncEntitiesFromState(now: number): void {
     const state = this.stateOf();
@@ -794,10 +816,12 @@ export class GameClient {
       }
       case 'inventory':
         this.setInventoryOpen(!this.inventoryOpen);
-        hudStore.patch({});
         break;
       case 'escape':
-        this.input.releasePointerLock();
+        // Escape closes whatever is open before it gives up the mouse.
+        if (this.inventoryOpen) this.setInventoryOpen(false);
+        else if (hudStore.current.lootOffer) this.closeLootOffer();
+        else this.input.releasePointerLock();
         break;
       case 'debug':
         if (hudStore.current.debugEnabled) {

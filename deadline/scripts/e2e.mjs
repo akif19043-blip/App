@@ -81,9 +81,9 @@ async function main() {
       COUNTDOWN_SECONDS: '1',
       MATCH_DURATION_SECONDS: '180',
       EXTRACTION_TIME_SECONDS: '1',
-      MAX_AI_ENEMIES: '10',
+      MAX_AI_ENEMIES: '6',
       CORS_ORIGINS: `http://localhost:${WEB_PORT}`,
-      LOG_LEVEL: 'warn',
+      LOG_LEVEL: 'info',
       SUPABASE_URL: '',
       SUPABASE_SERVICE_ROLE_KEY: '',
     },
@@ -195,43 +195,214 @@ async function main() {
     assert(hud.hasAmmo, 'HUD shows the weapon and ammunition counter');
     assert(hud.hasStamina, 'HUD shows the stamina bar');
 
-    console.log('▸ moving, shooting and looting');
-    const canvas = page.locator('canvas');
-    await canvas.click({ position: { x: 720, y: 400 } });
-    await page.keyboard.down('KeyW');
-    await page.waitForTimeout(1500);
-    await page.keyboard.up('KeyW');
-    await page.mouse.down();
-    await page.waitForTimeout(400);
-    await page.mouse.up();
-    await page.keyboard.press('KeyR');
-    await page.waitForTimeout(800);
-    await page.screenshot({ path: join(SHOTS, '07-combat.png') });
+    console.log('▸ taking control');
+    await page.mouse.click(720, 400);
+    await page.waitForTimeout(250);
 
-    // The debug panel's teleport is the only way to cross 200 m in a smoke test.
+    const debugPanel = page.locator('div:has(> h3:text("DEBUG — DEV ONLY"))');
+
+    /**
+     * Clicks a development-panel button. These drive a dev tool rather than
+     * assert on UX, and the panel scrolls, so the click is forced past
+     * Playwright's actionability checks once the button is in view.
+     */
+    const debugClick = async (locator) => {
+      await locator.scrollIntoViewIfNeeded();
+      await locator.click({ force: true });
+      await page.waitForTimeout(250);
+    };
+
+    /**
+     * The debug panel hands the cursor back while it is open — which means the
+     * player cannot shoot until it is closed again. Every use of it is wrapped
+     * so the test drives the game the way a developer actually would.
+     */
+    const focusWorld = async () => {
+      // Raw mouse click: Playwright's actionability checks would stall behind
+      // any transient overlay, and all we want is to hand focus back to the
+      // canvas so it can re-capture the pointer.
+      await page.mouse.click(720, 400);
+      await page.waitForTimeout(250);
+    };
+
+    /**
+     * A starved browser can miss the socket keepalive; the client then takes
+     * its held seat back on its own. That is correct behaviour, so the test
+     * waits it out rather than treating a recovered drop as a failure.
+     */
+    const waitForLiveConnection = async (timeoutMs = 25_000) => {
+      const started = Date.now();
+      for (;;) {
+        const reconnecting = await page.evaluate(() =>
+          document.body.innerText.includes('RECONNECTING'),
+        );
+        if (!reconnecting) return;
+        if (Date.now() - started > timeoutMs) {
+          throw new Error('client never finished reconnecting');
+        }
+        await page.waitForTimeout(500);
+      }
+    };
+
+    /**
+     * Pointer lock can be dropped by the browser at any time (an alert, a focus
+     * change, the page losing visibility). A player just clicks back into the
+     * game; so does the test, otherwise a lost lock reads as a broken weapon.
+     */
+    const ensureWorldFocus = async () => {
+      await waitForLiveConnection();
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const locked = await page.evaluate(() => document.pointerLockElement !== null);
+        if (locked) return;
+        await focusWorld();
+      }
+    };
+
+    const withDebugPanel = async (body) => {
+      await waitForLiveConnection();
+      await page.keyboard.press('Backquote');
+      await page.waitForTimeout(400);
+      // Sector Zero keeps sending people to look at the gunfire; top up before
+      // each staged step so the run tests the flow, not our survival odds.
+      await debugClick(debugPanel.locator('button:has-text("Heal + full armour")'));
+      await body();
+      await page.keyboard.press('Backquote');
+      await page.waitForTimeout(300);
+      await ensureWorldFocus();
+    };
+
     await page.keyboard.press('Backquote');
     await page.waitForTimeout(400);
-    const debugVisible = await page.locator('text=DEBUG — DEV ONLY').isVisible();
-    assert(debugVisible, 'development debug panel is available');
+    assert(await debugPanel.isVisible(), 'development debug panel is available');
     await page.screenshot({ path: join(SHOTS, '08-debug.png') });
 
-    // Heal first: the sector is hostile and this is a flow test, not a
-    // survival test. Then teleport to an assigned exit via the debug panel.
-    await page.click('button:has-text("Heal + full armour")');
-    await page.waitForTimeout(400);
     const exitName = await page.evaluate(() => {
       const match = document.body.innerText.match(/YOUR EXITS\n([A-Z ]+)/);
       return match ? match[1].trim() : 'SUBWAY EXIT';
     });
-    const debugPanel = page.locator('div:has(> h3:text("DEBUG — DEV ONLY"))');
-    await debugPanel.locator(`button:has-text("${exitName.split(' ')[0]}")`).first().click();
-    await page.waitForTimeout(1500);
+    // Districts and exits are listed separately, so an exit name is unambiguous.
+    const exitButton = debugPanel.locator('button', {
+      hasText: new RegExp(`^${exitName.replace(/\s+/g, '\\s+')}$`, 'i'),
+    });
+    // Sector Zero is hostile by design: staging the rest of the run on the open
+    // ground around an exit keeps this a *flow* test rather than a coin flip on
+    // whether a guard finds us mid-assertion.
+    await debugClick(exitButton.first());
+    await page.waitForTimeout(1_000);
+    await page.keyboard.press('Backquote');
+    await page.waitForTimeout(300);
+
+    console.log('▸ moving');
+    await ensureWorldFocus();
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(1_200);
+    await page.keyboard.up('KeyW');
+    await page.waitForTimeout(300);
+
+    console.log('▸ shooting');
+    // Read the magazine straight off the HUD element rather than scraping the
+    // page text — the page has other "N / M" strings on it.
+    const readAmmo = async () => {
+      return page.evaluate(() => {
+        const node = document.querySelector('[data-hud="ammo-mag"]');
+        if (!node) return null;
+        const value = Number(node.textContent?.trim());
+        return Number.isFinite(value) ? value : null;
+      });
+    };
+
+    // Hold the trigger: a semi-automatic sidearm must fire exactly once.
+    await ensureWorldFocus();
+    const beforeHold = await readAmmo();
+    await page.mouse.down();
+    await page.waitForTimeout(1_200);
+    await page.mouse.up();
+    await page.waitForTimeout(400);
+    const afterHold = await readAmmo();
+    assert(
+      beforeHold !== null && afterHold !== null && beforeHold - afterHold === 1,
+      `holding the trigger on a semi-automatic fires once (${beforeHold} → ${afterHold})`,
+    );
+
+    // Three distinct pulls must fire three rounds.
+    await ensureWorldFocus();
+    for (let i = 0; i < 3; i += 1) {
+      await page.mouse.down();
+      await page.waitForTimeout(500);
+      await page.mouse.up();
+      await page.waitForTimeout(500);
+    }
+    await page.waitForTimeout(500);
+    const afterClicks = await readAmmo();
+    assert(
+      afterClicks !== null && afterHold !== null && afterHold - afterClicks === 3,
+      `three trigger pulls fire three rounds (${afterHold} → ${afterClicks})`,
+    );
+
+    await page.keyboard.press('KeyR');
+    await page.waitForTimeout(2_500);
+    const afterReload = await readAmmo();
+    assert(
+      afterReload !== null && afterClicks !== null && afterReload > afterClicks,
+      `reloading refills the magazine (${afterClicks} → ${afterReload})`,
+    );
+    await page.screenshot({ path: join(SHOTS, '07-combat.png') });
+
+    console.log('▸ looting');
+    await withDebugPanel(async () => {
+      await debugClick(debugPanel.locator('button:has-text("Spawn loot crate")'));
+      await page.waitForTimeout(600);
+    });
+    await ensureWorldFocus();
+    await page.keyboard.press('KeyF');
+    await page.waitForFunction(() => document.body.innerText.includes('CONTAINER'), {
+      timeout: 20_000,
+    });
+    assert(true, 'searching a container opens its contents');
+    await page.screenshot({ path: join(SHOTS, '12-loot.png') });
+
+    // The HUD's bag readout is the authoritative "did that actually work".
+    const readBagValue = async () => {
+      return page.evaluate(() => {
+        const node = document.querySelector('[data-hud="bag-value"]');
+        const match = node?.textContent?.match(/([\d,]+)/);
+        return match ? Number(match[1].replace(/,/g, '')) : null;
+      });
+    };
+    const bagBefore = await readBagValue();
+
+    await page.click('button:has-text("Take all")');
+    await page.waitForTimeout(2_000);
+    const bagAfter = await readBagValue();
+    assert(
+      bagAfter !== null && bagBefore !== null && bagAfter > bagBefore,
+      `taking loot moves it into the backpack (${bagBefore} → ${bagAfter} CR)`,
+    );
+
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(900);
+    const bagText = await page.evaluate(() => document.body.innerText);
+    assert(/BACKPACK — 8×6/.test(bagText), 'the grid inventory opens during the raid');
+    assert(
+      /MEDICAL KIT|GOLD WATCH/i.test(bagText),
+      'the looted stacks are laid out in the grid',
+    );
+    await page.screenshot({ path: join(SHOTS, '13-inventory.png') });
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(500);
+
+    console.log('▸ extracting');
+    await withDebugPanel(async () => {
+      await debugClick(exitButton.first());
+      await page.waitForTimeout(1_000);
+    });
+    await ensureWorldFocus();
     await page.keyboard.press('KeyX');
     await page.waitForFunction(() => document.body.innerText.includes('EXTRACTED'), {
       timeout: 40_000,
     });
     assert(true, 'extraction completes and the post-match report appears');
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(1_200);
     await page.screenshot({ path: join(SHOTS, '09-postmatch.png') });
 
     const report = await page.evaluate(() => document.body.innerText);
@@ -275,6 +446,29 @@ async function main() {
       JSON.stringify({ ok: true, at: new Date().toISOString() }, null, 2),
     );
     console.log('\n✅ END-TO-END FLOW PASSED');
+  } catch (failure) {
+    // A failing browser run is almost impossible to diagnose from a stack
+    // trace alone; capture what was actually on screen.
+    await page
+      .screenshot({ path: join(SHOTS, 'failure.png') })
+      .catch(() => undefined);
+    const visible = await page
+      .evaluate(() => ({
+        text: document.body.innerText.slice(0, 600),
+        pointerLocked: document.pointerLockElement !== null,
+        overlays: [...document.querySelectorAll('.pointer-events-auto')].map(
+          (node) => node.textContent?.slice(0, 40) ?? '',
+        ),
+      }))
+      .catch(() => null);
+    if (visible) {
+      console.error('\n--- page state at failure ---');
+      console.error(`pointerLocked=${visible.pointerLocked}`);
+      console.error(`overlays=${JSON.stringify(visible.overlays)}`);
+      console.error(visible.text.replace(/\n/g, ' | '));
+      console.error('--- end page state ---\n');
+    }
+    throw failure;
   } finally {
     await browser.close().catch(() => undefined);
   }

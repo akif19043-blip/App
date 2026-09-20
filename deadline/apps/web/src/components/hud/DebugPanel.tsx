@@ -18,7 +18,7 @@ export function DebugPanel({ client }: { client: RefObject<GameClient | null> })
   if (!hud.debugEnabled) return null;
 
   return (
-    <div className="pointer-events-auto absolute top-24 left-5 w-64 border border-caution/50 bg-void/95 p-3 text-xs">
+    <div className="pointer-events-auto absolute top-24 left-5 max-h-[70vh] w-64 overflow-y-auto border border-caution/50 bg-void/95 p-3 text-xs">
       <h3 className="dl-heading mb-2 text-xs text-caution">DEBUG — DEV ONLY</h3>
 
       <div className="space-y-1.5">
@@ -44,18 +44,24 @@ export function DebugPanel({ client }: { client: RefObject<GameClient | null> })
         </div>
 
         <div className="pt-1">
-          <div className="mb-1 text-[10px] tracking-[0.2em] text-muted">TELEPORT</div>
+          <div className="mb-1 text-[10px] tracking-[0.2em] text-muted">TELEPORT — DISTRICT</div>
           <div className="grid grid-cols-2 gap-1">
-            {SECTOR_ZERO.pois.slice(0, 6).map((poi) => (
+            {SECTOR_ZERO.pois.map((poi) => (
               <Action
                 key={poi.id}
                 onClick={() =>
                   client.current?.sendDebug('teleport', undefined, poi.center.x, poi.center.z)
                 }
               >
-                {poi.name.split(' ')[0]}
+                {poi.name}
               </Action>
             ))}
+          </div>
+        </div>
+
+        <div className="pt-1">
+          <div className="mb-1 text-[10px] tracking-[0.2em] text-uncommon">TELEPORT — EXIT</div>
+          <div className="grid gap-1">
             {SECTOR_ZERO.extractions.map((point) => (
               <Action
                 key={point.id}
@@ -68,7 +74,7 @@ export function DebugPanel({ client }: { client: RefObject<GameClient | null> })
                   )
                 }
               >
-                {point.name.split(' ')[0]}
+                {point.name}
               </Action>
             ))}
           </div>

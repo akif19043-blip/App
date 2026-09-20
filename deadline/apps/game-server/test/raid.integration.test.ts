@@ -141,6 +141,30 @@ describe('raid integration', () => {
       openedContainer = payload;
     });
     room.onMessage(ServerMessage.ActionRejected, () => undefined);
+    // colyseus.js warns for any message type without a handler; register the
+    // ones this test does not assert on so the output stays readable.
+    for (const type of [
+      ServerMessage.Reconcile,
+      ServerMessage.ShotFired,
+      ServerMessage.DamageTaken,
+      ServerMessage.DamageDealt,
+      ServerMessage.PlayerDied,
+      ServerMessage.AIDied,
+      ServerMessage.LootPicked,
+      ServerMessage.InventoryChanged,
+      ServerMessage.ExtractionStarted,
+      ServerMessage.ExtractionCancelled,
+      ServerMessage.ExtractionCompleted,
+      ServerMessage.MatchPhase,
+      ServerMessage.MatchEnded,
+      ServerMessage.Announcement,
+      ServerMessage.SupplyDrop,
+      ServerMessage.PlayerJoined,
+      ServerMessage.PlayerLeft,
+      ServerMessage.Pong,
+    ]) {
+      room.onMessage(type, () => undefined);
+    }
 
     await waitFor(() => welcome !== null, 'welcome message');
     expect(welcome!.userId).toBe(userId);

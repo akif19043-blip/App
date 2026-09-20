@@ -42,6 +42,8 @@ export interface DamageIndicator {
 export interface HudSnapshot {
   connected: boolean;
   connectionError: string | null;
+  /** Set while the client is trying to take its held seat back. */
+  reconnecting: { attempt: number; maxAttempts: number } | null;
   phase: RaidPhase | 'connecting';
   timeRemaining: number;
   countdown: number;
@@ -68,6 +70,8 @@ export interface HudSnapshot {
 
   prompt: ContainerPrompt | null;
   lootOffer: LootOffer | null;
+  /** Owned by the game client, mirrored here so React can render the overlay. */
+  inventoryOpen: boolean;
   inventory: { backpack: SerializedInventory | null; secure: SerializedInventory | null };
   backpackValue: number;
 
@@ -90,6 +94,7 @@ function initialSnapshot(): HudSnapshot {
   return {
     connected: false,
     connectionError: null,
+    reconnecting: null,
     phase: 'connecting',
     timeRemaining: 0,
     countdown: 0,
@@ -112,6 +117,7 @@ function initialSnapshot(): HudSnapshot {
     assignedExtractions: [],
     prompt: null,
     lootOffer: null,
+    inventoryOpen: false,
     inventory: { backpack: null, secure: null },
     backpackValue: 0,
     announcements: [],

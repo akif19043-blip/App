@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type RefObject } from 'react';
+import { type RefObject } from 'react';
 import { PlayerRaidState, RaidPhase } from '@deadline/shared';
 import { formatClock, formatCredits } from '@deadline/ui';
 import type { GameClient } from '@/game/gameClient';
@@ -28,24 +28,10 @@ export function Hud({
   error: string | null;
   onReturnToMenu: () => void;
 }) {
+  // Tab and Escape are owned by the game's input controller, which mirrors the
+  // resulting state into the HUD store — so there is exactly one source of
+  // truth for whether the inventory is open.
   const hud = useHud();
-  const [inventoryOpen, setInventoryOpen] = useState(false);
-
-  // TAB is handled inside the game's input controller; mirror it into React.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.code === 'Tab') {
-        event.preventDefault();
-        setInventoryOpen((open) => {
-          client.current?.setInventoryOpen(!open);
-          return !open;
-        });
-      }
-      if (event.code === 'Escape') setInventoryOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [client]);
 
   const dangerPhase = hud.phase === RaidPhase.FinalPhase;
   const alarm = hud.timeRemaining <= 60 && hud.timeRemaining > 0 && dangerPhase;
@@ -63,6 +49,21 @@ export function Hud({
         >
           Return to menu
         </button>
+      </Overlay>
+    );
+  }
+
+  if (hud.reconnecting) {
+    return (
+      <Overlay>
+        <p className="dl-heading text-2xl text-caution">RECONNECTING</p>
+        <p className="mt-2 text-sm tracking-[0.3em] text-muted">
+          ATTEMPT {hud.reconnecting.attempt} / {hud.reconnecting.maxAttempts}
+        </p>
+        <p className="mt-4 max-w-sm text-center text-xs leading-relaxed text-muted">
+          Your operator is still standing in Sector Zero. If you do not get back
+          before the grace window closes, they are written off as MIA.
+        </p>
       </Overlay>
     );
   }
@@ -130,7 +131,7 @@ export function Hud({
       <div className="absolute top-5 right-5 text-right text-[10px] tracking-[0.25em] text-muted">
         <div>ALIVE {hud.alivePlayers}</div>
         <div>KILLS {hud.kills} · AI {hud.aiKills}</div>
-        <div>BAG {formatCredits(hud.backpackValue)} CR</div>
+        <div data-hud="bag-value">BAG {formatCredits(hud.backpackValue)} CR</div>
         <div className="mt-1 font-mono">
           {hud.fps} FPS · {hud.ping}MS
         </div>
@@ -226,24 +227,31 @@ export function Hud({
 
       {/* ---- bottom right: weapon ---- */}
       <div className="absolute right-6 bottom-6 text-right">
-        <div className="dl-heading text-lg text-muted">{hud.weaponName}</div>
+        <div className="dl-heading text-lg text-muted" data-hud="weapon-name">
+          {hud.weaponName}
+        </div>
         <div className="dl-heading text-4xl tabular-nums">
-          <span className={hud.ammoInMag === 0 ? 'text-signal' : 'text-ink'}>{hud.ammoInMag}</span>
-          <span className="text-lg text-muted"> / {hud.reserveAmmo}</span>
+          <span
+            data-hud="ammo-mag"
+            className={hud.ammoInMag === 0 ? 'text-signal' : 'text-ink'}
+          >
+            {hud.ammoInMag}
+          </span>
+          <span className="text-lg text-muted" data-hud="ammo-reserve">
+            {' '}
+            / {hud.reserveAmmo}
+          </span>
         </div>
         {hud.reloading && <div className="dl-heading text-sm text-caution">RELOADING…</div>}
       </div>
 
       {/* ---- overlays ---- */}
       {hud.lootOffer && <LootWindow client={client} offer={hud.lootOffer} />}
-      {inventoryOpen && (
+      {hud.inventoryOpen && (
         <InventoryOverlay
           client={client}
           hud={hud}
-          onClose={() => {
-            setInventoryOpen(false);
-            client.current?.setInventoryOpen(false);
-          }}
+          onClose={() => client.current?.setInventoryOpen(false)}
         />
       )}
       {hud.showDebugPanel && <DebugPanel client={client} />}

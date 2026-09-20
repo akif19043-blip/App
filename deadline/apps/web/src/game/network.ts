@@ -123,6 +123,9 @@ export interface NetworkCallbacks {
   onPong(latencyMs: number): void;
   onLeave(code: number): void;
   onError(message: string): void;
+  /** Fired while the client is trying to take its held seat back. */
+  onReconnecting(attempt: number, maxAttempts: number): void;
+  onReconnected(): void;
 }
 
 export interface ConnectOptions {
@@ -140,13 +143,23 @@ export interface ConnectOptions {
  * Keeps all protocol knowledge in one place: the rest of the client speaks in
  * callbacks and `send*` methods and never touches message names directly.
  */
+/** How hard the client tries to take its seat back before giving up. */
+const RECONNECT_ATTEMPTS = 4;
+const RECONNECT_DELAY_MS = 1_500;
+
 export class NetworkClient {
+  private client: Client | null = null;
   private room: Room<NetState> | null = null;
+  private callbacks: NetworkCallbacks | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private inputSeq = 0;
+  private reconnectionToken = '';
+  private leaving = false;
 
   async connect(options: ConnectOptions, callbacks: NetworkCallbacks): Promise<Room<NetState>> {
     const client = new Client(options.endpoint);
+    this.client = client;
+    this.callbacks = callbacks;
     const room = await client.joinOrCreate<NetState>('raid', {
       ...(options.accessToken ? { accessToken: options.accessToken } : {}),
       ...(options.demoUserId ? { demoUserId: options.demoUserId } : {}),
@@ -154,7 +167,20 @@ export class NetworkClient {
       loadoutId: options.loadoutId ?? null,
       mapId: options.mapId,
     });
+    this.bind(room);
+    this.startPing();
+    return room;
+  }
+
+  /**
+   * Wire a room's handlers. Called on the first join and again after a
+   * successful reconnect, because a reconnect hands back a new Room instance.
+   */
+  private bind(room: Room<NetState>): void {
+    const callbacks = this.callbacks;
+    if (!callbacks) return;
     this.room = room;
+    this.reconnectionToken = room.reconnectionToken;
 
     room.onMessage(ServerMessage.Welcome, callbacks.onWelcome);
     room.onMessage(ServerMessage.Reconcile, callbacks.onReconcile);
@@ -184,11 +210,39 @@ export class NetworkClient {
     room.onError((code, message) => callbacks.onError(message ?? `error ${code}`));
     room.onLeave((code) => {
       this.stopPing();
-      callbacks.onLeave(code);
+      // 1000 is a clean close (we left, or the raid ended). Anything else is a
+      // dropped socket, and the server is holding our seat — go get it back.
+      if (this.leaving || code === 1000) {
+        callbacks.onLeave(code);
+        return;
+      }
+      void this.attemptReconnect(code);
     });
+  }
 
-    this.startPing();
-    return room;
+  private async attemptReconnect(closeCode: number): Promise<void> {
+    const callbacks = this.callbacks;
+    const client = this.client;
+    if (!callbacks || !client || !this.reconnectionToken) {
+      callbacks?.onLeave(closeCode);
+      return;
+    }
+
+    for (let attempt = 1; attempt <= RECONNECT_ATTEMPTS; attempt += 1) {
+      callbacks.onReconnecting(attempt, RECONNECT_ATTEMPTS);
+      await new Promise((resolve) => setTimeout(resolve, RECONNECT_DELAY_MS));
+      if (this.leaving) return;
+      try {
+        const room = await client.reconnect<NetState>(this.reconnectionToken);
+        this.bind(room);
+        this.startPing();
+        callbacks.onReconnected();
+        return;
+      } catch {
+        // Seat may still be held; keep trying until the grace window closes.
+      }
+    }
+    callbacks.onLeave(closeCode);
   }
 
   get state(): NetState | null {
@@ -286,6 +340,7 @@ export class NetworkClient {
   }
 
   async leave(consented = true): Promise<void> {
+    this.leaving = true;
     this.stopPing();
     await this.room?.leave(consented);
     this.room = null;

@@ -1,6 +1,7 @@
 export * from './collision.js';
 export * from './movement.js';
 export * from './combat.js';
+export * from './firing.js';
 export * from './inventory.js';
 export * from './lootRoll.js';
 export * from './extraction.js';
