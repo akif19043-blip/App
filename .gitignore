@@ -3,6 +3,8 @@ __pycache__/
 .DS_Store
 node_modules/
 package-lock.json
+# The live-commerce app is deployed on its own; its lockfile pins the build.
+!live-commerce/package-lock.json
 
 # Screenshots written by test runs
 .test-shots/
