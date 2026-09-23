@@ -12,24 +12,25 @@ export interface PassiveDef {
   name: string;
   desc: string;
   icon: string;
+  color: string;
   maxRank: number;
   weight: number;
   apply(s: PlayerStats): void;
 }
 
 export const PASSIVES: readonly PassiveDef[] = [
-  { id: 'might', name: 'Power Cell', desc: '+12% damage', icon: '✦', maxRank: 5, weight: 1, apply: (s) => { s.might *= 1.12; } },
-  { id: 'haste', name: 'Haste Chip', desc: '-8% weapon cooldowns', icon: '⌛', maxRank: 5, weight: 1, apply: (s) => { s.cooldown *= 0.92; } },
-  { id: 'swift', name: 'Hover Boots', desc: '+10% move speed', icon: '»', maxRank: 4, weight: 0.8, apply: (s) => { s.moveSpeed *= 1.1; } },
-  { id: 'vitality', name: 'Bio Plating', desc: '+25 Max HP and heal 25', icon: '♥', maxRank: 5, weight: 0.9, apply: (s) => { s.maxHp += 25; } },
-  { id: 'magnet', name: 'Attractor', desc: '+35% pickup radius', icon: '◎', maxRank: 4, weight: 0.8, apply: (s) => { s.magnet *= 1.35; } },
-  { id: 'area', name: 'Amplifier', desc: '+12% weapon area', icon: '◈', maxRank: 5, weight: 0.9, apply: (s) => { s.area *= 1.12; } },
-  { id: 'multishot', name: 'Splitter', desc: '+1 projectile for every weapon', icon: '⁂', maxRank: 2, weight: 0.35, apply: (s) => { s.amount += 1; } },
-  { id: 'regen', name: 'Nanobots', desc: '+0.4 HP regenerated per second', icon: '✚', maxRank: 5, weight: 0.8, apply: (s) => { s.regen += 0.4; } },
-  { id: 'armor', name: 'Deflector', desc: '+1 armor (less damage per hit)', icon: '⬢', maxRank: 5, weight: 0.8, apply: (s) => { s.armor += 1; } },
-  { id: 'crit', name: 'Targeting AI', desc: '+7% critical chance', icon: '⌖', maxRank: 5, weight: 0.8, apply: (s) => { s.crit += 0.07; } },
-  { id: 'growth', name: 'Data Siphon', desc: '+12% XP gain', icon: '▲', maxRank: 4, weight: 0.7, apply: (s) => { s.xpGain *= 1.12; } },
-  { id: 'velocity', name: 'Railgun Coil', desc: '+20% projectile speed', icon: '➤', maxRank: 3, weight: 0.5, apply: (s) => { s.projSpeed *= 1.2; } },
+  { id: 'might', name: 'Power Cell', desc: '+12% damage', icon: '✦', color: '#ff6b6b', maxRank: 5, weight: 1, apply: (s) => { s.might *= 1.12; } },
+  { id: 'haste', name: 'Haste Chip', desc: '-8% weapon cooldowns', icon: '⌛', color: '#7cc8ff', maxRank: 5, weight: 1, apply: (s) => { s.cooldown *= 0.92; } },
+  { id: 'swift', name: 'Hover Boots', desc: '+10% move speed', icon: '»', color: '#5ef2ff', maxRank: 4, weight: 0.8, apply: (s) => { s.moveSpeed *= 1.1; } },
+  { id: 'vitality', name: 'Bio Plating', desc: '+25 Max HP and heal 25', icon: '♥', color: '#ff4d6d', maxRank: 5, weight: 0.9, apply: (s) => { s.maxHp += 25; } },
+  { id: 'magnet', name: 'Attractor', desc: '+35% pickup radius', icon: '◎', color: '#b56bff', maxRank: 4, weight: 0.8, apply: (s) => { s.magnet *= 1.35; } },
+  { id: 'area', name: 'Amplifier', desc: '+12% weapon area', icon: '◈', color: '#4dff9d', maxRank: 5, weight: 0.9, apply: (s) => { s.area *= 1.12; } },
+  { id: 'multishot', name: 'Splitter', desc: '+1 projectile for every weapon', icon: '⁂', color: '#ff6bd6', maxRank: 2, weight: 0.35, apply: (s) => { s.amount += 1; } },
+  { id: 'regen', name: 'Nanobots', desc: '+0.4 HP regenerated per second', icon: '✚', color: '#6bff8f', maxRank: 5, weight: 0.8, apply: (s) => { s.regen += 0.4; } },
+  { id: 'armor', name: 'Deflector', desc: '+1 armor (less damage per hit)', icon: '⬢', color: '#9fb4ff', maxRank: 5, weight: 0.8, apply: (s) => { s.armor += 1; } },
+  { id: 'crit', name: 'Targeting AI', desc: '+7% critical chance', icon: '⌖', color: '#ffb13d', maxRank: 5, weight: 0.8, apply: (s) => { s.crit += 0.07; } },
+  { id: 'growth', name: 'Data Siphon', desc: '+12% XP gain', icon: '▲', color: '#5ef2ff', maxRank: 4, weight: 0.7, apply: (s) => { s.xpGain *= 1.12; } },
+  { id: 'velocity', name: 'Railgun Coil', desc: '+20% projectile speed', icon: '➤', color: '#ffe14d', maxRank: 3, weight: 0.5, apply: (s) => { s.projSpeed *= 1.2; } },
 ];
 
 export function passiveDef(id: PassiveId): PassiveDef {
@@ -49,8 +50,6 @@ export interface Loadout {
   weapons: ReadonlyArray<{ id: WeaponId; level: number }>;
   passives: Readonly<Partial<Record<PassiveId, number>>>;
 }
-
-const PASSIVE_COLOR = '#ffd166';
 
 /** Every card the loadout could legally take right now, with its weight. */
 export function candidateCards(loadout: Loadout): Array<{ card: Card; weight: number }> {
@@ -82,7 +81,7 @@ export function candidateCards(loadout: Loadout): Array<{ card: Card; weight: nu
     if (rank >= p.maxRank) continue;
     out.push({
       card: {
-        kind: 'passive', id: p.id, level: rank + 1, title: p.name, desc: p.desc, icon: p.icon, color: PASSIVE_COLOR,
+        kind: 'passive', id: p.id, level: rank + 1, title: p.name, desc: p.desc, icon: p.icon, color: p.color,
         rarity: p.id === 'multishot' ? 'epic' : 'common',
       },
       weight: p.weight,

@@ -1,5 +1,6 @@
 import { type EnemyDef, ENEMIES } from '../game/enemies';
 import { type Poolable } from '../engine/pool';
+import { type Floater } from './fx';
 
 export class Enemy implements Poolable {
   active = false;
@@ -34,4 +35,7 @@ export class Enemy implements Poolable {
   wobble = 0;
   name = '';
   finalBoss = false;
+  /** Damage number currently showing for this enemy (merged while active). */
+  floater: Floater | null = null;
+  floaterSerial = 0;
 }

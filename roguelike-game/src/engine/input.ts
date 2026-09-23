@@ -33,7 +33,7 @@ export class Input {
     document.body.appendChild(this.base);
 
     window.addEventListener('keydown', (e) => {
-      if (KEY_DIRS[e.code] || e.code === 'Space') e.preventDefault();
+      if (KEY_DIRS[e.code] || e.code === 'Space' || e.code === 'F3') e.preventDefault();
       if (!e.repeat) this.pressed.push(e.code);
       this.keys.add(e.code);
     });

@@ -1,8 +1,10 @@
 # Neon Swarm
 
 A roguelike auto-shooter in the style of Vampire Survivors and Brotato, built with
-**Vite + TypeScript + Canvas 2D**. It needs no external assets: every sprite is drawn
-in code and every sound is synthesised with the Web Audio API.
+**Vite + TypeScript + Canvas 2D**. It runs without any art files: every creature is
+drawn procedurally, and every sound is synthesised with the Web Audio API. You can swap
+in PNG sprites whenever you like by dropping them into `public/assets/sprites/`; see
+[Custom sprites](#custom-sprites).
 
 Survive 10 minutes against growing swarms, then destroy **The Overmind** to win.
 Your weapons fire on their own, so all you do is move, collect XP, and choose upgrades.
@@ -28,7 +30,8 @@ npm run preview    # serve the production build
 | R | Reroll cards (limited) |
 | Esc / P / Ⅱ button | Pause |
 | M | Toggle music |
-| F | FPS / entity-count overlay |
+| F3 | FPS / entity-count overlay (hidden by default) |
+| Arrow keys in menus | Move focus between buttons |
 | Enter | Play / play again |
 
 ## Gameplay
@@ -57,6 +60,42 @@ npm run preview    # serve the production build
 - **12 passives:** Might, Haste, Speed, Max HP, Magnet, Area, Multishot, Regen, Armor, Crit, XP gain, Projectile speed.
 - **Meta-progression:** gold is banked at the end of every run, including runs you quit. Spend it in the main-menu shop on permanent Max HP, Speed, Magnet radius, Damage, Armor, XP gain, Gold gain, and Rerolls. High scores, a top-5 run table, and settings are saved in `localStorage`.
 
+## Look & feel
+
+- **Fonts:** *Press Start 2P* for titles, numbers and badges, and *Chakra Petch* for body text and damage numbers. Both are Google Fonts under the SIL OFL, self-hosted in `src/assets/fonts/` so the game works offline and never flashes a fallback font.
+- **UI:** menus use chamfered arcade frames with CRT scanlines. Buttons have hover and focus states and a hover blip sound, and arrow keys move focus between them.
+- **HUD:**
+  - a slim XP strip across the top edge
+  - a compact HP bar showing the numbers, with a trailing bar for damage just taken
+  - framed weapon slots with `Lv.1`–`Lv.8` badges and passive slots below them
+- **Procedural creatures** (the fallback art):
+  - Swarmers are six-legged bugs.
+  - Drones are one-eyed jellies with tentacles.
+  - Bulwarks are armoured beetles.
+  - Spitters are three-eyed slugs.
+  - Elites are spiked beasts.
+  - Bosses are many-armed horrors.
+
+  Each one has 4 animation frames, turns to face where it is going, and has a dark ink outline plus a drop shadow so overlapping enemies stay separate.
+- **Readability in big swarms:**
+  - A dark halo and a pulsing ring mark the player, with a mini HP bar under the ship.
+  - Rapid hits on one enemy add up into one growing damage number, and area hits on a packed group fold into a single number.
+  - At most 24 damage numbers show at once; crits always show.
+  - Hit flashes keep each creature's outline, so a flashing crowd doesn't merge into one white blob.
+
+## Custom sprites
+
+Put PNGs in `public/assets/sprites/{player,enemies,weapons,effects}/`. For example,
+`enemies/swarmer.png` replaces the Swarmer's procedural art, and anything you don't
+provide keeps the procedural look. A small Vite plugin (`vite/spriteManifest.ts`) scans the
+folder at dev/build time into `virtual:sprite-manifest`. The `AssetLoader`
+(`src/render/assets.ts`) loads every listed PNG and builds its white hit-flash version,
+so the browser never probes for files that aren't there. Horizontal strips of square
+frames are detected as spritesheets automatically; an optional sidecar `.json` sets the
+frame grid, fps, scale, rotation mode (`face` / `flip` / `spin` / `none`), which way the
+art faces, and pixel-art scaling. `public/assets/README.md` lists every file name and
+option.
+
 ## Architecture
 
 ```
@@ -66,10 +105,13 @@ src/
   weapons/    defs (data + level steps + synergies), damage math, per-weapon behaviors
   game/       World simulation, waves/director, enemies, upgrades (cards), progression (XP),
               stats, meta shop, save/load
-  render/     Canvas 2D renderer + pre-rendered glow sprite cache
+  render/     Canvas 2D renderer, AssetLoader + sprite metadata, procedural creature sheets
+  assets/     self-hosted fonts
   audio/      Web Audio synthesiser (SFX + procedural chiptune)
-  ui/         DOM HUD and screens (menu, shop, level-up, pause, game over / victory)
+  ui/         DOM HUD, screens (menu, armory, level-up, pause, game over / victory), SVG icon set
   main.ts     App: wires everything together around the state machine
+vite/         sprite-manifest plugin (scans public/assets/sprites)
+public/assets/sprites/   optional PNG overrides
 ```
 
 - **State machine:** `menu ⇄ shop`, `menu → playing ⇄ paused`, `playing ⇄ levelup` (level-ups can chain), then `playing → gameover | victory → playing | menu`. Illegal transitions throw.
@@ -77,12 +119,12 @@ src/
 - **The simulation is headless.** `World` never touches the DOM, canvas, or audio; it reports events through a small interface. That lets the tests run whole minutes of gameplay in Node.
 - **Object pools:** every entity type is preallocated: 2,600 enemies, 2,000 projectiles, 1,200 enemy bullets, 2,500 pickups, 6,000 particles, plus floaters and effects (over 14,000 in total). Dead objects are swap-compacted once per tick, so the hot loop never allocates. When the gem pool is full, new XP merges into existing gems instead of being lost.
 - **Spatial grid:** a uniform 64-unit grid over the arena is rebuilt every tick with a counting sort into flat `Int32Array`s. Projectile hits, orb and aura contact, lightning blasts, enemy separation, nearest-target search and player contact all query it, never scanning every enemy.
-- **Rendering:** each enemy type is rasterised once into a glowing sprite, with a separate white *hit-flash* version, at the current zoom × devicePixelRatio. Each frame is then mostly `drawImage` calls. Particles are batched by palette colour and drawn with additive blending. Off-screen entities are culled.
-- **Performance:** in Node, one simulation step with about 1,500–2,500 live enemies plus weapons and effects averages about 1 ms, over 4,000 live entities in total. Open the game with `?stress=2500` to flood the arena for profiling, and press **F** to show the overlay.
+- **Rendering:** every entity is drawn through one `drawSheet` path, whether it is a loaded PNG or a procedural spritesheet. Procedural sheets are rasterised once, with a separate hit-flash version, at the current zoom × devicePixelRatio. Visible enemies are collected in one culling pass, and the shadow and body passes reuse that list. Particles are batched by palette colour and drawn with additive blending.
+- **Performance:** in Node, one simulation step with about 1,500–2,500 live enemies plus weapons and effects averages about 1 ms, over 4,000 live entities in total. In a Chromium stress test with about 1,750 enemies (3,000 entities), each frame spends about 1 ms in the simulation and about 4 ms issuing draw calls, well within the 16.6 ms budget for 60 FPS. Open the game with `?stress=2500` to flood the arena, and press **F3** to show the overlay.
 
 ## Tests
 
-`npm test` runs 73 Vitest tests:
+`npm test` runs 88 Vitest tests:
 
 - `math`: circle/circle, circle/rect and point tests, separation normals.
 - `spatialGrid`: checked against brute force on 3,000 random circles, plus buffer-overflow and reuse cases.
@@ -95,3 +137,6 @@ src/
 - `stateMachine`: legal and illegal transitions.
 - `world`: integration tests for collisions, drops, vacuum and level-up, armor and i-frames, ricochet, pierce, orb cooldown, lightning AoE, off-screen spawning, upgrades, synergies, victory and meta stats.
 - `simulation`: a bot plays 4 minutes headlessly, and the result must be deterministic for a given seed.
+- `damageNumbers`: merging hits on one enemy, folding area hits, the on-screen cap, and ignoring recycled numbers.
+- `spriteMeta`: spritesheet strip detection, frame grids, default orientations, invalid metadata.
+- `spriteManifest`: folder scanning, sidecar JSON, and invalid or missing files.

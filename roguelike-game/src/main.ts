@@ -1,4 +1,6 @@
+import './assets/fonts/fonts.css';
 import './style.css';
+import spriteManifest from 'virtual:sprite-manifest';
 import { Synth } from './audio/synth';
 import { Camera } from './engine/camera';
 import { Input } from './engine/input';
@@ -8,6 +10,7 @@ import { type MetaId } from './game/meta';
 import { type SaveData, buyMeta, loadSave, recordRun, writeSave } from './game/save';
 import { type Card, rollCards } from './game/upgrades';
 import { World, type WorldEvents } from './game/world';
+import { AssetLoader } from './render/assets';
 import { Renderer } from './render/renderer';
 import { Hud } from './ui/hud';
 import { Screens } from './ui/screens';
@@ -25,7 +28,8 @@ const storage = (() => {
 class App {
   private readonly canvas = document.getElementById('game') as HTMLCanvasElement;
   private readonly uiRoot = document.getElementById('ui') as HTMLDivElement;
-  private readonly renderer = new Renderer(this.canvas);
+  private readonly assets = new AssetLoader();
+  private readonly renderer = new Renderer(this.canvas, this.assets);
   private readonly input = new Input(this.canvas);
   private readonly synth = new Synth();
   private readonly camera = new Camera();
@@ -50,6 +54,15 @@ class App {
     this.synth.setSfx(this.save.settings.sfx);
     this.synth.setMusic(this.save.settings.music);
     this.screens.onClickSound = () => this.synth.play('click');
+    this.screens.onHoverSound = () => this.synth.play('hover');
+
+    // Optional PNG art from public/assets/sprites replaces the procedural look.
+    void this.assets.load(spriteManifest).then(({ loaded, failed }) => {
+      if (loaded.length) console.info(`[assets] sprites: ${loaded.join(', ')}`);
+      if (failed.length) console.warn(`[assets] failed: ${failed.join(', ')}`);
+    });
+    // Canvas text only uses a web font once it has loaded, so warm it up.
+    void document.fonts?.load('700 16px "Chakra Petch"').catch(() => {});
     this.hud.pauseBtn.addEventListener('click', () => this.pause());
 
     this.sm
@@ -147,19 +160,16 @@ class App {
     });
   }
 
-  private showShop(): void {
+  private showShop(feedback?: { id: MetaId; ok: boolean }): void {
     this.screens.shop(this.save, {
       buy: (id) => {
-        if (buyMeta(this.save, id as MetaId)) {
-          this.synth.play('buy');
-          this.persist();
-        } else {
-          this.synth.play('denied');
-        }
-        this.showShop();
+        const ok = buyMeta(this.save, id as MetaId);
+        this.synth.play(ok ? 'buy' : 'denied');
+        if (ok) this.persist();
+        this.showShop({ id: id as MetaId, ok });
       },
       back: () => this.sm.go('menu'),
-    });
+    }, feedback);
   }
 
   private showLevelUp(): void {
@@ -226,7 +236,7 @@ class App {
   private handleKeys(): void {
     for (const code of this.input.consumePresses()) {
       const st = this.sm.state;
-      if (code === 'KeyF') this.debug = !this.debug;
+      if (code === 'F3') this.debug = !this.debug;
       if (code === 'KeyM') this.toggleSetting('music');
       if (code === 'Escape' || code === 'KeyP') {
         if (st === 'playing') this.pause();

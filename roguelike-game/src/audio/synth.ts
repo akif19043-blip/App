@@ -33,7 +33,7 @@ interface NoiseOpts {
 /** Minimum seconds between two plays of the same effect (prevents mush). */
 const RATE_LIMIT: Partial<Record<SfxName, number>> = {
   shoot: 0.06, dagger: 0.08, hit: 0.045, crit: 0.06, kill: 0.035, gem: 0.03, gold: 0.05,
-  zap: 0.05, pulse: 0.2, spit: 0.12, hurt: 0.15,
+  zap: 0.05, pulse: 0.2, spit: 0.12, hurt: 0.15, hover: 0.05,
 };
 
 const SEMI = Math.pow(2, 1 / 12);
@@ -227,6 +227,9 @@ export class Synth {
       case 'bossDie':
         this.noise({ dur: 1.5, vol: 0.35, freq: 5000, to: 60 });
         this.tone({ type: 'square', freq: 110, to: 30, dur: 1.2, vol: 0.2 });
+        break;
+      case 'hover':
+        this.tone({ type: 'triangle', freq: 1320, to: 1560, dur: 0.035, vol: 0.035 });
         break;
       case 'click':
         this.tone({ type: 'square', freq: 660, dur: 0.035, vol: 0.06 });

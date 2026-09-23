@@ -40,6 +40,15 @@ export interface WorldEvents {
   announce(title: string, subtitle: string, color: string): void;
 }
 
+/**
+ * Enemy damage numbers beyond this many on screen are dropped (crits
+ * excepted), and hits on an enemy that already shows a number add to it.
+ */
+export const DAMAGE_NUMBER_CAP = 24;
+/** Numbers spawned this close together within MERGE_WINDOW seconds become one. */
+const MERGE_RADIUS = 30;
+const MERGE_WINDOW = 0.12;
+
 export const SILENT_EVENTS: WorldEvents = { sfx() {}, shake() {}, announce() {} };
 
 export type RunStatus = 'running' | 'dead' | 'won';
@@ -244,7 +253,8 @@ export class World {
     e.dashTime = 0;
     e.orbHitUntil = 0;
     e.slowUntil = 0;
-    e.angle = 0;
+    e.angle = Math.atan2(this.player.y - y, this.player.x - x);
+    e.floater = null;
     e.wobble = this.rng.next() * TAU;
     e.name = def.name;
     e.finalBoss = false;
@@ -384,7 +394,10 @@ export class World {
 
       e.x = clamp(e.x, e.radius, ARENA_W - e.radius);
       e.y = clamp(e.y, e.radius, ARENA_H - e.radius);
-      e.angle = def.kind === 'swarmer' || def.kind === 'grunt' ? Math.atan2(my, mx) : e.angle + dt * (def.kind === 'boss' ? 0.6 : 1.2);
+      // Creatures turn smoothly to face where they are heading.
+      let turn = Math.atan2(ny, nx) - e.angle;
+      turn = ((((turn + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
+      e.angle += turn * Math.min(1, dt * 9);
     }
   }
 
@@ -502,13 +515,11 @@ export class World {
     const r = rollDamage(base, this.stats.crit, this.rng.next(), this.roll);
     e.hp -= r.amount;
     this.damageDealt += r.amount;
-    e.flash = 0.1;
+    e.flash = 0.08;
     const kb = knockback(kbForce, e.def.kbResist);
     e.kvx += dirX * kb;
     e.kvy += dirY * kb;
-    if (showNumber || r.crit) {
-      this.floater(e.x, e.y - e.radius, String(r.amount), r.crit ? '#ffe14d' : '#ffffff', r.crit ? 20 : 14);
-    }
+    if (showNumber || r.crit) this.damageNumber(e, r.amount, r.crit);
     this.fx.sfx(r.crit ? 'crit' : 'hit');
     if (e.hp <= 0) {
       this.killEnemy(e);
@@ -523,6 +534,7 @@ export class World {
     const def = e.def;
     const big = def.kind === 'boss' || def.kind === 'elite';
     this.burst(e.x, e.y, big ? 60 : 7, def.color, big ? 420 : 200, big ? 0.9 : 0.45, big ? 5 : 3);
+    if (big || def.kind === 'tank') this.effect('boom', e.x, e.y, 0, 0, e.radius, e.radius * 2.6, def.color, big ? 0.6 : 0.4, 0);
     if (big) {
       this.ring(e.x, e.y, e.radius, e.radius * 5, def.color, 0.6, 6);
       this.fx.shake(def.kind === 'boss' ? 0.8 : 0.35);
@@ -862,9 +874,65 @@ export class World {
     e.npts = 0;
   }
 
-  floater(x: number, y: number, text: string, color: string, size: number): void {
+  /**
+   * Shows damage on an enemy. Rapid hits on the same enemy merge into one
+   * growing number, and non-crit numbers are dropped past DAMAGE_NUMBER_CAP.
+   */
+  private damageNumber(e: Enemy, amount: number, crit: boolean): void {
+    // 1) Same enemy still showing a number: add to it.
+    const own = e.floater;
+    if (own && own.active && own.serial === e.floaterSerial && own.life > own.maxLife * 0.3) {
+      this.mergeNumber(own, amount, crit, e.x, Math.min(own.y, e.y - e.radius));
+      return;
+    }
+    // 2) An area hit on a packed group: fold into a number that just appeared nearby.
+    for (let i = 0; i < this.recentNumbers.length; i++) {
+      const f = this.recentNumbers[i];
+      if (!f || !f.active || f.serial !== this.recentSerials[i] || f.maxLife - f.life > MERGE_WINDOW) continue;
+      const dx = f.x - e.x;
+      const dy = f.y - (e.y - e.radius);
+      if (dx * dx + dy * dy > MERGE_RADIUS * MERGE_RADIUS) continue;
+      this.mergeNumber(f, amount, crit, f.x, f.y);
+      e.floater = f;
+      e.floaterSerial = f.serial;
+      return;
+    }
+    // 3) Otherwise a new number, unless the screen is already busy.
+    if (!crit && this.floaters.count >= DAMAGE_NUMBER_CAP) return;
+    const nf = this.floater(e.x, e.y - e.radius, String(amount), crit ? '#ffe14d' : '#ffffff', crit ? 19 : 14);
+    if (!nf) return;
+    nf.value = amount;
+    nf.crit = crit;
+    e.floater = nf;
+    e.floaterSerial = nf.serial;
+    this.recentNumbers[this.recentIdx] = nf;
+    this.recentSerials[this.recentIdx] = nf.serial;
+    this.recentIdx = (this.recentIdx + 1) % this.recentNumbers.length;
+  }
+  private readonly recentNumbers: Array<Floater | null> = new Array(8).fill(null);
+  private readonly recentSerials = new Int32Array(8);
+  private recentIdx = 0;
+  private floaterSerial = 0;
+
+  private mergeNumber(f: Floater, amount: number, crit: boolean, x: number, y: number): void {
+    f.value += amount;
+    f.text = String(Math.round(f.value));
+    f.crit = f.crit || crit;
+    f.color = f.crit ? '#ffe14d' : '#ffffff';
+    f.size = Math.min(28, (f.crit ? 19 : 14) + Math.log10(f.value) * 2.5);
+    f.x = x;
+    f.y = y;
+    f.life = f.maxLife;
+    f.pop = 1;
+  }
+
+  floater(x: number, y: number, text: string, color: string, size: number): Floater | null {
     const f = this.floaters.obtain();
-    if (!f) return;
+    if (!f) return null;
+    f.serial = ++this.floaterSerial;
+    f.value = 0;
+    f.crit = false;
+    f.pop = 1;
     f.x = x + this.rng.range(-6, 6);
     f.y = y;
     f.vy = -70;
@@ -872,6 +940,7 @@ export class World {
     f.text = text;
     f.color = color;
     f.size = size;
+    return f;
   }
 
   private updateFx(dt: number): void {
@@ -899,6 +968,7 @@ export class World {
       }
       f.y += f.vy * dt;
       f.vy *= Math.exp(-4 * dt);
+      f.pop = Math.max(0, f.pop - dt * 6);
     }
     const ef = this.effects.items;
     for (let i = 0; i < this.effects.count; i++) {

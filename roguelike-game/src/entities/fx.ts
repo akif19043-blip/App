@@ -40,9 +40,15 @@ export class Floater implements Poolable {
   text = '';
   color = '#fff';
   size = 14;
+  /** Increments every time the object is reused, so stale references can be detected. */
+  serial = 0;
+  value = 0;
+  crit = false;
+  /** Scale punch in [0, 1], set when the number grows. */
+  pop = 1;
 }
 
-export type EffectKind = 'bolt' | 'ring' | 'spark';
+export type EffectKind = 'bolt' | 'ring' | 'spark' | 'boom';
 
 export class Effect implements Poolable {
   active = false;
