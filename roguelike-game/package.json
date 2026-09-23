@@ -1,0 +1,20 @@
+{
+  "name": "neon-swarm",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Neon Swarm: a roguelike auto-shooter built with Vite, TypeScript and Canvas 2D. No external assets.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  }
+}
