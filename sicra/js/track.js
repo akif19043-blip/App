@@ -31,22 +31,23 @@ function boxUv(w, h, d, unit = 3) {
   return geo;
 }
 
+// One pastel palette for everything on the roof, so obstacles read as a set.
 const M = {
-  brick: new THREE.MeshStandardMaterial({ color: 0x9a4b3a, roughness: 1 }),
-  brickDark: new THREE.MeshStandardMaterial({ color: 0x6d3328, roughness: 1 }),
-  metal: new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.5, metalness: 0.6 }),
-  metalDark: new THREE.MeshStandardMaterial({ color: 0x4e565f, roughness: 0.6, metalness: 0.5 }),
-  rust: new THREE.MeshStandardMaterial({ color: 0x7a4a2a, roughness: 0.9 }),
-  wood: new THREE.MeshStandardMaterial({ color: 0x8a6a3e, roughness: 0.9 }),
-  white: new THREE.MeshStandardMaterial({ color: 0xe8e8ee, roughness: 0.7 }),
-  glass: new THREE.MeshStandardMaterial({ color: 0x9fd8ff, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.55 }),
-  concrete: new THREE.MeshStandardMaterial({ color: 0x8c8780, roughness: 1 }),
-  parapet: new THREE.MeshStandardMaterial({ color: 0x7d7770, roughness: 1 }),
-  poster: new THREE.MeshStandardMaterial({ color: 0xe0564d, roughness: 0.8 }),
-  posterB: new THREE.MeshStandardMaterial({ color: 0x3b7fd6, roughness: 0.8 }),
-  cloth: [0xf2f2f2, 0xf3b6c4, 0x8fd1f5, 0xffe08a, 0xa9e6a0].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 1, side: THREE.DoubleSide })),
-  rope: new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 1 }),
-  coin: new THREE.MeshStandardMaterial({ color: COLORS.coin, roughness: 0.3, metalness: 0.7, emissive: COLORS.coin, emissiveIntensity: 0.25 }),
+  brick: new THREE.MeshStandardMaterial({ color: 0xe0866a, roughness: 1 }),
+  brickDark: new THREE.MeshStandardMaterial({ color: 0xc46a52, roughness: 1 }),
+  metal: new THREE.MeshStandardMaterial({ color: 0xc9d3dc, roughness: 0.7, metalness: 0.2 }),
+  metalDark: new THREE.MeshStandardMaterial({ color: 0x8794a3, roughness: 0.8, metalness: 0.2 }),
+  rust: new THREE.MeshStandardMaterial({ color: 0xc98f66, roughness: 1 }),
+  wood: new THREE.MeshStandardMaterial({ color: 0xd9a876, roughness: 1 }),
+  white: new THREE.MeshStandardMaterial({ color: 0xfbf8f2, roughness: 0.9 }),
+  glass: new THREE.MeshStandardMaterial({ color: 0xaee3ff, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.6 }),
+  concrete: new THREE.MeshStandardMaterial({ color: 0xe2dbd0, roughness: 1 }),
+  parapet: new THREE.MeshStandardMaterial({ color: 0xf4eee4, roughness: 1 }),
+  poster: new THREE.MeshStandardMaterial({ color: 0xff8f7a, roughness: 1 }),
+  posterB: new THREE.MeshStandardMaterial({ color: 0x6fc8ff, roughness: 1 }),
+  cloth: [0xffffff, 0xf8c3d2, 0xa8dcf7, 0xffe59a, 0xbeeab4].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 1, side: THREE.DoubleSide })),
+  rope: new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 1 }),
+  coin: new THREE.MeshStandardMaterial({ color: COLORS.coin, roughness: 0.25, metalness: 0.6, emissive: COLORS.coin, emissiveIntensity: 0.55 }),
   magnet: new THREE.MeshStandardMaterial({ color: COLORS.magnet, roughness: 0.4, emissive: COLORS.magnet, emissiveIntensity: 0.4 }),
   shield: new THREE.MeshStandardMaterial({ color: COLORS.shield, roughness: 0.3, metalness: 0.3, emissive: COLORS.shield, emissiveIntensity: 0.5, transparent: true, opacity: 0.8 }),
   wings: new THREE.MeshStandardMaterial({ color: COLORS.wings, roughness: 0.5, emissive: COLORS.wings, emissiveIntensity: 0.45, side: THREE.DoubleSide }),
@@ -173,12 +174,11 @@ export class Track {
     this.group = new THREE.Group();
     scene.add(this.group);
 
-    this.segments = [];         // { z0, z1, gapAfter, meshes[], obstacles[], decor[] }
+    this.segments = [];         // { z0, z1, gapAfter, meshes[], obstacles[] }
     this.obstacles = [];        // flat list, sorted by z, for collision
     this.powerups = [];
     this.pools = {};
     this.powerPools = {};
-    this.decorPool = [];
 
     // coins: one instanced mesh
     this.coinMesh = new THREE.InstancedMesh(G.coin, M.coin, MAX_COINS);
@@ -207,16 +207,14 @@ export class Track {
     this.nextPowerAt = this.rng.range(POWERUPS.spawnEvery[0] * 0.5, POWERUPS.spawnEvery[1] * 0.7);
     this.speedHint = SPEED.start;
     this.clearUntil = -Infinity;
-    this.decorScale = 1;
     // the first building is long and empty: room to get going
     this.pushBuilding(this.cursor, 40, false, true);
     this.ensure(ROOF.ahead);
     this.writeCoins();
   }
 
-  setDecorScale(v) {
-    this.decorScale = v;
-  }
+  /** Kept for the quality watchdog; the roof has no scalable décor now. */
+  setDecorScale() {}
 
   /* ---------------------------------------------------------- queries */
 
@@ -254,7 +252,7 @@ export class Track {
 
   pushBuilding(z0, length, gapAfter, empty) {
     const z1 = z0 + length;
-    const seg = { z0, z1, gapAfter: false, meshes: [], obstacles: [], decor: [] };
+    const seg = { z0, z1, gapAfter: false, meshes: [], obstacles: [] };
     this.buildStructure(seg);
     const prev = this.segments[this.segments.length - 1];
     const afterGap = prev ? prev.gapAfter : false;
@@ -269,7 +267,6 @@ export class Track {
     } else {
       this.cursor = z1;
     }
-    this.buildDecor(seg);
     this.segments.push(seg);
   }
 
@@ -300,39 +297,14 @@ export class Track {
       this.group.add(p);
       seg.meshes.push(p);
     }
-    // a roof access hut or vents on the outer strip, never in a lane
+    // a roof access hut on the outer strip, never in a lane
     if (len > 18 && this.rng.chance(0.7)) {
       const side = this.rng.pick([-1, 1]);
       const hz = this.rng.range(seg.z0 + 3, seg.z1 - 3);
       const hut = mesh(G.unit, M.concrete, side * (ROOF.halfWidth + 0.3), 0.9, hz, 1.2, 1.8, 2.0);
-      this.group.add(hut);
-      seg.meshes.push(hut);
-    }
-  }
-
-  buildDecor(seg) {
-    // street-side buildings to the right, various heights, some looming
-    const len = seg.z1 - seg.z0 + (seg.gap || 0);
-    let z = seg.z0;
-    const count = this.decorScale < 0.5 ? 1 : 2;
-    let n = 0;
-    while (z < seg.z1 && n < count) {
-      const w = this.rng.range(8, 16);
-      const d = Math.min(len - (z - seg.z0), this.rng.range(10, 22));
-      if (d < 6) break;
-      const top = this.rng.range(-6, 16);
-      const bottom = this.world.groundY;
-      const h = top - bottom;
-      const x = ROOF.halfWidth + 3 + this.rng.range(0, 6) + w / 2;
-      const facade = this.world.facades[this.rng.int(0, this.world.facades.length - 1)];
-      const geo = boxUv(w, h, d, 3.2);
-      const m = new THREE.Mesh(geo, [facade, facade, this.world.darkMaterial, this.world.darkMaterial, facade, facade]);
-      m.position.set(x, bottom + h / 2, z + d / 2);
-      m.userData.dispose = true;
-      this.group.add(m);
-      seg.decor.push(m);
-      z += d + this.rng.range(1, 4);
-      n += 1;
+      const door = mesh(G.unit, M.posterB, side * (ROOF.halfWidth - 0.32), 0.7, hz, 0.04, 1.3, 0.7);
+      this.group.add(hut, door);
+      seg.meshes.push(hut, door);
     }
   }
 
@@ -684,13 +656,8 @@ export class Track {
       this.group.remove(m);
       if (m.userData.dispose) m.geometry.dispose();
     }
-    for (const m of seg.decor) {
-      this.group.remove(m);
-      m.geometry.dispose();
-    }
     for (const o of seg.obstacles) if (o.alive) { o.alive = false; this.release(o); }
     seg.meshes.length = 0;
-    seg.decor.length = 0;
     seg.obstacles.length = 0;
   }
 }

@@ -1,15 +1,18 @@
 # Sıçra
 
-Telefon için 3B sonsuz koşu oyunu. İstanbul çatılarında, günbatımından
-geceye, bir bekçiden kaçarak koşuyorsun: **kaydırarak şerit değiştir, yukarı
-kaydırıp zıpla, aşağı kaydırıp kay**, bacalardan ve çamaşır iplerinden
-kurtul, çatılar arasındaki boşlukları atla, altın topla.
+Telefon için 3B sonsuz koşu oyunu. İstanbul çatılarında, pastel renkli
+düşük poligonlu bir şehrin üstünde, bir bekçiden kaçarak koşuyorsun:
+**kaydırarak şerit değiştir, yukarı kaydırıp zıpla, aşağı kaydırıp kay**,
+bacalardan ve çamaşır iplerinden kurtul, çatılar arasındaki boşlukları
+atla, altın topla.
 
 Türkçe ve İngilizce. Reklam yok, satın alma yok, internet gerektirmez. Bütün
 3B geometri koddan üretiliyor, bütün sesler Web Audio ile sentezleniyor:
 indirilen tek bir model ya da ses dosyası yok.
 
-![Koşu](../docs/sicra/run.png)
+| Gündüz | Altın saat | Mavi saat |
+|---|---|---|
+| ![Gündüz](../docs/sicra/run.png) | ![Altın saat](../docs/sicra/golden.png) | ![Mavi saat](../docs/sicra/blue.png) |
 
 ## Oyun
 
@@ -20,11 +23,11 @@ indirilen tek bir model ya da ses dosyası yok.
 | **Altın** | Şerit boyunca sıralar, alçak engellerin üstünde zıplama yayı, boşlukların üstünde kemer: altınlar aynı zamanda doğru hamleyi gösterir. |
 | **Güçlendirmeler** | **Mıknatıs** altınları çeker, **Kalkan** engelleri parçalar, **Kanat** çatıların üstünden uçurur (ve iniş için altında çatı olmasını bekler). Dükkandan beş seviyeye kadar süreleri uzatılır. |
 | **Kıl payı** | Bir engelden son anda şerit değiştirerek, tam üstünden zıplayarak ya da tam altından kayarak geçmek sayılır; görevlere işler. |
-| **Bekçi** | Arkandan koşar, senin birkaç saniye önceki yolunu aynen tekrarlar (sen zıpladıysan o da zıplar). Çarpınca seni yakalar; gece el fenerinin konisi görünür. |
+| **Bekçi** | Arkandan koşar, senin birkaç saniye önceki yolunu aynen tekrarlar (sen zıpladıysan o da zıplar). Çarpınca seni yakalar. |
 | **Görevler** | Aynı anda üç görev (tek koşuda N altın, N zıplama, N boşluk, toplam mesafe…). Üçü de bitince **skor çarpanı** 0,5 artar (en fazla ×5) ve yeni üçlü gelir. |
 | **Dükkan** | Altı karakter (Ekin, Deniz, R‑7, Gölge, Astro, Sultan) ve üç güçlendirme yükseltmesi. |
 | **Devam** | Ölünce koşu başına bir kez 60 altına kaldığın yerden devam edersin; önündeki 30 m engelden temizlenir, kısa bir kalkan verilir. |
-| **Gün döngüsü** | Her 1800 m'de günbatımı → gece → şafak → gündüz → günbatımı. Gece pencereler yanar, yıldızlar çıkar, karşı kıyıdaki siluetin ışıkları görünür. |
+| **Gün döngüsü** | Her 1800 m'de gündüz → altın saat → mavi saat → şafak → gündüz. Hiç karanlık olmaz: mavi saatte bile sahne aydınlıktır, pencereler ılık ışıkla yanar, birkaç yıldız belirir. |
 
 Skor = (mesafe + 5 × altın) × çarpan.
 
@@ -49,15 +52,15 @@ js/
   main.js             durum makinesi (menü → hazır → koşu → duraklat/ölüm → bitti),
                       sabit adımlı simülasyon (120 Hz), test kancası window.__sicra
   config.js           bütün ayar sabitleri: şeritler, hızlar, engeller, fiyatlar
-  world.js            renderer, kamera, gökyüzü kubbesi (shader), yıldızlar, ay/güneş,
-                      deniz, uzak silüet (cami, köprü, kuleler), gün döngüsü,
-                      pencere dokuları (canvas)
+  world.js            renderer, kamera, gökyüzü kubbesi (shader), bulutlar, güneş,
+                      deniz, alçak pastel şehir, uzak silüet (cami, köprü, kuleler),
+                      gün döngüsü, pencere dokuları (canvas)
   track.js            çatı üretimi, çözülebilir engel satırları, altın desenleri,
-                      güçlendirmeler, dekor binalar, çarpışma, geri dönüşüm havuzları
+                      güçlendirmeler, çarpışma, geri dönüşüm havuzları
   player.js           şerit, zıplama, kayma, yerçekimi, uçuş, kalkan, kıl payı verisi
   figure.js           kutulardan insan modeli + koşu/zıplama/kayma/düşme pozları
   chaser.js           bekçi: oyuncunun geçmiş yolunu tekrar eder
-  effects.js          tek Points sistemiyle parçacıklar
+  effects.js          yumuşak parıltı parçacıkları, hızda rüzgar çizgileri
   audio.js            sentezlenmiş sesler ve iki sesli müzik döngüsü
   missions.js         kademeli görev şablonları, çarpan
   ui.js, hud.js       ekranlar ve koşu içi gösterge
@@ -90,9 +93,15 @@ tek kuraldan çıkar; engel başına özel kod yok.
 olsun diye `LANES = [2.2, 0, -2.2]`; bu bir kez `config.js`'te duruyor.
 
 **Bütün cepheler tek dokudan.** Üç canvas pencere dokusu, kutu
-geometrisinin UV'leri bina boyutuna göre ölçeklenerek tekrarlanır; gece
+geometrisinin UV'leri bina boyutuna göre ölçeklenerek tekrarlanır; akşam
 `emissiveIntensity` yükselince pencereler yanar. Bina başına materyal
 kopyası yok.
+
+**Aydınlık, pastel, düzenli.** Sis uzağa kadar (50–620 m) ulaşır ve
+gökyüzü rengindedir; uzaktaki her şey kararmak yerine gökyüzüne karışır.
+Engeller tek bir pastel paletten boyanır, çatı açık beton, korkuluklar
+krem. Kara tarafındaki şehir çatı seviyesinin altında kalan alçak
+bloklardan oluşur ki koşu yüksekte okunsun ve şeritlerin önü boş kalsın.
 
 ## Test
 

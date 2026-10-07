@@ -242,6 +242,8 @@ check('speed ramps with distance', ramp.s0 <= 10.5 && ramp.s1 >= 21, JSON.string
 const over = await page.evaluate(() => {
   const g = window.__sicra;
   g.profile.coins = 500;
+  // no mission may pay out during this check
+  for (const m of g.profile.missions.active) { m.target = 1e9; m.progress = 0; m.done = false; }
   g.start(29);
   for (const o of g.track.obstacles) g.track.smash(o, false);
   const seg = g.track.segments.find((sg) => sg.z0 <= g.player.z && sg.z1 > g.player.z + 10);
@@ -297,7 +299,7 @@ await page.mouse.down();
 await page.mouse.move(195, 500, { steps: 4 });
 await page.mouse.up();
 await page.evaluate(() => { window.__sicra.setAuto(true); });
-await page.waitForTimeout(150);
+await page.waitForFunction((n) => window.__sicra.player.stats.jumps > n, before.stats.jumps, { timeout: 3000 }).catch(() => {});
 await page.evaluate(() => window.__sicra.setAuto(false));
 s = await snapshot(page);
 check('a swipe up starts a jump', s.stats.jumps === before.stats.jumps + 1, `jumps ${before.stats.jumps} → ${s.stats.jumps}`);

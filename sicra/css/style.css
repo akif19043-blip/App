@@ -51,6 +51,13 @@ html, body {
   display: block;
 }
 
+#vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 55%, rgba(30, 20, 60, 0.28) 100%);
+}
+
 #surface {
   position: fixed;
   inset: 0;

@@ -86,6 +86,8 @@ function resetRun(seed) {
     lastTotal: { coins: 0, distance: 0, magnets: 0, shields: 0, wings: 0 },
   });
   run.multiplier = missions.multiplierFor(profile.missions.completedSets || 0);
+  // "in one run" missions start from zero with the run
+  for (const m of profile.missions.active) if (!m.done && m.scope === 'run') m.progress = 0;
   player.reset();
   player.setCharacter(profile.character);
   chaser.reset();
@@ -326,6 +328,8 @@ function step(dt) {
     }
     run.score = scoreNow();
     chaser.update(dt, player, run.speed, null);
+    const windy = player.flying ? 1 : Math.max(0, (run.speed - 13) / (SPEED.max - 13));
+    effects.wind(dt, player, run.speed, windy);
     run.missionTimer -= dt;
     if (run.missionTimer <= 0) { run.missionTimer = 0.5; applyMissions(); }
     audio.setMusicTempo(112 + (run.speed - SPEED.start) * 2.4);
