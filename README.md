@@ -1,5 +1,9 @@
 # Dörtyol
 
+> **Bu depoda iki oyun var.** Aşağısı **Dörtyol** (3B sürüş). Yeni oyun
+> **Sıçra** — İstanbul çatılarında 3B sonsuz koşu — `sicra/` klasöründe;
+> bkz. [sicra/README.md](sicra/README.md).
+
 Telefon için 3B sürüş oyunu. **Bütün 3B modeller Blender ile, kod içinden
 üretiliyor** — indirilen hazır model yok, elle modellenen mesh yok.
 `blender/` klasöründeki Python betikleri arabaları, şehri, yolu ve nesneleri

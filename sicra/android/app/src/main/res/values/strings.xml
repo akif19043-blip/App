@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sıçra</string>
+    <string name="title_activity_main">Sıçra</string>
+    <string name="package_name">com.sicra.runner</string>
+    <string name="custom_url_scheme">com.sicra.runner</string>
+</resources>

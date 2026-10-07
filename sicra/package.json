@@ -1,0 +1,24 @@
+{
+  "name": "sicra",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sıçra — endless rooftop runner over an Istanbul skyline, built with three.js.",
+  "scripts": {
+    "serve": "python3 tools/serve.py",
+    "icons": "python3 tools/icons.py",
+    "sw": "python3 tools/make_sw.py",
+    "dist": "python3 tools/make_sw.py && python3 tools/build_dist.py",
+    "test": "node tests/run.mjs",
+    "android:sync": "npm run dist && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:debug": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:release": "npm run android:sync && cd android && ./gradlew bundleRelease"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.2.2",
+    "@capacitor/cli": "^6.2.2",
+    "@capacitor/core": "^6.2.2",
+    "playwright": "1.49.1"
+  }
+}

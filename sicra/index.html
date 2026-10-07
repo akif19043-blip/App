@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1,
+               user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a16">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Sıçra — İstanbul çatılarında sonsuz koşu. Zıpla, kay, şerit değiştir.">
+<title>Sıçra</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+
+<canvas id="view"></canvas>
+<div id="surface"></div>
+
+<!-- ------------------------------------------------------------- HUD -->
+<div id="hud" class="is-hidden">
+  <div class="hud__top">
+    <div class="hud__score">
+      <span class="hud__label" data-i18n="over.score">SKOR</span>
+      <strong id="hud-score">0</strong>
+    </div>
+    <div class="hud__right">
+      <span class="chip chip--mult" id="hud-mult">×1</span>
+      <span class="chip chip--coins"><i class="coin"></i><strong id="hud-coins">0</strong></span>
+      <button id="btn-pause" class="icon-button" type="button"
+              data-i18n-aria="hud.pause" aria-label="Duraklat">❚❚</button>
+    </div>
+  </div>
+  <div class="hud__powers">
+    <div class="power power--magnet" id="power-magnet">
+      <span class="power__icon">U</span><span class="power__name" data-i18n="power.magnet">Mıknatıs</span>
+      <div class="power__track"><div class="power__bar" id="power-magnet-bar"></div></div>
+    </div>
+    <div class="power power--shield" id="power-shield">
+      <span class="power__icon">◈</span><span class="power__name" data-i18n="power.shield">Kalkan</span>
+      <div class="power__track"><div class="power__bar" id="power-shield-bar"></div></div>
+    </div>
+    <div class="power power--wings" id="power-wings">
+      <span class="power__icon">⋀</span><span class="power__name" data-i18n="power.wings">Kanat</span>
+      <div class="power__track"><div class="power__bar" id="power-wings-bar"></div></div>
+    </div>
+  </div>
+  <div class="hud__hint" id="hud-hint"></div>
+  <div class="hud__toast" id="hud-toast"></div>
+</div>
+
+<!-- --------------------------------------------------------- SCREENS -->
+<div id="screens">
+
+  <section class="screen screen--menu is-hidden" id="screen-menu">
+    <div class="menu__top">
+      <h1 class="logo"><span class="logo__word">Sıçra</span></h1>
+      <p class="logo__tagline" data-i18n="app.tagline">Çatıdan çatıya</p>
+    </div>
+    <div class="menu__stats">
+      <div class="stat"><span class="stat__label" data-i18n="menu.best">EN İYİ</span><strong id="menu-best">0</strong></div>
+      <div class="stat"><span class="stat__label" data-i18n="menu.coins">ALTIN</span><strong id="menu-coins"><i class="coin"></i>0</strong></div>
+    </div>
+    <div class="menu__buttons">
+      <button class="button button--primary button--big" id="btn-play" type="button" data-i18n="menu.play">KOŞ</button>
+      <div class="menu__row">
+        <button class="button" id="btn-shop" type="button" data-i18n="menu.shop">DÜKKAN</button>
+        <button class="button" id="btn-missions" type="button" data-i18n="menu.missions">GÖREVLER</button>
+        <button class="button" id="btn-settings" type="button" data-i18n="menu.settings">AYARLAR</button>
+      </div>
+      <p class="menu__hint" data-i18n="menu.hint">Kaydır: ◀ ▶ şerit · ▲ zıpla · ▼ kay</p>
+    </div>
+  </section>
+
+  <section class="screen screen--panel is-hidden" id="screen-shop">
+    <header class="panel__header">
+      <button class="button button--small" id="btn-shop-back" type="button" data-i18n="shop.back">GERİ</button>
+      <h2 data-i18n="shop.title">DÜKKAN</h2>
+      <span class="chip chip--coins"><i class="coin"></i><strong id="shop-coins">0</strong></span>
+    </header>
+    <div class="panel__body">
+      <h3 class="panel__section" data-i18n="shop.characters">KARAKTERLER</h3>
+      <div class="cards" id="shop-characters"></div>
+      <h3 class="panel__section" data-i18n="shop.upgrades">GÜÇLENDİRMELER</h3>
+      <div class="upgrades" id="shop-upgrades"></div>
+    </div>
+  </section>
+
+  <section class="screen screen--panel is-hidden" id="screen-missions">
+    <header class="panel__header">
+      <button class="button button--small" id="btn-missions-back" type="button" data-i18n="missions.back">GERİ</button>
+      <h2 data-i18n="missions.title">GÖREVLER</h2>
+      <span class="chip chip--mult" id="missions-mult">×1</span>
+    </header>
+    <div class="panel__body">
+      <p class="panel__note"><span data-i18n="missions.multiplier">Skor çarpanı</span> · <span data-i18n="missions.next">Üçünü bitir, çarpan artsın</span></p>
+      <div class="missions" id="missions-list"></div>
+    </div>
+  </section>
+
+  <section class="screen screen--panel is-hidden" id="screen-settings">
+    <header class="panel__header">
+      <button class="button button--small" id="btn-settings-back" type="button" data-i18n="settings.back">GERİ</button>
+      <h2 data-i18n="settings.title">AYARLAR</h2>
+      <span></span>
+    </header>
+    <div class="panel__body">
+      <div class="setting">
+        <span data-i18n="settings.language">Dil</span>
+        <select id="set-language" class="select"></select>
+      </div>
+      <div class="setting">
+        <span data-i18n="settings.sound">Ses</span>
+        <button class="toggle" id="set-sound" type="button" aria-pressed="true"></button>
+      </div>
+      <div class="setting">
+        <span data-i18n="settings.music">Müzik</span>
+        <button class="toggle" id="set-music" type="button" aria-pressed="true"></button>
+      </div>
+      <div class="setting">
+        <span data-i18n="settings.vibrate">Titreşim</span>
+        <button class="toggle" id="set-vibrate" type="button" aria-pressed="true"></button>
+      </div>
+      <div class="setting">
+        <span data-i18n="settings.quality">Grafik</span>
+        <select id="set-quality" class="select">
+          <option value="high" data-i18n="settings.quality.high">Yüksek</option>
+          <option value="medium" data-i18n="settings.quality.medium">Orta</option>
+          <option value="low" data-i18n="settings.quality.low">Düşük</option>
+        </select>
+      </div>
+      <p class="panel__note" id="settings-stats"></p>
+      <button class="button button--danger" id="btn-reset" type="button" data-i18n="settings.reset">İLERLEMEYİ SIFIRLA</button>
+    </div>
+  </section>
+
+  <section class="screen screen--dialog is-hidden" id="screen-pause">
+    <div class="dialog">
+      <h2 data-i18n="pause.title">DURAKLATILDI</h2>
+      <button class="button button--primary button--big" id="btn-resume" type="button" data-i18n="pause.resume">DEVAM</button>
+      <button class="button" id="btn-quit" type="button" data-i18n="pause.quit">MENÜ</button>
+    </div>
+  </section>
+
+  <section class="screen screen--dialog is-hidden" id="screen-over">
+    <div class="dialog dialog--over">
+      <h2 id="over-title" data-i18n="over.title">YAKALANDIN</h2>
+      <p class="over__best is-hidden" id="over-newbest" data-i18n="hud.newBest">YENİ REKOR!</p>
+      <div class="over__score">
+        <span class="hud__label" data-i18n="over.score">SKOR</span>
+        <strong id="over-score">0</strong>
+      </div>
+      <div class="over__grid">
+        <div class="stat"><span class="stat__label" data-i18n="over.distance">MESAFE</span><strong id="over-distance">0 m</strong></div>
+        <div class="stat"><span class="stat__label" data-i18n="over.coins">ALTIN</span><strong id="over-coins">0</strong></div>
+        <div class="stat"><span class="stat__label" data-i18n="over.best">EN İYİ</span><strong id="over-best">0</strong></div>
+      </div>
+      <button class="button button--revive button--big" id="btn-revive" type="button">
+        <span data-i18n="over.revive">DEVAM ET</span>
+        <small id="revive-cost"></small>
+      </button>
+      <div class="menu__row">
+        <button class="button button--primary" id="btn-retry" type="button" data-i18n="over.retry">TEKRAR</button>
+        <button class="button" id="btn-over-menu" type="button" data-i18n="over.menu">MENÜ</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
