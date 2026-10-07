@@ -13,7 +13,7 @@ import json
 import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SKIP_DIRS = {'.git', 'tools', 'tests', 'node_modules', 'android', 'store', '.test-shots'}
+SKIP_DIRS = {'.git', 'tools', 'tests', 'node_modules', 'android', 'store', 'dist', '.test-shots'}
 SKIP_NAMES = {'sw.js', 'package.json', 'package-lock.json', 'README.md', 'capacitor.config.json'}
 INCLUDE_EXT = {'.html', '.css', '.js', '.json', '.webmanifest', '.png', '.svg'}
 
