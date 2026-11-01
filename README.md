@@ -5,9 +5,8 @@ Telefon için 3B sürüş oyunu. **Bütün 3B modeller Blender ile, kod içinden
 `blender/` klasöründeki Python betikleri arabaları, şehri, yolu ve nesneleri
 kurar ve `.glb` olarak dışa aktarır; oyun bunları yükler.
 
-Türkçe ve İngilizce. Zorla reklam yok: oyun **ödüllü reklamlarla** para
-kazanır — oyuncu yalnızca isterse, karşılığında ne alacağı yazan bir düğmeye
-basarak izler. Uygulama içi satın alma yok, internetsiz de oynanır.
+Türkçe ve İngilizce. Reklam yok, uygulama içi satın alma yok, internet
+gerektirmez.
 
 ![Şehirde sürüş](store/screenshots/1-city.png)
 
@@ -57,33 +56,6 @@ Ayarlardan dil, ses, müzik, titreşim, otomatik gaz, eğerek sürme (jiroskop),
 gölgeler ve **solak düzeni** ayarlanabilir. Mini haritaya dokununca yakın
 görünüm ile bütün şehir arasında geçiş yapar.
 
-## Reklamlar ve gelir
-
-Oyun yalnızca **ödüllü reklam** gösterir ve hiçbiri oyunu bölmez. Yeşil,
-▶ işaretli bir düğme ne kazandıracağını söyler; reklam sonuna kadar
-izlenirse ödül verilir, yarıda kapatılırsa verilmez.
-
-| Nerede | Ödül | Sınır |
-|---|---|---|
-| Ana menü, sol üst | bedava jeton (150; kademe arttıkça daha fazla) | 4 dakikada bir |
-| Garaj, hasarlı arabayla | bedava onarım | araba hasarlıyken |
-| Yolda, polis cezasından hemen sonra | ceza geri | 9 saniye içinde |
-| Trafik Yarışı sonuç ekranı | kaldığın yerden devam | turda bir kez |
-| Trafik Yarışı sonuç ekranı | turun jetonları 2 katı | turda bir kez |
-
-Teklif sadece bir reklam gerçekten yüklendiğinde görünür; internet yoksa ya da
-oyun düz bir tarayıcıda açıldıysa hiç düğme çıkmaz. Miktarlar ve sınırlar
-`game/js/config.js` içindeki `ADS` tablosunda.
-
-**Reklam kimlikleri `game/ads.json` dosyasında** ve şu an Google'ın **test**
-kimlikleri — bunlar para kazandırmaz. AdMob hesabı açıp kendi kimliklerini
-oraya yazman gerekiyor; adımlar [docs/RELEASE.md → Ads](docs/RELEASE.md#ads-admob)
-bölümünde. Test kimlikleri duruyorken yayın (`bundleRelease`) derlemesi
-bilerek hata verir.
-
-Bilgisayarda denemek için: `http://localhost:8000/?ads=fake` — reklam yerine
-kısa bir "TEST REKLAMI" perdesi çıkar ve ödül verilir.
-
 ## Google Play
 
 `android/` klasöründe, oyunu APK'nın içine gömen hazır bir Capacitor projesi
@@ -116,16 +88,12 @@ blender/           3B varlık üretimi (Blender'ın bpy modülü)
   make_store.py    ikonlar, menü logosu ve mağaza görselleri
 game/              oyunun kendisi (statik site, derleme adımı yok)
   js/              fizik, şehir, trafik, sinyaller, yayalar, polis, hava,
-                   kademe, garaj, girdi, ödüllü reklamlar,
+                   kademe, garaj, girdi,
                    ses, kalite gözcüsü, i18n, arayüz
-  ads.json         AdMob uygulama ve reklam birimi kimlikleri
   assets/models/   üretilen .glb dosyaları + manifest.json
   vendor/three/    three.js (r180, MIT)
-  vendor/capacitor/ @capacitor/core (MIT): oyunun AdMob eklentisine
-                   konuştuğu yer; `npm run vendor` günceller
 android/           Capacitor Android projesi
-store/             Play için ikon, görsel, ekran görüntüsü, metinler,
-                   gizlilik politikası, Veri Güvenliği cevapları, app-ads.txt
+store/             Play için ikon, görsel, ekran görüntüsü ve metinler
 tools/             yerel sunucu, çevrimdışı önbellek, Android ikonları,
                    mağaza ekran görüntüleri
 tests/             gerçek tarayıcıda çalışan oyun testleri
@@ -158,7 +126,7 @@ npm install
 npm test
 ```
 
-Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Beş paket:
+Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Dört paket:
 
 - **city** — şehrin kurulması; direksiyonun doğru yöne dönmesi; ışık fazları;
   3 dakikalık simülasyonda hiçbir trafik aracının adaya girmemesi, kırmızıda
@@ -175,16 +143,7 @@ Testler oyunu gerçek bir tarayıcıda (headless Chromium) açar. Beş paket:
 - **highway** — skor, sollama ve kıl payı bonusları, satın alma, duraklatma,
   12 km sonrası koordinat sıfırlama.
 - **layout** — altı ekran boyutunda (küçük telefon → tablet, iki yön) her
-  ekranın — bütün reklam düğmeleri açıkken — sığması, kumandaların ekranda
-  kalması ve göstergelerle, ceza iadesi teklifinin de hiçbir göstergeyle
-  çakışmaması.
-- **ads** — `?ads=fake` ile: düz tarayıcıda hiç teklif çıkmaması; reklam
-  yüklü değilken düğme gösterilmemesi; yarıda kapatılan reklamın ödül
-  vermemesi; menü jetonunun bekleme süresinin yeniden açılışta da sürmesi;
-  bedava onarım; ceza iadesinin bir kez verilmesi, reklam sırasında oyunun
-  donup sonra aynı yerden sürmesi ve teklifin süresi dolunca kaybolması;
-  otoyolda 2 kat jeton ve devam etmenin turda birer kez sunulması, devam
-  edilen turun jetonlarının bir kez yatırılıp tek tur sayılması.
+  ekranın sığması, kumandaların ekranda kalması ve göstergelerle çakışmaması.
 - **shell** — cihaz diline göre dil seçimi ve dil değiştirme; kalite
   gözcüsünün yavaş cihazda kademe düşürüp hızlı cihazda dokunmaması; ilk
   kullanım rehberi; ayarların kaydedilip yeniden açılışta geri gelmesi;
@@ -310,6 +269,5 @@ sentezleniyor.
 
 ## Lisans
 
-three.js (`game/vendor/three/LICENSE`) ve @capacitor/core
-(`game/vendor/capacitor/LICENSE`) MIT lisanslıdır. Geri kalan kod ve üretilen
-varlıklar bu depoya aittir.
+three.js MIT lisanslıdır (`game/vendor/three/LICENSE`). Geri kalan kod ve
+üretilen varlıklar bu depoya aittir.

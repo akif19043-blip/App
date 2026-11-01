@@ -11,8 +11,7 @@
     "sw": "python3 tools/make_sw.py",
     "serve": "python3 tools/serve.py",
     "test": "node tests/run.mjs",
-    "vendor": "node tools/vendor_capacitor.mjs && python3 tools/make_sw.py",
-    "android:sync": "npm run vendor && npx cap sync android",
+    "android:sync": "npx cap sync android",
     "android:open": "npx cap open android",
     "android:debug": "npm run android:sync && cd android && ./gradlew assembleDebug",
     "android:release": "npm run android:sync && cd android && ./gradlew bundleRelease",
@@ -23,8 +22,5 @@
     "@capacitor/cli": "^6.2.2",
     "@capacitor/core": "^6.2.2",
     "playwright": "1.49.1"
-  },
-  "dependencies": {
-    "@capacitor-community/admob": "^6.2.0"
   }
 }

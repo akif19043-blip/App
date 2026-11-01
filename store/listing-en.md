@@ -7,9 +7,8 @@ Dörtyol: City Driver
 Free-roam driving, deliveries and traffic runs in a low-poly city.
 
 ## Full description (max 4000)
-Dörtyol is a calm, quick-to-play driving game for phones. No forced ads: an
-ad only plays when you choose to watch one for a reward. No in-app purchases,
-and it plays offline.
+Dörtyol is a calm, quick-to-play driving game for phones. No ads, no in-app
+purchases, no internet needed.
 
 **Free Roam**
 Drive a grid-street city however you like. The traffic lights actually work:
@@ -51,12 +50,6 @@ with inches to spare is worth more still.
 Spend your coins on one of five cars, then fit an engine, gearbox, tyres and
 brakes, repair the dents, and pick a colour. Every car remembers its own parts and paint.
 
-**A short ad, if you like**
-Short of coins? Watch a short ad for free coins from the menu, a free repair
-in the garage, your police fine back, or — on the highway — to carry on after
-a crash and double your coins. All optional: the whole game is open without
-them.
-
 **Controls**
 On-screen buttons, drag-to-steer, or tilt. There is a left-handed layout, and
 a gamepad works if you have one. Plays in portrait and landscape.
@@ -71,4 +64,4 @@ Every 3D model in the game is generated from code with Blender.
 Games → Racing
 
 ## Tags
-driving, car, city, delivery, low poly, offline
+driving, car, city, delivery, low poly, offline, no ads

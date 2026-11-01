@@ -13,7 +13,4 @@ ext {
     androidxJunitVersion = '1.1.5'
     androidxEspressoCoreVersion = '3.5.1'
     cordovaAndroidVersion = '10.1.1'
-    // Google Mobile Ads SDK, used by @capacitor-community/admob. 23.6.0 is
-    // the newest that builds against compileSdk 34; 24.x needs 35.
-    playServicesAdsVersion = '23.6.0'
 }

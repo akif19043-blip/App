@@ -778,7 +778,6 @@ export class CitySession {
     this.police.reset();
     this.wasScraping = false;
     this.lastEvent = null;
-    this.lastFine = 0;
     this.cleanFrom = 0;
     this.xpDistance = 0;
 
@@ -862,33 +861,16 @@ export class CitySession {
     if (outcome.busted) {
       const fine = Math.max(CITY.police.minFine,
                             Math.round(this.stats.coins * CITY.police.fine));
-      const before = this.stats.coins;
       this.stats.coins = Math.max(0, this.stats.coins - fine);
       this.stats.fines += fine;
       this.stats.busts += 1;
       save.recordLifetime({ busts: 1 });
-      // What actually left the wallet, which is less than the fine when the
-      // run had not earned that much yet. That is all an ad can give back.
-      this.lastFine = before - this.stats.coins;
-      this.lastEvent = { kind: 'busted', amount: fine, lost: this.lastFine };
+      this.lastEvent = { kind: 'busted', amount: fine };
       this.car.speed = 0;
     } else if (outcome.escaped) {
       save.recordLifetime({ escapes: 1 });
       this.lastEvent = { kind: 'escaped', amount: 0 };
     }
-  }
-
-  /**
-   * Hand back the most recent fine -- the reward for an ad watched straight
-   * after being caught. Once per fine. Returns the coins returned.
-   */
-  refundFine() {
-    const amount = this.lastFine || 0;
-    this.lastFine = 0;
-    if (amount <= 0) return 0;
-    this.stats.coins += amount;
-    this.stats.fines -= amount;
-    return amount;
   }
 
   collectCoins(time) {

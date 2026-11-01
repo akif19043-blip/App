@@ -177,24 +177,6 @@ export class Player {
     audio.crash();
   }
 
-  /**
-   * Back on the road where the car came to rest, centred in `x`'s lane and
-   * rolling again. Distance and nitro are kept: the run is being continued,
-   * not restarted.
-   */
-  revive(x) {
-    this.crashed = false;
-    this.crashSpin = 0;
-    this.shake = 0;
-    this.steer = 0;
-    this.boosting = false;
-    this.boostTimer = 0;
-    this.x = x;
-    this.speed = PLAY.startSpeed;
-    this.group.rotation.set(0, 0, 0);
-    this.group.position.set(this.x, 0, this.z);
-  }
-
   update(dt, input, roadHalfWidth) {
     if (this.crashed) return this.updateCrash(dt);
 

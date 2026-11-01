@@ -7,9 +7,8 @@ Dörtyol: Şehir Sürüşü
 Düşük poligonlu bir şehirde serbest sürüş, teslimat ve trafikte skor avı.
 
 ## Tam açıklama (max 4000)
-Dörtyol, telefonda rahat oynanan, sade ve akıcı bir sürüş oyunudur. Zorla
-reklam yok: reklam yalnızca sen istersen, bir ödül karşılığında oynar.
-Uygulama içi satın alma yok, internetsiz de oynanır.
+Dörtyol, telefonda rahat oynanan, sade ve akıcı bir sürüş oyunudur. Reklam yok,
+uygulama içi satın alma yok, internet gerekmez.
 
 **Serbest Sürüş**
 Izgara sokaklı bir şehirde istediğin gibi dolaş. Trafik ışıkları çalışır:
@@ -51,12 +50,6 @@ kazandırır, araçların yanından sıyırarak geçmek ise ekstra prim verir.
 Kazandığın jetonlarla beş arabadan birini al, motor / şanzıman / lastik / fren
 tak, hasarı onart ve rengini değiştir. Her araç kendi donanımını ve rengini hatırlar.
 
-**İstersen kısa bir reklam**
-Jetonun mu yetmedi? Kısa bir reklam izleyip menüden bedava jeton alabilir,
-arabanı garajda bedavaya onartabilir, polis cezanı geri alabilir ya da
-otoyolda kazadan sonra kaldığın yerden devam edip jetonlarını ikiye
-katlayabilirsin. Hepsi isteğe bağlı; izlemesen de oyunun tamamı açık.
-
 **Kontroller**
 Ekrandaki tuşlar, ekranı parmakla kaydırma ya da telefonu eğerek sürme. Solak
 düzeni desteklenir; oyun kolu bağlarsan o da çalışır. Dikey ve yatay, her iki
@@ -72,4 +65,4 @@ Tüm 3B modeller Blender ile, kod içinden üretilmiştir.
 Oyunlar → Yarış
 
 ## Etiketler
-sürüş, araba, şehir, teslimat, düşük poligon, çevrimdışı
+sürüş, araba, şehir, teslimat, düşük poligon, çevrimdışı, reklamsız

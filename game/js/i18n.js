@@ -153,24 +153,6 @@ const STRINGS = {
     'tutorial.city': 'GAZ ile sür, ◀ ▶ ile dön. Yeşil işarete git.',
     'tutorial.rush': 'GAZ ile hızlan, ◀ ▶ ile şerit değiştir. Trafiğe çarpma!',
     'tutorial.gotIt': 'ANLADIM',
-
-    // Rewarded ads. Every offer says what you get; nothing plays unasked.
-    'ads.tag': 'REKLAM',
-    'ads.freeCoins': 'Reklam izle, {coins} jeton kazan',
-    'ads.freeRepair': 'BEDAVA ONAR',
-    'ads.refund': 'CEZAYI GERİ AL',
-    'ads.continue': '▶ DEVAM ET',
-    'ads.continueHint': 'reklam izle, kaldığın yerden',
-    'ads.double': '▶ 2× JETON',
-    'ads.doubleHint': 'reklam izle, +{coins} 🪙',
-    'ads.coinsPaid': '+{coins} 🪙 hesabında!',
-    'ads.repaired': 'Araba bedavaya onarıldı',
-    'ads.refunded': 'Ceza iade edildi: +{coins} 🪙',
-    'ads.doubled': 'Jetonlar ikiye katlandı: +{coins} 🪙',
-    'ads.notPaid': 'Reklam yarıda kaldı — ödül yok',
-    'ads.loading': 'Reklam açılıyor…',
-    'ads.fake': 'TEST REKLAMI',
-    'ads.privacy': 'Reklam gizlilik seçenekleri',
   },
 
   en: {
@@ -313,24 +295,6 @@ const STRINGS = {
     'tutorial.city': 'GAS to drive, ◀ ▶ to steer. Head for the green marker.',
     'tutorial.rush': 'GAS to speed up, ◀ ▶ to change lane. Do not hit traffic!',
     'tutorial.gotIt': 'GOT IT',
-
-    // Rewarded ads.
-    'ads.tag': 'AD',
-    'ads.freeCoins': 'Watch an ad for {coins} coins',
-    'ads.freeRepair': 'FREE REPAIR',
-    'ads.refund': 'GET YOUR FINE BACK',
-    'ads.continue': '▶ CONTINUE',
-    'ads.continueHint': 'watch an ad, carry on',
-    'ads.double': '▶ 2× COINS',
-    'ads.doubleHint': 'watch an ad, +{coins} 🪙',
-    'ads.coinsPaid': '+{coins} 🪙 added!',
-    'ads.repaired': 'Repaired for free',
-    'ads.refunded': 'Fine refunded: +{coins} 🪙',
-    'ads.doubled': 'Coins doubled: +{coins} 🪙',
-    'ads.notPaid': 'Ad not finished — no reward',
-    'ads.loading': 'Opening the ad…',
-    'ads.fake': 'TEST AD',
-    'ads.privacy': 'Ad privacy choices',
   },
 };
 

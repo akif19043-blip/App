@@ -1,7 +1,0 @@
-# app-ads.txt for Dörtyol. See docs/RELEASE.md, "Ads".
-#
-# 1. Replace pub-0000000000000000 with your AdMob publisher id
-#    (AdMob -> Settings -> Account information -> Publisher ID).
-# 2. Serve this file at the ROOT of the developer website you give in Play
-#    Console, e.g. https://example.com/app-ads.txt -- not in a subfolder.
-google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0

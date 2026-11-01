@@ -20,8 +20,6 @@ import * as weather from './weather.js';
 import * as progress from './progress.js';
 import * as haptics from './haptics.js';
 import * as i18n from './i18n.js';
-import * as ads from './ads.js';
-import * as rewards from './rewards.js';
 import { CitySession } from './city.js';
 import { HighwaySession } from './highway.js';
 import { Hud } from './hud.js';
@@ -77,12 +75,6 @@ class Game {
       onLanguage: () => this.hud.refreshControls(),
       onWeather: (value) => this.setWeather(value),
       onLeftHanded: (value) => this.setLeftHanded(value),
-      onAdCoins: () => this.adFreeCoins(),
-      onAdRepair: (car) => this.adRepair(car),
-      onAdRefund: () => this.adRefundFine(),
-      onAdContinue: () => this.adContinue(),
-      onAdDouble: () => this.adDoubleCoins(),
-      onAdPrivacy: () => ads.showPrivacyChoices(),
     });
     this.hud.show('loading');
 
@@ -138,11 +130,6 @@ class Game {
     this.toMenu();
     this.clock.start();
     requestAnimationFrame((t) => this.frame(t));
-
-    // Ads load behind the menu, never in front of the first frame: the game
-    // is playable from here whether or not an ad ever arrives.
-    ads.onChange(() => this.hud.refreshAds());
-    ads.init().then(() => this.hud.refreshAds());
   }
 
   setupRenderer() {
@@ -257,12 +244,6 @@ class Game {
     input.recentreTilt();
     this.banked = 0;
     this.bankTimer = 0;
-    // Each run may be continued once and doubled once, and a record is
-    // judged against the best from before it began -- a continued run has
-    // already written its first score by the time it ends again.
-    this.revived = false;
-    this.doubled = false;
-    this.bestBeforeRun = save.get().best;
     if (this.quality) this.quality.reset();
 
     this.state = 'playing';
@@ -373,120 +354,15 @@ class Game {
     this.hushAudio();
     haptics.crash();
     const run = this.session.run;
-    // Only what this stretch earned: a continued run was paid up to its
-    // first crash already.
-    save.addCoins(run.coins - run.banked);
-    run.banked = run.coins;
-    save.recordRun(run.score, run.distance, !this.revived);
+    const previousBest = save.get().best;
+    save.addCoins(run.coins);
+    save.recordRun(run.score, run.distance);
     this.hud.showGameOver({
       score: run.score,
       distance: run.distance,
-      coins: run.coins + run.bonus,
-      isBest: run.score > this.bestBeforeRun,
-      offers: {
-        canContinue: !this.revived,
-        doubleCoins: this.doubled ? 0 : run.coins,
-      },
+      coins: run.coins,
+      isBest: run.score > previousBest,
     });
-  }
-
-  // ------------------------------------------------------- rewarded ads --
-
-  /**
-   * Play a rewarded ad; resolves true only if it paid. The game underneath
-   * is silenced first and covered while the ad opens and closes, so a stray
-   * second tap cannot land on a button behind it.
-   */
-  async watchAd() {
-    if (this.watching || !ads.ready()) return false;
-    this.watching = true;
-    this.hushAudio();
-    input.reset();
-    this.hud.setAdCurtain(true, ads.kind() === 'fake');
-    let paid = false;
-    try {
-      paid = await ads.show();
-    } finally {
-      this.watching = false;
-      this.hud.setAdCurtain(false);
-    }
-    if (!paid) this.hud.toast(i18n.t('ads.notPaid'), 2.2);
-    return paid;
-  }
-
-  async adFreeCoins() {
-    if (this.state !== 'menu' || rewards.freeCoinsWait() > 0) return;
-    if (!await this.watchAd()) return;
-    const paid = rewards.claimFreeCoins();
-    if (!paid) return;
-    haptics.reward();
-    audio.coin();
-    this.hud.refreshMenu();
-    this.hud.toast(i18n.t('ads.coinsPaid', { coins: paid }), 2.2);
-  }
-
-  async adRepair(car) {
-    if (!await this.watchAd()) return;
-    if (rewards.freeRepair(car)) {
-      this.equip();
-      this.hud.toast(i18n.t('ads.repaired'));
-    }
-    this.hud.renderGarage();
-  }
-
-  /**
-   * Get the last fine back. Offered on the road, so the run is frozen while
-   * the ad plays -- not paused, which would put the pause screen up -- and
-   * picked back up exactly where it stopped.
-   */
-  async adRefundFine() {
-    if (this.mode !== 'city' || this.state !== 'playing') return;
-    this.state = 'watching';
-    const paid = await this.watchAd();
-    if (paid) {
-      const amount = this.session.refundFine();
-      if (amount) {
-        save.markAdClaimed('refund');
-        this.hud.toast(i18n.t('ads.refunded', { coins: amount }), 2.2);
-      }
-    }
-    if (this.state !== 'watching') return;
-    this.state = 'playing';
-    this.hud.showPlaying();
-    audio.startEngine();
-    audio.startAmbience();
-    audio.startMusic();
-  }
-
-  /** Carry on after a crash. Once per run. */
-  async adContinue() {
-    if (this.mode !== 'highway' || this.state !== 'over' || this.revived) return;
-    if (!await this.watchAd()) return;
-    if (this.state !== 'over' || !this.session.revive()) return;
-    this.revived = true;
-    save.markAdClaimed('continue');
-    this.state = 'playing';
-    input.reset();
-    this.hud.showPlaying();
-    audio.startEngine();
-    audio.startMusic();
-  }
-
-  /** Pay the run's coins a second time. Once per run. */
-  async adDoubleCoins() {
-    if (this.mode !== 'highway' || this.state !== 'over' || this.doubled) return;
-    const run = this.session.run;
-    if (!run || run.coins <= 0) return;
-    if (!await this.watchAd()) return;
-    this.doubled = true;
-    run.bonus += run.coins;
-    save.addCoins(run.coins);
-    save.markAdClaimed('double');
-    haptics.reward();
-    audio.coin();
-    this.hud.setOverCoins(run.coins + run.bonus);
-    this.hud.setOverOffers({ canContinue: !this.revived, doubleCoins: 0 });
-    this.hud.toast(i18n.t('ads.doubled', { coins: run.coins }), 2.2);
   }
 
   frame(now) {
@@ -496,7 +372,6 @@ class Game {
     if (this.state === 'playing' && this.quality) this.quality.sample(dt);
 
     if (this.state === 'playing') this.update(dt);
-    else if (this.state === 'watching') { /* frozen under a rewarded ad */ }
     else if (this.state === 'over') this.updateAfterCrash(dt);
     else if (this.hud.current === 'garage' && this.session.poseForGarage) {
       this.session.poseForGarage(dt, this.camera, this.baseFov);
@@ -613,7 +488,5 @@ window.game = game;      // handy for debugging from the console
 game.assets = assets;
 game.config = { CAMERA, CARS, CITY };
 game.save = save;
-game.ads = ads;
-game.rewards = rewards;
 game.progress = progress;
 game.weather = weather;

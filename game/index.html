@@ -20,8 +20,7 @@
 {
   "imports": {
     "three": "./vendor/three/three.module.min.js",
-    "three/addons/": "./vendor/three/addons/",
-    "@capacitor/core": "./vendor/capacitor/core.js"
+    "three/addons/": "./vendor/three/addons/"
   }
 }
 </script>
@@ -88,19 +87,6 @@
 
 <div id="toast"></div>
 
-<!-- Offered for a few seconds after a fine, and only when an ad is loaded. -->
-<button id="btn-ad-refund" class="ad-offer is-hidden" type="button">
-  <span class="ad-offer__tag" data-i18n="ads.tag">REKLAM</span>
-  <span class="ad-offer__text"><span data-i18n="ads.refund">CEZAYI GERİ AL</span>
-    <strong id="ad-refund-amount">+0 🪙</strong></span>
-</button>
-
-<!-- Covers the game while a rewarded ad opens and closes, so a second tap
-     cannot land on whatever is underneath. -->
-<div id="ad-curtain" class="ad-curtain" aria-live="polite">
-  <p id="ad-curtain-text" data-i18n="ads.loading">Reklam açılıyor…</p>
-</div>
-
 <div id="tutorial" class="tutorial">
   <p id="tutorial-text"></p>
   <button id="btn-tutorial" class="button button--primary" type="button"
@@ -144,11 +130,6 @@
   <!-- Coins and best sit on the glass over the live city, the way a game
        shows them, rather than inside the panel with everything else. -->
   <div class="menu-top">
-    <button id="btn-ad-coins" class="pill pill--ad is-hidden" type="button"
-            aria-label="Reklam izle, jeton kazan">
-      <span class="pill--ad__play" aria-hidden="true">▶</span>
-      <strong id="ad-coins-amount">+150</strong><span aria-hidden="true">🪙</span>
-    </button>
     <div class="pill"><span aria-hidden="true">🪙</span>
       <strong id="menu-coins">0</strong></div>
     <div class="pill"><span class="pill__label" data-i18n="menu.best">EN İYİ</span>
@@ -276,10 +257,6 @@
         <input id="toggle-lefthanded" type="checkbox">
         <span data-i18n="settings.leftHanded">Solak düzeni</span>
       </label>
-      <!-- Only where the consent form applies (EEA, UK): a way back in to
-           change what was agreed to. Google requires one. -->
-      <button id="btn-ad-privacy" class="button button--ghost button--small is-hidden"
-              type="button" data-i18n="ads.privacy">Reklam gizlilik seçenekleri</button>
     </div>
     <button id="btn-settings-back" class="button button--ghost" type="button"
             data-i18n="settings.back">GERİ</button>
@@ -305,16 +282,6 @@
       <div><dt data-i18n="over.coins">Jeton</dt><dd id="over-coins">0</dd></div>
       <div><dt data-i18n="over.best">En iyi</dt><dd id="over-best">0</dd></div>
     </dl>
-    <div id="over-ads" class="button-row is-hidden">
-      <button id="btn-ad-continue" class="button button--ad is-hidden" type="button">
-        <span data-i18n="ads.continue">▶ DEVAM ET</span>
-        <small data-i18n="ads.continueHint">reklam izle, kaldığın yerden</small>
-      </button>
-      <button id="btn-ad-double" class="button button--ad is-hidden" type="button">
-        <span data-i18n="ads.double">▶ 2× JETON</span>
-        <small id="ad-double-hint">reklam izle</small>
-      </button>
-    </div>
     <button id="btn-retry" class="button button--primary" type="button"
             data-i18n="over.retry">TEKRAR</button>
     <button id="btn-over-menu" class="button button--ghost" type="button"

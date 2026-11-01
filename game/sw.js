@@ -6,10 +6,9 @@
  * of leaving players on a stale mix of new code and old models.
  */
 
-const CACHE = 'dortyol-a1a61fa88b10';
+const CACHE = 'dortyol-9ef99b50ac43';
 const ASSETS = [
   "./",
-  "ads.json",
   "assets/icon-192.png",
   "assets/icon-512.png",
   "assets/icon.svg",
@@ -55,7 +54,6 @@ const ASSETS = [
   "assets/ui/logo.png",
   "css/style.css",
   "index.html",
-  "js/ads.js",
   "js/assets.js",
   "js/audio.js",
   "js/car.js",
@@ -76,14 +74,12 @@ const ASSETS = [
   "js/police.js",
   "js/progress.js",
   "js/quality.js",
-  "js/rewards.js",
   "js/save.js",
   "js/signals.js",
   "js/traffic.js",
   "js/weather.js",
   "js/world.js",
   "manifest.webmanifest",
-  "vendor/capacitor/core.js",
   "vendor/three/addons/loaders/GLTFLoader.js",
   "vendor/three/addons/utils/BufferGeometryUtils.js",
   "vendor/three/three.core.min.js",

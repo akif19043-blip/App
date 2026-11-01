@@ -363,23 +363,3 @@ export const TRAFFIC_MODELS = {
   light: ['traffic_sedan', 'traffic_hatch', 'traffic_suv'],
   heavy: ['traffic_truck', 'traffic_bus'],
 };
-
-/**
- * Rewarded ads -- the only kind the game shows, and only when the player
- * taps a button that says what they get for it. The ad ids are not here:
- * they live in game/ads.json, which the Android build reads as well.
- *
- * Rewards are pitched at roughly half a job each. Much more and the ads
- * replace driving as the way to earn; much less and nobody bothers.
- */
-export const ADS = {
-  freeCoins: 150,             // menu bonus at the first rank; scales with rank
-  freeCoinsCooldown: 240,     // seconds between two menu bonuses
-  fineRefundWindow: 9,        // seconds the "get your fine back" offer stays up
-  retryDelays: [20, 45, 90, 180],  // seconds between reloads after a failure
-  rewardGrace: 0.6,           // seconds to wait for a reward that lands after
-                              // the close event (the SDK sends them either way)
-  // The game is rated for everyone, so the ads in it should be too. 'General'
-  // would be stricter still, at a noticeable cost in fill and pay.
-  maxContentRating: 'ParentalGuidance',
-};

@@ -10,13 +10,11 @@ import * as save from './save.js';
 import * as audio from './audio.js';
 import * as garage from './garage.js';
 import * as progress from './progress.js';
-import * as ads from './ads.js';
-import * as rewards from './rewards.js';
 import { t, apply as applyStrings, language, setLanguage, LANGUAGES }
   from './i18n.js';
 import { TIMES } from './environment.js';
 import { WEATHERS } from './weather.js';
-import { ADS, CARS, PAINTS, RANKS } from './config.js';
+import { CARS, PAINTS, RANKS } from './config.js';
 
 const SCREENS = ['loading', 'menu', 'garage', 'records', 'settings',
                  'paused', 'over'];
@@ -63,18 +61,6 @@ export class Hud {
     this.el.recordsBody = document.getElementById('records-body');
     this.el.menuCoins = document.getElementById('menu-coins');
     this.el.garageCoins = document.getElementById('garage-coins');
-    this.el.adCoins = document.getElementById('btn-ad-coins');
-    this.el.adCoinsAmount = document.getElementById('ad-coins-amount');
-    this.el.adRefund = document.getElementById('btn-ad-refund');
-    this.el.adRefundAmount = document.getElementById('ad-refund-amount');
-    this.el.adCurtain = document.getElementById('ad-curtain');
-    this.el.adCurtainText = document.getElementById('ad-curtain-text');
-    this.el.overAds = document.getElementById('over-ads');
-    this.el.adContinue = document.getElementById('btn-ad-continue');
-    this.el.adDouble = document.getElementById('btn-ad-double');
-    this.el.adDoubleHint = document.getElementById('ad-double-hint');
-    this.el.adPrivacy = document.getElementById('btn-ad-privacy');
-    this.overOffers = {};
 
     this.toastTimer = 0;
     this.bindButtons();
@@ -108,14 +94,6 @@ export class Hud {
     tap('btn-retry', () => this.handlers.onPlay(this.mode));
     tap('btn-tutorial', () => this.hideTutorial());
     tap('btn-over-menu', () => this.handlers.onQuit());
-    tap('btn-ad-coins', () => this.handlers.onAdCoins());
-    tap('btn-ad-refund', () => {
-      this.hideRefundOffer();
-      this.handlers.onAdRefund();
-    });
-    tap('btn-ad-continue', () => this.handlers.onAdContinue());
-    tap('btn-ad-double', () => this.handlers.onAdDouble());
-    tap('btn-ad-privacy', () => this.handlers.onAdPrivacy());
 
     this.bindToggle('toggle-sound', 'sound', (value) => {
       audio.setEnabled(value);
@@ -246,19 +224,15 @@ export class Hud {
   }
 
   show(name) {
-    if (name !== null) {
-      this.hideTutorial();
-      this.hideRefundOffer();
-    }
+    if (name !== null) this.hideTutorial();
     SCREENS.forEach((key) => {
       if (this.el[key]) this.el[key].classList.toggle('is-visible', key === name);
     });
     const playing = name === null;
     this.el.hud.classList.toggle('is-visible', playing);
     this.el.controls.classList.toggle('is-visible', playing);
-    this.current = name;
     if (name === 'menu') this.refreshMenu();
-    if (name === 'settings') this.refreshAds();
+    this.current = name;
   }
 
   showPlaying() {
@@ -276,99 +250,6 @@ export class Hud {
     this.el.menuBest.textContent = formatNumber(profile.best);
     this.el.menuCoins.textContent = formatNumber(profile.coins);
     this.refreshRank();
-    this.refreshAdCoins();
-  }
-
-  /**
-   * Show or hide every ad offer. Runs whenever an ad loads or is used up: an
-   * offer for an ad that is not there would be a button that does nothing,
-   * so nothing is offered until the ad is actually in hand.
-   */
-  refreshAds() {
-    this.refreshAdCoins();
-    if (this.current === 'garage') this.renderTuning();
-    this.refreshOverAds();
-    if (!ads.ready()) this.hideRefundOffer();
-    if (this.el.adPrivacy) {
-      this.el.adPrivacy.classList.toggle('is-hidden', !ads.hasPrivacyChoices());
-    }
-  }
-
-  /** The menu's free-coins pill, which comes back after a cooldown. */
-  refreshAdCoins() {
-    const pill = this.el.adCoins;
-    if (!pill) return;
-    const ready = ads.ready();
-    const wait = rewards.freeCoinsWait();
-    const amount = rewards.freeCoinsAmount();
-    pill.classList.toggle('is-hidden', !ready || wait > 0);
-    this.el.adCoinsAmount.textContent = '+' + formatNumber(amount);
-    pill.setAttribute('aria-label', t('ads.freeCoins', { coins: formatNumber(amount) }));
-    clearTimeout(this.adCoinsHandle);
-    if (ready && wait > 0) {
-      this.adCoinsHandle = setTimeout(() => this.refreshAdCoins(), wait * 1000 + 50);
-    }
-  }
-
-  /**
-   * Put up the "get your fine back" offer. It only lasts a few seconds: it
-   * is an answer to having just been caught, not a standing menu item.
-   */
-  offerRefund(amount) {
-    const node = this.el.adRefund;
-    if (!node || amount <= 0 || !ads.ready()) return;
-    this.el.adRefundAmount.textContent = '+' + formatNumber(amount) + ' 🪙';
-    node.style.setProperty('--window', ADS.fineRefundWindow + 's');
-    // Hide and re-show so the draining bar restarts from full.
-    node.classList.add('is-hidden');
-    void node.offsetWidth;
-    node.classList.remove('is-hidden');
-    clearTimeout(this.refundHandle);
-    this.refundHandle = setTimeout(() => this.hideRefundOffer(),
-                                   ADS.fineRefundWindow * 1000);
-  }
-
-  hideRefundOffer() {
-    clearTimeout(this.refundHandle);
-    if (this.el.adRefund) this.el.adRefund.classList.add('is-hidden');
-  }
-
-  /** Full-screen cover for while an ad opens and closes. */
-  setAdCurtain(visible, fake = false) {
-    const curtain = this.el.adCurtain;
-    if (!curtain) return;
-    curtain.classList.toggle('is-visible', visible);
-    curtain.classList.toggle('is-fake', fake);
-    this.el.adCurtainText.textContent = t(fake ? 'ads.fake' : 'ads.loading');
-  }
-
-  /**
-   * What the result screen may offer after this crash, as decided by main.js:
-   * `canContinue` once a run, and `doubleCoins` (the coins a double would
-   * add) once a run, if there were any.
-   */
-  setOverOffers(offers) {
-    this.overOffers = offers || {};
-    this.refreshOverAds();
-  }
-
-  refreshOverAds() {
-    if (!this.el.overAds) return;
-    const offers = this.overOffers;
-    const ready = ads.ready();
-    const resume = ready && !!offers.canContinue;
-    const double = ready && offers.doubleCoins > 0;
-    this.el.adContinue.classList.toggle('is-hidden', !resume);
-    this.el.adDouble.classList.toggle('is-hidden', !double);
-    this.el.overAds.classList.toggle('is-hidden', !resume && !double);
-    if (double) {
-      this.el.adDoubleHint.textContent =
-        t('ads.doubleHint', { coins: formatNumber(offers.doubleCoins) });
-    }
-  }
-
-  setOverCoins(coins) {
-    document.getElementById('over-coins').textContent = formatNumber(coins);
   }
 
   /** Rank badge, name and how far it is to the next one. */
@@ -571,18 +452,9 @@ export class Hud {
         <span class="tune__cost">${formatNumber(bill)} 🪙</span>
       </button>`;
 
-    // The same repair for an ad, offered beside the bill rather than instead
-    // of it: paying stays the obvious way, the ad is the way out when broke.
-    const adRepair = bill === 0 || !ads.ready() ? '' : `
-      <button class="tune__row tune__row--ad" type="button" data-ad-repair="1">
-        <span class="tune__name">▶ ${t('ads.freeRepair')}</span>
-        <span class="tune__pips">${t('ads.tag')}</span>
-        <span class="tune__cost">0 🪙</span>
-      </button>`;
-
     panel.innerHTML = `
       <h3 class="tune__title">${t('garage.parts', { car: t(car.nameKey) })}</h3>
-      <div class="tune__rows">${repair}${adRepair}${rows}</div>
+      <div class="tune__rows">${repair}${rows}</div>
       <h3 class="tune__title">${t('garage.paint')}</h3>
       <div class="tune__paints">${paints}</div>
     `;
@@ -598,14 +470,6 @@ export class Hud {
           this.toast(t('garage.tooPoor'));
         }
         this.renderGarage();
-      });
-    }
-
-    const adRepairButton = panel.querySelector('[data-ad-repair]');
-    if (adRepairButton) {
-      adRepairButton.addEventListener('click', () => {
-        audio.uiTap();
-        this.handlers.onAdRepair(car);
       });
     }
 
@@ -704,7 +568,6 @@ export class Hud {
   announce(event) {
     if (event.kind === 'busted') {
       this.toast(t('police.busted', { amount: formatNumber(event.amount) }), 2.6);
-      this.offerRefund(event.lost || 0);
     } else if (event.kind === 'escaped') {
       this.toast(t('police.escaped'), 2.2);
     } else if (event.kind === 'promoted') {
@@ -726,7 +589,6 @@ export class Hud {
     const banner = document.getElementById('over-banner');
     banner.textContent = t(result.isBest ? 'over.record' : 'over.crashed');
     banner.classList.toggle('is-record', !!result.isBest);
-    this.setOverOffers(result.offers);
     this.show('over');
   }
 
