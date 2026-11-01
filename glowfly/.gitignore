@@ -1,0 +1,3 @@
+dist/
+.test-shots/
+node_modules/

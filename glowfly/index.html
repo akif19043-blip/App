@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#070a18">
+<meta name="description" content="Glowfly — survive the night as the last firefly in the meadow.">
+<title>Glowfly</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+<!-- PORTAL_SDK -->
+</head>
+<body>
+
+<canvas id="view"></canvas>
+<!-- Catches the drag-to-steer anywhere on screen during a run. -->
+<div id="surface"></div>
+<div id="stick" class="stick" aria-hidden="true"><div id="stick-knob" class="stick__knob"></div></div>
+
+<!-- ------------------------------------------------------------- HUD --- -->
+<div id="hud" class="hud">
+  <div class="hud__xp"><div id="xp-fill" class="hud__xp-fill"></div></div>
+  <div class="hud__row">
+    <span class="chip chip--level"><span data-i18n="hud.level">LV</span>
+      <strong id="hud-level">1</strong></span>
+    <span class="chip chip--clock"><strong id="hud-clock">10:00</strong>
+      <small data-i18n="hud.toDawn">until dawn</small></span>
+    <span class="chip"><i class="eyes" aria-hidden="true"></i><strong id="hud-kills">0</strong></span>
+    <span class="chip"><i class="coin" aria-hidden="true"></i><strong id="hud-gold">0</strong></span>
+    <button id="btn-pause" class="icon-btn" type="button"
+            data-i18n-aria="hud.pause" aria-label="Pause">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+        <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>
+    </button>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status"></div>
+
+<!-- ----------------------------------------------------------- title --- -->
+<section id="screen-title" class="screen">
+  <div class="title">
+    <h1 class="logo">GLOWFLY</h1>
+    <p class="tagline" data-i18n="title.tagline">Survive the night. Light the meadow.</p>
+    <div class="stats">
+      <span class="chip"><small data-i18n="title.best">Best</small> <strong id="title-best">—</strong></span>
+      <span class="chip"><small data-i18n="title.dawns">Dawns</small> <strong id="title-dawns">0</strong></span>
+      <span class="chip"><i class="coin" aria-hidden="true"></i><strong id="title-gold">0</strong></span>
+    </div>
+    <button id="btn-play" class="btn btn--primary btn--big" type="button" data-i18n="title.play">PLAY</button>
+    <div class="row">
+      <button id="btn-shop" class="btn" type="button" data-i18n="title.shop">UPGRADES</button>
+      <button id="btn-settings" class="btn" type="button" data-i18n="title.settings">SETTINGS</button>
+    </div>
+    <button id="btn-free-gold" class="btn btn--ad is-hidden" type="button">
+      <span class="ad-mark" aria-hidden="true">▶</span> <span id="free-gold-label"></span>
+    </button>
+    <p class="hint" data-i18n="title.howTo">Move with WASD, the arrows, or drag.</p>
+  </div>
+</section>
+
+<!-- -------------------------------------------------------- level up --- -->
+<section id="screen-level" class="screen screen--dim">
+  <div class="panel panel--wide">
+    <h2 class="panel__title" data-i18n="level.title">LEVEL UP</h2>
+    <p class="panel__sub" data-i18n="level.pick">Choose one</p>
+    <div id="cards" class="cards"></div>
+    <button id="btn-reroll" class="btn btn--ad is-hidden" type="button">
+      <span class="ad-mark" aria-hidden="true">▶</span> <span data-i18n="level.reroll">Watch an ad: new choices</span>
+    </button>
+  </div>
+</section>
+
+<!-- ----------------------------------------------------------- pause --- -->
+<section id="screen-pause" class="screen screen--dim">
+  <div class="panel">
+    <h2 class="panel__title" data-i18n="pause.title">PAUSED</h2>
+    <div class="toggles">
+      <label class="toggle"><span data-i18n="settings.sound">Sound</span>
+        <input type="checkbox" data-setting="sound"></label>
+      <label class="toggle"><span data-i18n="settings.music">Music</span>
+        <input type="checkbox" data-setting="music"></label>
+    </div>
+    <button id="btn-resume" class="btn btn--primary" type="button" data-i18n="pause.resume">RESUME</button>
+    <button id="btn-quit" class="btn btn--ghost" type="button" data-i18n="pause.quit">END RUN</button>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ over --- -->
+<section id="screen-over" class="screen screen--dim">
+  <div class="panel">
+    <h2 id="over-title" class="panel__title">THE NIGHT GOT YOU</h2>
+    <p id="over-best" class="panel__sub panel__sub--good is-hidden" data-i18n="over.best">New best!</p>
+    <dl class="results">
+      <div><dt data-i18n="over.time">Survived</dt><dd id="over-time">0:00</dd></div>
+      <div><dt data-i18n="over.level">Level</dt><dd id="over-level">1</dd></div>
+      <div><dt data-i18n="over.kills">Bugs</dt><dd id="over-kills">0</dd></div>
+      <div><dt data-i18n="over.gold">Gold</dt><dd><i class="coin" aria-hidden="true"></i><span id="over-gold">0</span></dd></div>
+    </dl>
+    <button id="btn-revive" class="btn btn--ad is-hidden" type="button">
+      <span class="ad-mark" aria-hidden="true">▶</span> <span data-i18n="over.revive">Watch an ad: revive</span>
+    </button>
+    <button id="btn-double" class="btn btn--ad is-hidden" type="button">
+      <span class="ad-mark" aria-hidden="true">▶</span> <span id="double-label"></span>
+    </button>
+    <div class="row">
+      <button id="btn-again" class="btn btn--primary" type="button" data-i18n="over.again">PLAY AGAIN</button>
+      <button id="btn-menu" class="btn btn--ghost" type="button" data-i18n="over.menu">MENU</button>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ shop --- -->
+<section id="screen-shop" class="screen screen--dim">
+  <div class="panel panel--wide">
+    <div class="panel__head">
+      <h2 class="panel__title" data-i18n="shop.title">UPGRADES</h2>
+      <span class="chip"><i class="coin" aria-hidden="true"></i><strong id="shop-gold">0</strong></span>
+    </div>
+    <div id="shop-list" class="shop"></div>
+    <button id="btn-shop-back" class="btn btn--ghost" type="button" data-i18n="shop.back">BACK</button>
+  </div>
+</section>
+
+<!-- -------------------------------------------------------- settings --- -->
+<section id="screen-settings" class="screen screen--dim">
+  <div class="panel">
+    <h2 class="panel__title" data-i18n="settings.title">SETTINGS</h2>
+    <div class="toggles">
+      <label class="toggle"><span data-i18n="settings.sound">Sound</span>
+        <input type="checkbox" data-setting="sound"></label>
+      <label class="toggle"><span data-i18n="settings.music">Music</span>
+        <input type="checkbox" data-setting="music"></label>
+      <label class="toggle"><span data-i18n="settings.numbers">Damage numbers</span>
+        <input type="checkbox" data-setting="numbers"></label>
+      <div class="toggle"><span data-i18n="settings.language">Language</span>
+        <span id="languages" class="langs"></span></div>
+    </div>
+    <button id="btn-settings-back" class="btn btn--ghost" type="button" data-i18n="settings.back">BACK</button>
+  </div>
+</section>
+
+<!-- Over everything while an ad is being fetched or played. -->
+<div id="curtain" class="curtain"><p id="curtain-text"></p></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

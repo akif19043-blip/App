@@ -1,0 +1,16 @@
+{
+  "name": "glowfly",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Glowfly — survive the night as the last firefly. A web game for portals.",
+  "scripts": {
+    "serve": "python3 -m http.server 8000",
+    "test": "node tests/run.mjs",
+    "build": "python3 tools/build.py",
+    "covers": "node tools/covers.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.49.1"
+  }
+}
