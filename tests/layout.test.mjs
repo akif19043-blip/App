@@ -47,7 +47,9 @@ page.setDefaultTimeout(60000);
 const problems = [];
 page.on('pageerror', (e) => problems.push('PAGEERROR ' + e.message));
 
-await page.goto((process.env.GAME_URL || 'http://localhost:8000') + '/index.html',
+// With the pretend ad back end, so every ad offer can be put on screen: a
+// screen has to fit at its fullest, and that includes the green buttons.
+await page.goto((process.env.GAME_URL || 'http://localhost:8000') + '/index.html?ads=fake',
                 { waitUntil: 'load' });
 await page.waitForFunction(
   () => document.getElementById('screen-menu')?.classList.contains('is-visible'),
@@ -59,6 +61,8 @@ await page.evaluate(() => {
   const key = 'dortyol.profile.v1';
   const profile = JSON.parse(localStorage.getItem(key) || '{}');
   profile.coins = 50000;
+  // A damaged car, so the garage carries both the paid and the ad repair.
+  profile.damage = { [profile.selectedCar || 'sport']: 0.5 };
   localStorage.setItem(key, JSON.stringify(profile));
 });
 await page.reload({ waitUntil: 'load' });
@@ -94,6 +98,22 @@ await page.waitForTimeout(150);
 // Get into the city so the HUD and controls are live and measurable.
 await page.click('#btn-play-city');
 await page.waitForTimeout(400);
+
+// Every ad offer up at once: both result-screen buttons, the settings link,
+// and the fine refund that floats over the road.
+const offers = await page.evaluate(() => {
+  game.hud.setOverOffers({ canContinue: true, doubleCoins: 12345 });
+  document.getElementById('btn-ad-privacy').classList.remove('is-hidden');
+  document.getElementById('ad-refund-amount').textContent = '+12.345 🪙';
+  document.getElementById('btn-ad-refund').classList.remove('is-hidden');
+  return {
+    garage: !!document.querySelector('[data-ad-repair]'),
+    over: !document.getElementById('over-ads').classList.contains('is-hidden'),
+    menu: !document.getElementById('btn-ad-coins').classList.contains('is-hidden'),
+  };
+});
+check('ad offers are on screen before measuring',
+      offers.garage && offers.over && offers.menu, JSON.stringify(offers));
 
 for (const viewport of VIEWPORTS) {
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -136,6 +156,7 @@ for (const viewport of VIEWPORTS) {
     const pause = rect('#btn-pause');
     const nitroBar = rect('.hud__nitro');
     const meters = rect('.hud__meters');
+    const refund = rect('#btn-ad-refund');
 
     const clashes = [];
     for (const [selector, box] of Object.entries(controls)) {
@@ -144,6 +165,15 @@ for (const viewport of VIEWPORTS) {
       if (overlaps(box, minimap)) clashes.push(selector + ' over minimap');
       if (overlaps(box, nitroBar)) clashes.push(selector + ' over nitro bar');
       if (overlaps(box, meters)) clashes.push(selector + ' over the meters');
+    }
+    for (const [name, box] of Object.entries({
+      ...controls, speed, minimap, pause, nitroBar, meters,
+      chips: rect('.hud__row--top .chip:not(.is-hidden)'),
+    })) {
+      if (overlaps(refund, box)) clashes.push('fine refund over ' + name);
+    }
+    if (refund && (refund.x < 0 || refund.right > innerWidth)) {
+      clashes.push('fine refund off screen');
     }
     if (overlaps(minimap, pause)) clashes.push('minimap over pause');
     if (overlaps(minimap, meters)) clashes.push('minimap over the meters');

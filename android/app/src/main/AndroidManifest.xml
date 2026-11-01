@@ -25,6 +25,12 @@
 
         </activity>
 
+        <!-- AdMob app id, from game/ads.json by way of app/build.gradle. The
+             SDK refuses to start without it. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -37,8 +43,10 @@
     </application>
 
     <!--
-      INTERNET is Capacitor's default. The game itself never makes a network
-      request: every model, script and sound ships inside the APK.
+      INTERNET is for the rewarded ads, and nothing else: every model, script
+      and sound ships inside the APK, and the game plays offline -- the ad
+      buttons simply do not appear. The ads SDK adds ACCESS_NETWORK_STATE and
+      AD_ID to the merged manifest itself.
       VIBRATE backs the haptics setting; without it navigator.vibrate is a
       silent no-op.
     -->

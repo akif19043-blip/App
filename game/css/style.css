@@ -905,6 +905,118 @@ html, body {
 .result dd { margin: 4px 0 0; font-size: 20px; font-weight: 800; }
 #over-banner.is-record { color: var(--good); }
 
+/* ----------------------------------------------------------------- ads --- */
+/*
+ * Every button that plays an ad looks the same -- green, with a play mark and
+ * the reward written on it -- so a player learns once what one looks like and
+ * is never surprised by an ad they did not ask for.
+ */
+.pill.is-hidden,
+.ad-offer.is-hidden,
+.button.is-hidden,
+.button-row.is-hidden { display: none; }
+
+.pill--ad {
+  appearance: none;
+  margin-right: auto;
+  pointer-events: auto;
+  cursor: pointer;
+  color: #06240f;
+  font: inherit;
+  font-size: 13px;
+  background: linear-gradient(180deg, #7cf0ad, #27ad60);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 3px 0 #136b3a, 0 6px 12px rgba(0, 0, 0, 0.35);
+  animation: ad-breathe 2.4s ease-in-out infinite;
+}
+.pill--ad strong { font-size: 14px; }
+.pill--ad:active { transform: translateY(2px); box-shadow: 0 1px 0 #136b3a; }
+.pill--ad__play { font-size: 10px; }
+/* A glow rather than a grow: scaling would fight the press-down. */
+@keyframes ad-breathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.2); }
+}
+
+.button--ad {
+  --lip: #136b3a;
+  background: linear-gradient(180deg, #7cf0ad, #27ad60);
+  color: #06240f;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.button--small { padding: 10px 14px; font-size: 12px; letter-spacing: 0.06em; }
+
+.tune__row--ad { border-color: rgba(74, 222, 128, 0.55); background: rgba(74, 222, 128, 0.10); }
+.tune__row--ad .tune__name { color: var(--good); }
+.tune__row--ad .tune__cost { color: var(--good); }
+.tune__row--ad .tune__pips { color: var(--good); font-size: 10px; letter-spacing: 0.12em; }
+
+/* The refund offer sits under the toast that announced the fine -- and, on a
+   narrow portrait phone, below the damage and heat meters as well, which
+   hang under the minimap at the same height and are both up after a chase. */
+.ad-offer {
+  --window: 9s;
+  appearance: none;
+  position: fixed;
+  left: 50%;
+  top: max(calc(22% + 46px), calc(var(--pad-top) + 222px));
+  z-index: 4;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 12px;
+  border: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  color: #06240f;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  cursor: pointer;
+  background: linear-gradient(180deg, #7cf0ad, #27ad60);
+  box-shadow: 0 4px 0 #136b3a, 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+.ad-offer:active { transform: translate(-50%, 3px); box-shadow: 0 1px 0 #136b3a; }
+.ad-offer__tag {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(6, 36, 15, 0.82);
+  color: #7cf0ad;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+.ad-offer__text strong { margin-left: 6px; }
+/* How long the offer has left, draining along the bottom edge. */
+.ad-offer::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(6, 36, 15, 0.6);
+  transform-origin: left;
+  animation: ad-window var(--window) linear forwards;
+}
+@keyframes ad-window { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+.ad-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  place-items: center;
+  background: rgba(5, 8, 12, 0.9);
+  color: var(--muted);
+  font-size: 14px;
+  letter-spacing: 0.10em;
+}
+.ad-curtain.is-visible { display: grid; }
+.ad-curtain.is-fake { color: var(--good); font-size: 20px; font-weight: 900; }
+
 /* Portrait: drop the menu panel to the bottom so the hero car has the top
    half of the screen to itself. */
 @media (orientation: portrait) {
@@ -983,6 +1095,9 @@ body.is-left-handed .minimap { right: auto; left: var(--pad); }
   .tune__paint { width: 26px; height: 26px; }
   .settings-scroll { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .lang { grid-column: 1 / -1; }
+  #btn-ad-privacy { grid-column: 1 / -1; }
+  /* Landscape keeps the meters at the far right, clear of a centred offer. */
+  .ad-offer { top: calc(22% + 46px); }
   .tutorial { top: 10%; }
 
   /* Result tiles in one row so the buttons stay on screen. */

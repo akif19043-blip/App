@@ -74,7 +74,10 @@ export class HighwaySession {
     this.player.start(this.lanes[this.lanes.length - 2]);
     this.traffic.reset();
     this.pickups.reset(0);
-    this.run = { score: 0, coins: 0, overtakes: 0, nearMisses: 0, distance: 0 };
+    // `banked` is what has already gone into the profile: a run continued
+    // after a crash is paid out twice, and must only pay each coin once.
+    this.run = { score: 0, coins: 0, overtakes: 0, nearMisses: 0, distance: 0,
+                 banked: 0, bonus: 0 };
     this.over = false;
   }
 
@@ -126,6 +129,22 @@ export class HighwaySession {
     }
     this.maybeRebase();
     return this.hudState();
+  }
+
+  /**
+   * Carry on after a crash -- the reward for an ad watched on the result
+   * screen. Score, coins and distance stand; the traffic is cleared rather
+   * than nudged, since a revive that leaves you nose to tail with the truck
+   * you just hit is not one. Fresh traffic spawns ahead as usual.
+   */
+  revive() {
+    if (!this.over) return false;
+    this.traffic.reset();
+    const nearest = this.lanes.reduce((best, lane) => (
+      Math.abs(lane - this.player.x) < Math.abs(best - this.player.x) ? lane : best));
+    this.player.revive(nearest);
+    this.over = false;
+    return true;
   }
 
   collides() {

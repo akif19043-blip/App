@@ -29,6 +29,9 @@ const DEFAULTS = {
   upgrades: {},          // carId -> { engine: 0, gearbox: 0, ... }
   paint: {},             // carId -> '#rrggbb'
   damage: {},            // carId -> 0..1, so a crash outlives the session
+  // Rewarded ads: when each kind of reward was last paid (ms since epoch), so
+  // a cooldown survives a restart, and how many have been watched in all.
+  ads: { claimed: {}, watched: 0 },
   settings: {
     sound: true,
     autoThrottle: false,   // free roam wants a real throttle you can lift off
@@ -74,6 +77,10 @@ export function load() {
       profile.xp = Math.max(0, Number(profile.xp) || 0);
       profile.lifetime = Object.assign(clone(DEFAULTS.lifetime),
                                        parsed.lifetime || {});
+      profile.ads = Object.assign(clone(DEFAULTS.ads), parsed.ads || {});
+      if (!profile.ads.claimed || typeof profile.ads.claimed !== 'object') {
+        profile.ads.claimed = {};
+      }
     }
   } catch (err) {
     console.warn('profile unreadable, starting fresh', err);
@@ -100,8 +107,12 @@ export function addCoins(amount) {
   return save();
 }
 
-export function recordRun(score, distance) {
-  profile.runs += 1;
+/**
+ * @param {boolean} [newRun=true] false when a run that was already recorded
+ *   is being recorded again -- one continued after a crash -- so it counts once
+ */
+export function recordRun(score, distance, newRun = true) {
+  if (newRun) profile.runs += 1;
   profile.best = Math.max(profile.best, Math.round(score));
   profile.bestDistance = Math.max(profile.bestDistance, Math.round(distance));
   return save();
@@ -186,5 +197,16 @@ export function setPaint(carId, color) {
 
 export function setSetting(key, value) {
   profile.settings[key] = value;
+  return save();
+}
+
+/** When a kind of ad reward was last paid, in ms since the epoch; 0 if never. */
+export function adClaimedAt(kind) {
+  return Number(profile.ads.claimed[kind]) || 0;
+}
+
+export function markAdClaimed(kind, now = Date.now()) {
+  profile.ads.claimed[kind] = now;
+  profile.ads.watched = (profile.ads.watched || 0) + 1;
   return save();
 }

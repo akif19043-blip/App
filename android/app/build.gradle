@@ -9,6 +9,30 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+// The AdMob ids live in game/ads.json, beside the game that loads the ad unit,
+// so there is one file to edit when they change. The app id reaches the
+// manifest from here; the ad unit id is read by the game at run time.
+def adsConfig = new groovy.json.JsonSlurper().parse(rootProject.file("../game/ads.json"))
+
+// Google's sample ids serve test ads that pay nothing. A release built with
+// them looks perfect on every phone and earns nothing, which is the one
+// mistake here nobody would notice -- so a release build refuses them.
+// -PallowTestAds builds one anyway, for testing a signed release.
+gradle.taskGraph.whenReady { graph ->
+    def releasing = graph.allTasks.any {
+        it.project == project && it.name.toLowerCase().contains("release")
+    }
+    def testIds = [adsConfig.appId, adsConfig.rewardedUnitId].any {
+        !it || it.toString().contains("3940256099942544")
+    }
+    if (releasing && testIds && !project.hasProperty("allowTestAds")) {
+        throw new GradleException(
+            "game/ads.json still holds Google's test AdMob ids, which earn nothing.\n" +
+            "Put your own app id and rewarded ad unit id there (docs/RELEASE.md, " +
+            "\"Ads\"), or pass -PallowTestAds to build a release with test ads.")
+    }
+}
+
 android {
     namespace "com.dortyol.driver"
     compileSdk rootProject.ext.compileSdkVersion
@@ -18,6 +42,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
+        manifestPlaceholders = [admobAppId: adsConfig.appId]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
