@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Bozkır Harekâtı önizleme</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0d0f0d; font-family: "DejaVu Sans", sans-serif; }
+  body.sky { background: linear-gradient(#8fb0c8 0%, #b9c6c8 45%, #d8c9a4 70%); }
+  body.studio { background: radial-gradient(circle at 50% 40%, #3a4136, #121411 75%); }
+  canvas { display: block; }
+  #hud { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; color: #eceade; }
+  #hud div { position: absolute; box-sizing: border-box; }
+  #hud span { position: static; }
+  .t { color: #eceade; font-weight: bold; white-space: nowrap; text-shadow: 0 0 2px #000, 0 0 3px #000; }
+  .dim { color: #a0a294; }
+  .acc { color: #deb85c; }
+  .panel { background: rgba(12,14,12,0.7); border-radius: 6px; }
+  .label { position: absolute; transform: translate(-50%, 0); text-align: center; color: #eceade; font-weight: bold; font-size: 15px; text-shadow: 0 1px 2px #000; }
+  .label small { display: block; color: #deb85c; font-size: 11px; font-weight: normal; letter-spacing: .5px; }
+</style>
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js" } }</script>
+</head>
+<body>
+<div id="hud"></div>
+<div id="labels"></div>
+<script type="module">
+import * as THREE from "three";
+
+const params = new URLSearchParams(location.search);
+const view = params.get("view") || "overview";
+const scene = await (await fetch("./scene.json")).json();
+
+const W = innerWidth, H = innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(devicePixelRatio);
+renderer.setSize(W, H);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const world = new THREE.Scene();
+const rgb = (c) => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
+
+const ROUGH = { Metal: [0.45, 0.6], DiamondPlate: [0.5, 0.6], CorrodedMetal: [0.8, 0.4], Plastic: [0.6, 0], SmoothPlastic: [0.45, 0], Glass: [0.1, 0] };
+const materials = new Map();
+function material(p) {
+  const key = p.c.join(",") + p.m + p.t;
+  if (materials.has(key)) return materials.get(key);
+  const [roughness, metalness] = ROUGH[p.m] || [0.92, 0];
+  const m = new THREE.MeshStandardMaterial({ color: rgb(p.c), roughness, metalness });
+  if (p.m === "Neon") { m.emissive = rgb(p.c); m.emissiveIntensity = 1.4; }
+  if (p.m === "Glass" || p.t > 0) { m.transparent = true; m.opacity = Math.max(0.12, 1 - Math.max(p.t, p.m === "Glass" ? 0.6 : 0)); m.depthWrite = false; }
+  materials.set(key, m);
+  return m;
+}
+const unitBox = new THREE.BoxGeometry(1, 1, 1);
+const unitCyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 20).rotateZ(Math.PI / 2);
+const unitBall = new THREE.SphereGeometry(0.5, 20, 14);
+
+function add(parts, options = {}) {
+  const group = new THREE.Group();
+  for (const p of parts) {
+    let geometry = unitBox, sx = p.z[0], sy = p.z[1], sz = p.z[2];
+    if (p.s === "Cylinder") { geometry = unitCyl; const d = Math.min(sy, sz); sy = d; sz = d; }
+    else if (p.s === "Ball") { geometry = unitBall; const d = Math.min(sx, sy, sz); if (p.n === "Leaves" || p.n === "Bush") { /* yapraklar basık küre */ } else { sx = sy = sz = d; } }
+    const mesh = new THREE.Mesh(geometry, material(p));
+    const f = p.f;
+    const m = new THREE.Matrix4().set(f[3], f[4], f[5], f[0], f[6], f[7], f[8], f[1], f[9], f[10], f[11], f[2], 0, 0, 0, 1);
+    m.multiply(new THREE.Matrix4().makeScale(sx, sy, sz));
+    mesh.matrixAutoUpdate = false;
+    mesh.matrix.copy(m);
+    mesh.castShadow = options.shadows !== false && p.m !== "Neon" && p.t < 0.5 && p.n !== "Zone";
+    mesh.receiveShadow = options.shadows !== false;
+    group.add(mesh);
+  }
+  world.add(group);
+  return group;
+}
+
+function placeCamera(camera, f) {
+  const m = new THREE.Matrix4().set(f[3], f[4], f[5], f[0], f[6], f[7], f[8], f[1], f[9], f[10], f[11], f[2], 0, 0, 0, 1);
+  const pos = new THREE.Vector3(), quat = new THREE.Quaternion(), scale = new THREE.Vector3();
+  m.decompose(pos, quat, scale);
+  camera.position.copy(pos);
+  camera.quaternion.copy(quat);
+  camera.updateMatrixWorld();
+}
+
+let camera;
+if (view === "lineup") {
+  document.body.className = "studio";
+  add(scene.lineup.parts, { shadows: false });
+  world.add(new THREE.HemisphereLight(0xe8eadc, 0x2a2c26, 1.6));
+  const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(4, 8, 12); world.add(key);
+  const rim = new THREE.DirectionalLight(0xdeb85c, 1.2); rim.position.set(-8, 4, -6); world.add(rim);
+  camera = new THREE.PerspectiveCamera(34, W / H, 0.1, 200);
+  camera.position.set(0.2, -5.3, 20.5); camera.lookAt(0.2, -5.3, 0);
+  camera.updateMatrixWorld();
+  const labels = document.getElementById("labels");
+  for (const l of scene.lineup.labels) {
+    const v = new THREE.Vector3(l.at[0] + 0.3, l.at[1] - 0.62, l.at[2]).project(camera);
+    const d = document.createElement("div");
+    d.className = "label";
+    d.style.left = ((v.x + 1) / 2 * W) + "px";
+    d.style.top = ((1 - v.y) / 2 * H) + "px";
+    d.innerHTML = l.name + "<small>" + l.class.toLocaleUpperCase("tr") + "</small>";
+    labels.appendChild(d);
+  }
+} else {
+  document.body.className = "sky";
+  const L = scene.lighting;
+  add(scene.map);
+  add(scene.actors);
+  const haze = new THREE.Color().setRGB(0.84, 0.79, 0.66, THREE.SRGBColorSpace);
+  const close = view === "hip" || view === "ads";
+  world.fog = new THREE.Fog(haze, close ? 90 : 260, close ? 700 : 1100);
+  world.add(new THREE.HemisphereLight(0xd6dde2, 0x8c7552, 1.25));
+  const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+  sun.position.set(140, 260, 110);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(4096, 4096);
+  Object.assign(sun.shadow.camera, { left: -260, right: 260, top: 260, bottom: -260, near: 10, far: 700 });
+  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
+  world.add(sun);
+  const v = scene.views[view];
+  camera = new THREE.PerspectiveCamera(v.fov, W / H, 0.05, 2000);
+  placeCamera(camera, v.camera);
+  if (v.viewmodel) add(v.viewmodel, { shadows: false });
+  if (view === "hip") drawHud(camera, v);
+}
+
+renderer.render(world, camera);
+window.__done = true;
+
+// Oyun içi HUD'un (src/client/Hud.luau) yerleşimini aynı tasarım pikselleriyle çizer
+function drawHud(camera, v) {
+  const s = Math.min(Math.max(Math.min(W / 1024, H / 600), 0.6), 1.35);
+  const hud = document.getElementById("hud");
+  const DW = W / s, DH = H / s;
+  hud.style.width = DW + "px"; hud.style.height = DH + "px"; hud.style.transform = `scale(${s})`;
+  const el = (html, css) => { const d = document.createElement("div"); d.innerHTML = html; d.style.cssText = css; hud.appendChild(d); return d; };
+  const inset = 20 + 58 / s;
+  // Radar
+  const radar = el("", `left:20px;top:${inset}px;width:150px;height:150px;border-radius:50%;background:rgba(12,14,12,.62);border:2px solid rgba(74,84,68,.85);overflow:hidden`);
+  radar.innerHTML = `<div style="left:0;top:74px;width:150px;height:1px;background:rgba(74,84,68,.6)"></div><div style="left:74px;top:0;width:1px;height:150px;background:rgba(74,84,68,.6)"></div><div class="acc" style="left:69px;top:66px;font-size:12px">▲</div>`;
+  const look = new THREE.Vector3(); camera.getWorldDirection(look); look.y = 0; look.normalize();
+  const right = new THREE.Vector3(-look.z, 0, look.x);
+  const me = camera.position;
+  for (const b of [{ x: -30, z: 36, c: "#4696ff" }, { x: 14, z: 30, c: "#4696ff" }, { x: 8, z: -22, c: "#ec5246" }]) {
+    const off = new THREE.Vector3(b.x - me.x, 0, b.z - me.z);
+    const x = off.dot(right) / 130, y = -off.dot(look) / 130;
+    if (x * x + y * y < 1) radar.appendChild(Object.assign(document.createElement("div"), { style: `position:absolute;left:${75 + x * 75 - 4}px;top:${75 + y * 75 - 4}px;width:8px;height:8px;border-radius:50%;background:${b.c}` }));
+  }
+  // Öldürme akışı
+  el(`<div class="t" style="right:8px;top:4px;font-size:14px"><span style="color:#4696ff">Demir</span> <span class="dim">[Kasırga-9]</span> <span style="color:#ff684a">Tuna</span></div>`, `right:20px;top:${inset}px;width:340px;height:24px;background:rgba(12,14,12,.6);border-radius:4px`);
+  // Skor ve süre
+  const top = el("", `left:${DW / 2 - 190}px;top:10px;width:380px;height:76px`);
+  top.innerHTML = `
+   <div class="panel" style="left:0;top:0;width:112px;height:46px"><div style="left:0;top:0;width:112px;height:3px;background:#4696ff"></div><div class="t" style="width:112px;top:4px;text-align:center;font-size:27px">12</div><div class="dim" style="width:112px;top:31px;text-align:center;font-size:11px;font-weight:bold">ŞAHİN</div></div>
+   <div class="panel" style="left:120px;top:0;width:140px;height:46px;background:rgba(12,14,12,.85)"><div class="t" style="width:140px;top:2px;text-align:center;font-size:24px">3:47</div><div class="acc" style="width:140px;top:30px;text-align:center;font-size:11px;font-weight:bold">Takım Ölüm Maçı</div></div>
+   <div class="panel" style="left:268px;top:0;width:112px;height:46px"><div style="left:0;top:0;width:112px;height:3px;background:#ff684a"></div><div class="t" style="width:112px;top:4px;text-align:center;font-size:27px">9</div><div class="dim" style="width:112px;top:31px;text-align:center;font-size:11px;font-weight:bold">EJDER</div></div>
+   <div class="t" style="width:380px;top:50px;text-align:center;font-size:14px">Hedef 50</div>`;
+  // Nişangâh (Bora-5 nişansız dağılması, 80° görüş)
+  const gap = Math.min(Math.max(Math.tan(2.6 * Math.PI / 180) / Math.tan(40 * Math.PI / 180) * (H / 2) / s, 3), 120) + 3 + 4;
+  const cx = DW / 2, cy = DH / 2;
+  for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+    const w = dx === 0 ? 2 : 9, h = dx === 0 ? 9 : 2;
+    el("", `left:${cx + dx * gap - w / 2}px;top:${cy + dy * gap - h / 2}px;width:${w}px;height:${h}px;background:#fff;outline:1px solid rgba(0,0,0,.5)`);
+  }
+  el("", `left:${cx - 1.5}px;top:${cy - 1.5}px;width:3px;height:3px;background:#fff;outline:1px solid rgba(0,0,0,.5)`);
+  el(`<span class="acc">+100</span>&nbsp; Düşman etkisiz`, `left:${cx - 160}px;top:${cy + 84}px;width:320px;text-align:center;font-size:16px;font-weight:bold;color:#eceade;text-shadow:0 0 3px #000`);
+  // Can
+  el(`<div class="t" style="left:0;top:0;font-size:28px">100</div><div class="t dim" style="left:62px;top:8px;font-size:13px">CAN</div><div style="left:0;top:32px;width:270px;height:9px;border-radius:3px;background:#eceade"></div>`, `left:24px;top:${DH - 70}px;width:270px;height:46px`);
+  // Cephane
+  el(`<div class="t acc" style="right:0;top:0;font-size:16px">${v.weapon}</div><div class="t" style="right:78px;top:16px;font-size:44px">27</div><div class="t dim" style="right:0;top:38px;font-size:20px">/ 120</div><div class="t dim" style="right:0;top:70px;font-size:13px">Otomatik &nbsp;·&nbsp; El bombası 2</div>`, `right:24px;top:${DH - 120}px;width:300px;height:100px`);
+}
+</script>
+</body>
+</html>

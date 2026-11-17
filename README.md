@@ -267,6 +267,13 @@ filtreden gürültü, lastik cızırtısı bant geçiren filtreli gürültü, m�
 ses saatine karşı çalınan dört ölçülük bir döngü — hepsi Web Audio ile
 sentezleniyor.
 
+## Roblox oyunu: Bozkır Harekâtı
+
+`roblox/` klasöründe ayrı bir oyun var: Roblox için birinci şahıs askerî
+nişancı. Üç mod, on bir silah, eklentiler, rütbeler ve botlar içeriyor.
+Studio'da `roblox/BozkirHarekati.rbxl` dosyasını açman yeterli. Ayrıntılar
+[roblox/README.md](roblox/README.md) dosyasında.
+
 ## Lisans
 
 three.js MIT lisanslıdır (`game/vendor/three/LICENSE`). Geri kalan kod ve

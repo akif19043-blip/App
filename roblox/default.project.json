@@ -1,0 +1,86 @@
+{
+  "name": "BozkirHarekati",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": { "$path": "src/shared" },
+      "State": { "$className": "Folder" },
+      "Remotes": {
+        "$className": "Folder",
+        "Deploy": { "$className": "RemoteEvent" },
+        "SetLoadout": { "$className": "RemoteEvent" },
+        "Fire": { "$className": "RemoteEvent" },
+        "Reload": { "$className": "RemoteEvent" },
+        "Equip": { "$className": "RemoteEvent" },
+        "Melee": { "$className": "RemoteEvent" },
+        "Grenade": { "$className": "RemoteEvent" },
+        "Look": { "$className": "UnreliableRemoteEvent" },
+        "Spawned": { "$className": "RemoteEvent" },
+        "Profile": { "$className": "RemoteEvent" },
+        "ShotFx": { "$className": "RemoteEvent" },
+        "HitConfirm": { "$className": "RemoteEvent" },
+        "Damaged": { "$className": "RemoteEvent" },
+        "KillFeed": { "$className": "RemoteEvent" },
+        "Notify": { "$className": "RemoteEvent" },
+        "Died": { "$className": "RemoteEvent" },
+        "Blast": { "$className": "RemoteEvent" }
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Server": { "$path": "src/server" }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$properties": {
+        "CameraMode": "LockFirstPerson",
+        "CameraMaxZoomDistance": 0.5,
+        "CameraMinZoomDistance": 0.5,
+        "HealthDisplayDistance": 0,
+        "NameDisplayDistance": 0,
+        "AutoJumpEnabled": false
+      },
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Client": { "$path": "src/client" }
+      },
+      "StarterCharacterScripts": {
+        "$className": "StarterCharacterScripts",
+        "Health": { "$path": "src/character/Health.server.luau" }
+      }
+    },
+    "Players": {
+      "$className": "Players",
+      "$properties": {
+        "CharacterAutoLoads": false,
+        "RespawnTime": 3
+      }
+    },
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "GlobalShadows": true
+      }
+    },
+    "StarterGui": {
+      "$className": "StarterGui",
+      "$properties": {
+        "ScreenOrientation": "LandscapeSensor",
+        "ResetPlayerGuiOnSpawn": false
+      }
+    },
+    "SoundService": {
+      "$className": "SoundService",
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "StreamingEnabled": false
+      }
+    }
+  }
+}

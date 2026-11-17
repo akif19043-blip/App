@@ -1,0 +1,3 @@
+-- Roblox'un varsayılan can yenileme betiğinin yerine geçer (aynı adı taşıdığı
+-- için varsayılan "Health" betiği yüklenmez). Can yenilemeyi sunucudaki
+-- Combat modülü yönetir: hasar aldıktan birkaç saniye sonra başlar.
