@@ -489,9 +489,14 @@ local function spawnBot(bot)
 	for _, part in ipairs(character:GetDescendants()) do
 		if part:IsA("BasePart") then
 			local name = part.Name
-			if name == "Head" or name == "LeftHand" or name == "RightHand" then
+			if name == "Head" then
 				part.Color = skin
-			elseif string.find(name, "Leg") or string.find(name, "Foot") or name == "LowerTorso" then
+			elseif name == "LeftHand" or name == "RightHand" then
+				part.Color = Color3.fromRGB(44, 42, 38) -- eldiven
+			elseif string.find(name, "Foot") then
+				part.Color = Color3.fromRGB(46, 38, 30) -- bot
+				part.Material = Enum.Material.Leather
+			elseif string.find(name, "Leg") or name == "LowerTorso" then
 				part.Color = team.uniform:Lerp(Color3.new(0, 0, 0), 0.25)
 			else
 				part.Color = team.uniform

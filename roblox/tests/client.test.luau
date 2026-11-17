@@ -185,6 +185,17 @@ local ok, problem = pcall(function()
 		last and last.attachments.bora and last.attachments.bora.sight == "holo"
 	)
 
+	local preview = find(gui.Menu, function(item)
+		return item.Name == "Preview" and item:IsA("ViewportFrame")
+	end)
+	local previewModel = preview and preview:FindFirstChildOfClass("WorldModel"):FindFirstChildOfClass("Model")
+	check("menüde 3B silah önizlemesi var", previewModel ~= nil and previewModel:FindFirstChild("Receiver") ~= nil)
+	check(
+		"önizlemede seçilen eklenti takılı (holografik)",
+		previewModel and previewModel:FindFirstChild("SightTop") ~= nil
+	)
+	check("menüde arka plan bulanık", game:GetService("Lighting"):FindFirstChild("MenuBlur").Size > 0)
+
 	print("\nSahaya iniş")
 	click(deploy)
 	check("katılma isteği gönderildi", #Harness.sent("Deploy") == 1)
@@ -348,6 +359,23 @@ local ok, problem = pcall(function()
 	check("öldürme akışında satır var", #find(gui.Hud, function(item)
 		return item.Name == "KillFeed"
 	end):GetChildren() > 1)
+
+	print("\nEfektler")
+	local Effects = Harness.require(game:GetService("StarterPlayer").StarterPlayerScripts.Client.Effects)
+	Effects.impact(Vector3.new(0, 1, 140), Vector3.new(0, 1, 0), false, Enum.Material.Metal, roblox.Color3.new(1, 1, 1))
+	Effects.impact(Vector3.new(0, 0, 140), Vector3.new(0, 1, 0), false, Enum.Material.Sand, nil)
+	Effects.impact(Vector3.new(0, 2, 140), Vector3.new(0, 0, 1), true)
+	check("isabet efektleri hatasız", true)
+	-- Atışta çıkan kovanlar 2,5 sn sonra silinir; burada yenisini çıkar
+	Effects.shell(Vector3.new(0, 4, 148), Vector3.new(1, 0, 0), Vector3.new(0, 1, 0), false)
+	local casing = find(workspace, function(item)
+		return item.Name == "Casing"
+	end)
+	check("kovan parçası oluştu", casing ~= nil)
+	serverSends("Blast", Vector3.new(0, 3, 146))
+	local shakeA, shakeB = Effects.takeShake(1 / 60)
+	check("yakındaki patlama kamerayı sarstı", shakeA ~= 0 or shakeB ~= 0)
+	check("HUD'da bulanıklık yok", game:GetService("Lighting"):FindFirstChild("MenuBlur").Size == 0)
 
 	print("\nDokunmatik düzen")
 	Harness.signal(UserInputService, "LastInputTypeChanged"):Fire(Enum.UserInputType.Touch)

@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Attachments = require(Shared.Attachments)
 local Config = require(Shared.Config)
+local GunModels = require(Shared.GunModels)
 local Loadout = require(Shared.Loadout)
 local Ranks = require(Shared.Ranks)
 local Weapons = require(Shared.Weapons)
@@ -171,17 +172,38 @@ local function buildDetail(parent)
 		BackgroundTransparency = 0.1,
 		Parent = parent,
 	}, { Ui.corner(8), Ui.pad(14) })
-	refs.detailName = label({ Size = UDim2.new(1, 0, 0, 28), TextSize = 26, Font = Ui.FontBlack, Parent = detail })
+	-- Seçili silahın dönen 3B görünümü
+	local viewport = make("ViewportFrame", {
+		Name = "Preview",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Size = UDim2.fromOffset(196, 80),
+		BackgroundColor3 = C.ink,
+		BackgroundTransparency = 0.35,
+		Ambient = Color3.fromRGB(150, 148, 140),
+		LightColor = Color3.fromRGB(255, 244, 226),
+		LightDirection = Vector3.new(-0.6, -1, -0.8),
+		Parent = detail,
+	}, { Ui.corner(6) })
+	local previewCamera = make("Camera", { FieldOfView = 30, Parent = viewport })
+	viewport.CurrentCamera = previewCamera
+	refs.preview = {
+		viewport = viewport,
+		world = make("WorldModel", { Parent = viewport }),
+		camera = previewCamera,
+	}
+	refs.detailName = label({ Size = UDim2.new(1, -204, 0, 28), TextSize = 26, Font = Ui.FontBlack, Parent = detail })
 	refs.detailClass = label({
 		Position = UDim2.fromOffset(0, 28),
-		Size = UDim2.new(1, 0, 0, 18),
+		Size = UDim2.new(1, -204, 0, 18),
+		TextWrapped = true,
 		TextSize = 13,
 		TextColor3 = C.accent,
 		Parent = detail,
 	})
 	refs.detailText = label({
 		Position = UDim2.fromOffset(0, 48),
-		Size = UDim2.new(1, 0, 0, 34),
+		Size = UDim2.new(1, -204, 0, 34),
 		TextSize = 13,
 		TextColor3 = C.dim,
 		Font = Ui.FontMedium,
@@ -605,6 +627,39 @@ local function attachmentChip(weaponId, slot, attId, parent, order)
 	end)
 end
 
+-- Seçili silah ya da eklentileri değiştiyse önizleme modelini yeniden kurar
+local function updatePreview(weaponId, stats)
+	local preview = refs.preview
+	local key = weaponId
+	for _, slot in ipairs(Attachments.Slots) do
+		key ..= ":" .. tostring(stats.attachments[slot])
+	end
+	if preview.key == key then
+		return
+	end
+	preview.key = key
+	if preview.model then
+		preview.model:Destroy()
+	end
+	local model = GunModels.build(stats, { name = "Preview" })
+	model.Parent = preview.world
+	preview.model = model
+	local length = stats.model.length
+	-- Silahın kabaca ortası: tutamağın önünde, boyunun yarısı kadar
+	preview.center = 0.45 - length * 0.42
+	local distance = math.max(1.6, length * 1.05)
+	preview.camera.CFrame = CFrame.lookAt(Vector3.new(0, 0.35, distance), Vector3.new(0, 0.05, 0))
+end
+
+local function spinPreview()
+	local preview = refs.preview
+	if not preview or not preview.model then
+		return
+	end
+	local angle = math.rad(90) + math.sin(os.clock() * 0.7) * 0.55
+	preview.model:PivotTo(CFrame.Angles(0, angle, 0) * CFrame.new(0, 0, -preview.center))
+end
+
 function Menu.refresh()
 	if not gui then
 		return
@@ -641,6 +696,8 @@ function Menu.refresh()
 			or ("  ·  " .. def.unlockRank .. ". rütbede açılır (" .. Ranks.name(def.unlockRank) .. ")")
 		)
 	refs.detailText.Text = def.description
+	updatePreview(selected, stats)
+	spinPreview()
 	for index, bar in ipairs(Menu.statBars(stats)) do
 		local item = refs.bars[index]
 		item.name.Text = bar[1]
@@ -741,6 +798,7 @@ function Menu.update(d)
 	if not gui or not open then
 		return
 	end
+	spinPreview()
 	refs.modeName.Text = d.modeName or ""
 	refs.phaseText.Text = d.phaseText or ""
 	refs.ggCover.Visible = d.gunGame == true

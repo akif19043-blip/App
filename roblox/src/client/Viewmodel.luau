@@ -93,6 +93,9 @@ function Viewmodel.build(stats, sleeveColor)
 		handle = handle,
 		aim = handle:WaitForChild("Aim").Position,
 		muzzle = handle:WaitForChild("Muzzle"),
+		port = model:FindFirstChild("EjectionPort") or model:FindFirstChild("Slide") or model:FindFirstChild(
+			"Receiver"
+		),
 		mags = mags,
 		stats = stats,
 		melee = stats.melee == true,

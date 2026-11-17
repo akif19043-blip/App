@@ -47,6 +47,7 @@ local lastEquipIndex = 1
 local lastMelee = 0
 local lastGrenade = 0
 
+local fovKick = 0
 local pendingPitch = 0
 local pendingYaw = 0
 local recoveryBank = 0
@@ -83,6 +84,7 @@ function Arsenal.clear()
 	aimHeld = false
 	aimToggled = false
 	pendingPitch, pendingYaw, recoveryBank = 0, 0, 0
+	fovKick = 0
 	UserInputService.MouseDeltaSensitivity = 1
 	local cam = camera()
 	if cam then
@@ -271,7 +273,14 @@ local function shoot(weapon)
 		})
 		Effects.tracer(muzzle.Position, hitPosition, stats.pellets > 1 and 0.05 or 0.08)
 		if result then
-			Effects.impact(hitPosition, result.Normal, hitModel ~= nil and isEnemyCharacter(hitModel))
+			local instance = result.Instance
+			Effects.impact(
+				hitPosition,
+				result.Normal,
+				hitModel ~= nil and isEnemyCharacter(hitModel),
+				result.Material,
+				instance:IsA("BasePart") and not instance:IsA("Terrain") and instance.Color or nil
+			)
 		end
 	end
 
@@ -289,6 +298,22 @@ local function shoot(weapon)
 	if not stats.suppressed then
 		Effects.flash(muzzle, stats.class == "Sniper" and 1.5 or (stats.class == "Shotgun" and 1.3 or 1))
 	end
+	-- Kovan (pompalı ve sürgülü tüfekte atıştan biraz sonra)
+	local port = weapon.vm.port
+	if port then
+		local camFrame = cam.CFrame
+		local function eject()
+			if port.Parent then
+				Effects.shell(port.Position, camFrame.RightVector, camFrame.UpVector, stats.class == "Shotgun")
+			end
+		end
+		if stats.class == "Shotgun" or stats.class == "Sniper" then
+			task.delay(0.35, eject)
+		else
+			eject()
+		end
+	end
+	fovKick = math.min(fovKick + math.clamp(stats.recoilV * 0.5, 0.3, 2.5), 4)
 	Sfx.play2D(stats.suppressed and "suppressed" or stats.sound, 0.06)
 	Movement.onFire()
 end
@@ -447,13 +472,17 @@ function Arsenal.update(dt)
 		recoveryBank -= back
 		dPitch -= back
 	end
+	local shakePitch, shakeYaw = Effects.takeShake(dt)
+	dPitch += shakePitch
+	dYaw += shakeYaw
 	if dPitch ~= 0 or dYaw ~= 0 then
 		cam.CFrame = cam.CFrame * CFrame.Angles(dPitch, -dYaw, 0)
 	end
 
 	-- Görüş açısı ve hassasiyet
 	local hipFov = Config.BaseFov + (Movement.sprinting and 6 or 0)
-	cam.FieldOfView = Util.lerp(hipFov, stats.adsFov, Arsenal.aimAlpha)
+	fovKick -= fovKick * Util.smooth(14, dt)
+	cam.FieldOfView = Util.lerp(hipFov, stats.adsFov, Arsenal.aimAlpha) + fovKick * (1 - Arsenal.aimAlpha * 0.7)
 	UserInputService.MouseDeltaSensitivity =
 		Util.lerp(1, math.max(stats.adsFov / Config.BaseFov, 0.25), Arsenal.aimAlpha)
 

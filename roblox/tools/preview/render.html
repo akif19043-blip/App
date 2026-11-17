@@ -44,12 +44,65 @@ const world = new THREE.Scene();
 const rgb = (c) => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
 
 const ROUGH = { Metal: [0.45, 0.6], DiamondPlate: [0.5, 0.6], CorrodedMetal: [0.8, 0.4], Plastic: [0.6, 0], SmoothPlastic: [0.45, 0], Glass: [0.1, 0] };
+
+// Roblox malzemelerine benzeyen, dünya koordinatında döşenen gri tonlu dokular.
+// Renk parçadan gelir; doku yalnızca ayrıntı katar.
+function rand(seed) { let x = seed * 9301 + 49297; return () => ((x = (x * 9301 + 49297) % 233280) / 233280); }
+function canvasTexture(draw) {
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const g = c.getContext("2d"); draw(g, rand(7));
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return t;
+}
+function noise(g, r, base, spread, dots, size) {
+  g.fillStyle = `rgb(${base},${base},${base})`; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < dots; i++) { const v = base + (r() - 0.5) * spread; g.fillStyle = `rgba(${v},${v},${v},0.55)`; const s = 1 + r() * size; g.fillRect(r() * 256, r() * 256, s, s); }
+}
+const DETAIL = {
+  grain: [canvasTexture((g, r) => noise(g, r, 225, 70, 9000, 3)), 10],
+  coarse: [canvasTexture((g, r) => { noise(g, r, 215, 90, 5000, 7); for (let i = 0; i < 60; i++) { g.strokeStyle = "rgba(120,120,120,0.35)"; g.beginPath(); const x = r() * 256, y = r() * 256; g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 60, y + (r() - 0.5) * 60); g.stroke(); } }), 14],
+  planks: [canvasTexture((g, r) => { noise(g, r, 215, 40, 3000, 2); for (let y = 0; y < 256; y += 32) { g.fillStyle = "rgba(70,70,70,0.6)"; g.fillRect(0, y, 256, 2); const off = r() * 256; g.fillRect(off, y, 2, 32); } for (let i = 0; i < 80; i++) { g.strokeStyle = "rgba(150,150,150,0.25)"; g.beginPath(); const y = r() * 256; g.moveTo(0, y); g.lineTo(256, y + (r() - 0.5) * 6); g.stroke(); } }), 6],
+  tiles: [canvasTexture((g, r) => { g.fillStyle = "#ddd"; g.fillRect(0, 0, 256, 256); for (let y = 0; y < 256; y += 32) for (let x = 0; x < 256; x += 32) { const v = 200 + r() * 40; g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x + ((y / 32) % 2) * 16, y, 30, 26); g.fillStyle = "rgba(60,60,60,0.5)"; g.fillRect(x, y + 26, 32, 6); } }), 5],
+  ceramic: [canvasTexture((g, r) => { g.fillStyle = "#e8e8e8"; g.fillRect(0, 0, 256, 256); g.fillStyle = "rgba(90,90,90,0.5)"; for (let i = 0; i <= 256; i += 64) { g.fillRect(i - 1, 0, 3, 256); g.fillRect(0, i - 1, 256, 3); } }), 4],
+  plaster: [canvasTexture((g, r) => { noise(g, r, 232, 36, 7000, 4); for (let i = 0; i < 30; i++) { g.fillStyle = "rgba(170,170,170,0.15)"; g.beginPath(); g.arc(r() * 256, r() * 256, 10 + r() * 30, 0, 7); g.fill(); } }), 12],
+  fabric: [canvasTexture((g, r) => { g.fillStyle = "#ddd"; g.fillRect(0, 0, 256, 256); for (let i = 0; i < 256; i += 4) { g.fillStyle = "rgba(120,120,120,0.25)"; g.fillRect(i, 0, 1, 256); g.fillRect(0, i, 256, 1); } }), 3],
+  metal: [canvasTexture((g, r) => { noise(g, r, 225, 30, 3000, 2); for (let i = 0; i < 120; i++) { g.strokeStyle = "rgba(255,255,255,0.12)"; g.beginPath(); const y = r() * 256; g.moveTo(0, y); g.lineTo(256, y); g.stroke(); } }), 6],
+  rust: [canvasTexture((g, r) => { noise(g, r, 215, 60, 4000, 3); for (let i = 0; i < 70; i++) { g.fillStyle = `rgba(${90 + r() * 60},${60 + r() * 30},40,0.35)`; g.beginPath(); g.arc(r() * 256, r() * 256, 4 + r() * 18, 0, 7); g.fill(); } }), 8],
+  diamond: [canvasTexture((g, r) => { g.fillStyle = "#d8d8d8"; g.fillRect(0, 0, 256, 256); g.fillStyle = "rgba(255,255,255,0.5)"; for (let y = 0; y < 256; y += 32) for (let x = 0; x < 256; x += 32) { g.save(); g.translate(x + 16 + ((y / 32) % 2) * 16, y + 16); g.rotate(0.8); g.fillRect(-10, -2, 20, 4); g.restore(); } }), 2],
+  carpet: [canvasTexture((g, r) => { g.fillStyle = "#ddd"; g.fillRect(0, 0, 256, 256); g.strokeStyle = "rgba(255,255,255,0.6)"; g.lineWidth = 6; g.strokeRect(20, 20, 216, 216); g.strokeRect(60, 60, 136, 136); g.fillStyle = "rgba(60,60,60,0.35)"; for (let i = 0; i < 8; i++) { g.beginPath(); g.arc(128, 128, 10 + i * 6, 0, 7); g.fill(); } }), 6],
+  leaves: [canvasTexture((g, r) => { noise(g, r, 200, 110, 6000, 6); }), 4],
+};
+const MATERIAL_DETAIL = {
+  Sand: "grain", Ground: "coarse", Grass: "coarse", Mud: "coarse", Rock: "coarse", Slate: "coarse", Sandstone: "coarse",
+  Asphalt: "grain", Pavement: "tiles", Concrete: "plaster", Plaster: "plaster", Brick: "tiles",
+  WoodPlanks: "planks", Wood: "planks", ClayRoofTiles: "tiles", CeramicTiles: "ceramic", Fabric: "fabric",
+  Metal: "metal", CorrodedMetal: "rust", DiamondPlate: "diamond", Carpet: "carpet", LeafyGrass: "leaves", Rubber: "grain",
+};
+function triplanar(m, detail) {
+  const [tex, tile] = DETAIL[detail];
+  m.map = tex;
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.tileScale = { value: 1 / tile };
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vWP; varying vec3 vWN;")
+      .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal);");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vWP; varying vec3 vWN; uniform float tileScale;")
+      .replace("#include <map_fragment>", `
+        vec3 bw = abs(normalize(vWN)); bw = pow(bw, vec3(4.0)); bw /= (bw.x + bw.y + bw.z);
+        vec4 tx = texture2D(map, vWP.zy * tileScale), ty = texture2D(map, vWP.xz * tileScale), tz = texture2D(map, vWP.xy * tileScale);
+        diffuseColor *= tx * bw.x + ty * bw.y + tz * bw.z;`);
+  };
+  m.customProgramCacheKey = () => detail;
+}
 const materials = new Map();
 function material(p) {
   const key = p.c.join(",") + p.m + p.t;
   if (materials.has(key)) return materials.get(key);
   const [roughness, metalness] = ROUGH[p.m] || [0.92, 0];
   const m = new THREE.MeshStandardMaterial({ color: rgb(p.c), roughness, metalness });
+  if (MATERIAL_DETAIL[p.m]) triplanar(m, MATERIAL_DETAIL[p.m]);
   if (p.m === "Neon") { m.emissive = rgb(p.c); m.emissiveIntensity = 1.4; }
   if (p.m === "Glass" || p.t > 0) { m.transparent = true; m.opacity = Math.max(0.12, 1 - Math.max(p.t, p.m === "Glass" ? 0.6 : 0)); m.depthWrite = false; }
   materials.set(key, m);
@@ -58,13 +111,25 @@ function material(p) {
 const unitBox = new THREE.BoxGeometry(1, 1, 1);
 const unitCyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 20).rotateZ(Math.PI / 2);
 const unitBall = new THREE.SphereGeometry(0.5, 20, 14);
+const unitCylY = new THREE.CylinderGeometry(0.5, 0.5, 1, 40);
+// Roblox kaması: dik yüz +Z'de, eğim -Z'ye doğru alçalır
+const unitWedge = (() => {
+  const v = [[-.5,-.5,-.5],[.5,-.5,-.5],[.5,-.5,.5],[-.5,-.5,.5],[-.5,.5,.5],[.5,.5,.5]];
+  const f = [[0,2,1],[0,3,2],[3,5,2],[3,4,5],[0,1,5],[0,5,4],[0,4,3],[1,2,5]];
+  const pos = []; for (const t of f) for (const i of t) pos.push(...v[i]);
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(new Array(pos.length / 3 * 2).fill(0), 2));
+  g.computeVertexNormals(); return g;
+})();
 
 function add(parts, options = {}) {
   const group = new THREE.Group();
   for (const p of parts) {
     let geometry = unitBox, sx = p.z[0], sy = p.z[1], sz = p.z[2];
     if (p.s === "Cylinder") { geometry = unitCyl; const d = Math.min(sy, sz); sy = d; sz = d; }
-    else if (p.s === "Ball") { geometry = unitBall; const d = Math.min(sx, sy, sz); if (p.n === "Leaves" || p.n === "Bush") { /* yapraklar basık küre */ } else { sx = sy = sz = d; } }
+    else if (p.s === "Ball") { geometry = unitBall; const d = Math.min(sx, sy, sz); sx = sy = sz = d; }
+    else if (p.s === "Ellipsoid") { geometry = unitBall; }
+    else if (p.s === "Wedge") { geometry = unitWedge; }
     const mesh = new THREE.Mesh(geometry, material(p));
     const f = p.f;
     const m = new THREE.Matrix4().set(f[3], f[4], f[5], f[0], f[6], f[7], f[8], f[1], f[9], f[10], f[11], f[2], 0, 0, 0, 1);
@@ -77,6 +142,50 @@ function add(parts, options = {}) {
   }
   world.add(group);
   return group;
+}
+
+// Arazi: Roblox'ta voksel; burada doldurma şekilleri. Sonra gelen doldurma
+// üstte görünsün diye her birine çok küçük bir yükseklik farkı verilir.
+function softDisc() {
+  const c = document.createElement("canvas"); c.width = c.height = 128; const g = c.getContext("2d");
+  const grad = g.createRadialGradient(64, 64, 20, 64, 64, 64); grad.addColorStop(0, "rgba(255,255,255,1)"); grad.addColorStop(0.7, "rgba(255,255,255,0.85)"); grad.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grad; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
+}
+function addTerrain(fills, colors) {
+  const disc = softDisc();
+  fills.forEach((t, index) => {
+    const color = colors[t.m] || [0.6, 0.55, 0.45];
+    const m = new THREE.MeshStandardMaterial({ color: rgb(color), roughness: 0.95 });
+    if (MATERIAL_DETAIL[t.m]) triplanar(m, MATERIAL_DETAIL[t.m]);
+    let mesh;
+    const lift = index * 0.004;
+    if (t.k === "ball") {
+      mesh = new THREE.Mesh(new THREE.SphereGeometry(t.r, 40, 24), m);
+      mesh.position.set(t.c[0], t.c[1], t.c[2]);
+      mesh.scale.y = 0.85;
+    } else if (t.k === "cylinder" && t.h <= 3) {
+      // İnce leke: yumuşak kenarlı disk
+      const d = new THREE.MeshStandardMaterial({ color: rgb(color), roughness: 0.95, alphaMap: disc, transparent: true, depthWrite: false });
+      if (MATERIAL_DETAIL[t.m]) triplanar(d, MATERIAL_DETAIL[t.m]);
+      d.onBeforeCompile = ((orig) => (shader) => { orig(shader); shader.fragmentShader = shader.fragmentShader.replace("#include <alphamap_fragment>", "diffuseColor.a *= texture2D(alphaMap, vAlphaMapUv).g;"); })(d.onBeforeCompile);
+      mesh = new THREE.Mesh(new THREE.CircleGeometry(t.r * 1.15, 48).rotateX(-Math.PI / 2), d);
+      mesh.position.set(t.f[0], t.f[1] + t.h / 2 + lift, t.f[2]);
+      mesh.renderOrder = index;
+    } else if (t.k === "cylinder") {
+      mesh = new THREE.Mesh(unitCylY, m);
+      mesh.scale.set(t.r * 2, t.h, t.r * 2);
+      mesh.position.set(t.f[0], t.f[1] + lift, t.f[2]);
+    } else {
+      mesh = new THREE.Mesh(t.k === "wedge" ? unitWedge : unitBox, m);
+      const f = t.f;
+      const mtx = new THREE.Matrix4().set(f[3], f[4], f[5], f[0], f[6], f[7], f[8], f[1] + lift, f[9], f[10], f[11], f[2], 0, 0, 0, 1);
+      mtx.multiply(new THREE.Matrix4().makeScale(t.z[0], t.z[1], t.z[2]));
+      mesh.matrixAutoUpdate = false; mesh.matrix.copy(mtx);
+    }
+    mesh.receiveShadow = true;
+    mesh.castShadow = t.k === "ball";
+    world.add(mesh);
+  });
 }
 
 function placeCamera(camera, f) {
@@ -111,11 +220,12 @@ if (view === "lineup") {
 } else {
   document.body.className = "sky";
   const L = scene.lighting;
+  addTerrain(scene.terrain || [], scene.terrainColors || {});
   add(scene.map);
   add(scene.actors);
   const haze = new THREE.Color().setRGB(0.84, 0.79, 0.66, THREE.SRGBColorSpace);
   const close = view === "hip" || view === "ads";
-  world.fog = new THREE.Fog(haze, close ? 90 : 260, close ? 700 : 1100);
+  world.fog = new THREE.Fog(haze, close ? 90 : 240, close ? 700 : 900);
   world.add(new THREE.HemisphereLight(0xd6dde2, 0x8c7552, 1.25));
   const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
   sun.position.set(140, 260, 110);
@@ -124,6 +234,9 @@ if (view === "lineup") {
   Object.assign(sun.shadow.camera, { left: -260, right: 260, top: 260, bottom: -260, near: 10, far: 700 });
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
   world.add(sun);
+  const far = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: rgb((scene.terrainColors || {}).Sand || [0.76, 0.66, 0.48]), roughness: 1 }));
+  triplanar(far.material, "grain");
+  far.position.y = -0.4; far.receiveShadow = true; world.add(far);
   const v = scene.views[view];
   camera = new THREE.PerspectiveCamera(v.fov, W / H, 0.05, 2000);
   placeCamera(camera, v.camera);

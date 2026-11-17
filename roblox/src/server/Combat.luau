@@ -530,7 +530,8 @@ local function onLook(player, pitch)
 end
 
 function Combat.init(mapData)
-	losParams.FilterDescendantsInstances = { mapData.folder }
+	-- Görüş hattını harita parçaları ve arazi (sınır tepeleri) keser
+	losParams.FilterDescendantsInstances = { mapData.folder, workspace.Terrain }
 
 	projectiles = Instance.new("Folder")
 	projectiles.Name = "Projectiles"

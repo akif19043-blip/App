@@ -60,7 +60,12 @@
     "Lighting": {
       "$className": "Lighting",
       "$properties": {
-        "GlobalShadows": true
+        "GlobalShadows": true,
+        "LightingStyle": "Realistic",
+        "PrioritizeLightingQuality": true,
+        "Technology": "Future",
+        "EnvironmentDiffuseScale": 1,
+        "EnvironmentSpecularScale": 1
       }
     },
     "StarterGui": {

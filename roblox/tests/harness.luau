@@ -382,6 +382,28 @@ roblox.implementMethod("WorldRoot", "Raycast", function()
 	return nil
 end)
 
+-- Arazi: doldurma çağrıları kaydedilir (önizleme bunları çizer)
+Harness.terrainFills = {}
+Harness.terrainColors = {}
+roblox.implementMethod("Terrain", "FillBlock", function(_, cframe, size, material)
+	table.insert(Harness.terrainFills, { kind = "block", cframe = cframe, size = size, material = material.Name })
+end)
+roblox.implementMethod("Terrain", "FillBall", function(_, center, radius, material)
+	table.insert(Harness.terrainFills, { kind = "ball", center = center, radius = radius, material = material.Name })
+end)
+roblox.implementMethod("Terrain", "FillCylinder", function(_, cframe, height, radius, material)
+	table.insert(
+		Harness.terrainFills,
+		{ kind = "cylinder", cframe = cframe, height = height, radius = radius, material = material.Name }
+	)
+end)
+roblox.implementMethod("Terrain", "FillWedge", function(_, cframe, size, material)
+	table.insert(Harness.terrainFills, { kind = "wedge", cframe = cframe, size = size, material = material.Name })
+end)
+roblox.implementMethod("Terrain", "SetMaterialColor", function(_, material, color)
+	Harness.terrainColors[material.Name] = color
+end)
+
 roblox.implementMethod("DataModel", "BindToClose", function(self, fn)
 	Harness.closeHandlers = Harness.closeHandlers or {}
 	table.insert(Harness.closeHandlers, fn)

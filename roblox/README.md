@@ -18,7 +18,10 @@ hazır model kullanılmadı.
 > parçanın konumu, boyutu ve rengi oyundakiyle aynı. Ama resimleri Roblox
 > değil tarayıcı (three.js) çizdi. Roblox'ta ışık, gölge, sis ve malzeme
 > dokuları (kum, beton, tahta, metal) farklı görünecek. HUD da oyundaki
-> yerleşime göre ayrıca çizildi; yazı tipi farklı. Nasıl üretildiği aşağıda.
+> yerleşime göre ayrıca çizildi; yazı tipi farklı. Arazi (zemin ve kenardaki
+> tepeler) Roblox'ta pürüzsüz voksel arazidir; önizlemede küre ve disklerle
+> yaklaşık çizildi. Bulutlar, güneş ışınları, parçacık efektleri ve akşam
+> yanan lambalar önizlemede yok. Nasıl üretildiği aşağıda.
 
 ## Neye bakarak yapıldı
 
@@ -55,7 +58,7 @@ Kaynaklar: [Phantom Forces ve rakipleri](https://www.lootbar.com/blog/en/best-ro
 | **Silah Yarışı** | Herkes tek başına. Her leş bir sonraki silahı verir (12 seviye), son silah bıçak. Bıçaklanan bir seviye geri düşer. |
 
 Turlar arasında 15 saniye mola var. Her turda hava değişiyor: öğle, gün
-batımı ya da sabah sisi.
+batımı, sabah sisi ya da alacakaranlık.
 
 ### Silahlar
 
@@ -102,6 +105,33 @@ asist, uzak atış, intikam, seri, bölge alma ve tur sonucundan geliyor.
   2,5 saniye görünür.
 - Hasar yön göstergesi, isabet işareti (öldürünce kırmızı, kafadan sarı),
   öldürme akışı, puan bildirimleri, rütbe atlama afişi, skor tablosu.
+
+### Görünüm
+
+- **Arazi:** zemin Roblox'un dokulu arazisi (kum, toprak, kuru çim, çamur,
+  meydanda kaldırım, asfalt yollar, çimenlerde rüzgârla sallanan otlar).
+  Harita doğal kaya ve kumtaşı tepelerle çevrili.
+- **Gökyüzü ve ışık:** hareketli bulutlar, güneş ve ay, güneş ışınları,
+  pus, renk ayarı ve parlama. Roblox'un gerçekçi ışık modu açık. Dört hava
+  ön ayarı var. Gün batımında, sisli sabahta ve alacakaranlıkta sokak
+  lambaları ve gözetleme kulelerindeki projektörler yanıyor.
+- **Binalar:** sıva, kaide, pervaz, pencere çerçeveleri ve açık kepenkler,
+  kiremitli sundurmalar, seramik döşeme ve kilimler, çatıda su depoları.
+- **Sahne:** tek tek dizilmiş kum torbaları, oluklu konteynerler, tel
+  kafesli siperler, varil ve lastik yığınları, paletler, kamuflaj ağları,
+  dikenli tel, elektrik hattı, enkaz arabalar, pazar tezgâhı, kavaklar ve
+  dallı ağaçlar, takım bayrakları.
+- **Askerler:** yuvarlak kask, gözlük, cepli yelek, sırt çantası, telsiz
+  anteni, takım kol bandı ve dizlik. Botların eldiven ve botları koyu.
+- **Silahlar:** ray dişleri, atım penceresi, kurma kolu, tetik, havalandırma
+  delikleri, alev gizleyici, kavisli şarjör, dürbün camları, tabanca kayar
+  parça tırtıkları.
+- **Efektler:** parçacıklı namlu ateşi ve duman, fırlayan kovanlar (pompalıda
+  kırmızı fişek), yüzeyin malzemesine göre isabet tozu ya da metalde
+  kıvılcım, ateş topu, yükselen duman ve toz halkasıyla patlama, yakın
+  patlamada kamera sarsıntısı, atışta hafif görüş tepmesi, havada uçuşan toz.
+- **Menü:** arka plan bulanıklaşıyor; seçili silah, takılı eklentileriyle
+  birlikte dönen 3B önizlemede görünüyor.
 
 ### Botlar
 
@@ -189,7 +219,9 @@ Kod değişince `BozkirHarekati.rbxl`'i yeniden derlemeyi unutma
 ### Sesler: değiştirilmesi gerekiyor
 
 `Sounds.luau`'daki sesler Roblox'un kendi içinde gelen eski dosyalara
-(`rbxasset://sounds/...`) işaret ediyor. Bu dosyaların hepsinin her Roblox
+(`rbxasset://sounds/...`) işaret ediyor. Parçacık efektleri de Roblox'un
+kendi dokularını (`rbxasset://textures/particles/...`) kullanıyor; bunlar
+eski Fire, Smoke ve Sparkles nesnelerinin dokuları. Bu dosyaların hepsinin her Roblox
 sürümünde bulunduğunu doğrulayamadım. Ayrıca silah sesi olarak zayıflar.
 Yüklenemeyen ses oyunu bozmaz, yalnızca sessiz kalır. İyi silah sesleri için
 Studio'da **Toolbox → Audio** (Creator Store) içinden ücretsiz bir ses seç,
@@ -234,10 +266,11 @@ Bu komut sırayla şunları yapıyor:
      sahte atışların reddi, kafa/gövde hasarı, leş, puan ve rütbe, atış hızı
      sınırı, dolum, bıçak, el bombası, tur sonu, bölge ele geçirme, Silah
      Yarışı'nda seviye atlama ve ayrılınca kayıt.
-   - `client`: menü, kilitli/açık silah ve eklenti seçimi, sahaya iniş, silah
-     görünümü, otomatik ateş, nişan, dolum, silah değiştirme, bıçak, el
-     bombası, koşma/kayma/eğilme, HUD mesajları, radar ve isim etiketleri,
-     skor tablosu, dokunmatik düğmeler, ölüm ekranı ve tur sonucu.
+   - `client`: menü, kilitli/açık silah ve eklenti seçimi, 3B silah
+     önizlemesi, sahaya iniş, silah görünümü, otomatik ateş, nişan, dolum,
+     silah değiştirme, bıçak, el bombası, koşma/kayma/eğilme, HUD mesajları,
+     radar ve isim etiketleri, skor tablosu, isabet/kovan/patlama efektleri,
+     dokunmatik düğmeler, ölüm ekranı ve tur sonucu.
 
 Testlerin göremediği şeyler var: fizik (karakterler testte yürümüyor, bu
 yüzden botların yol bulması sınanmıyor), Roblox'un gerçek görüntüsü ve
@@ -254,6 +287,7 @@ node tools/preview/shoot.cjs build docs
 ```
 
 `export.luau` haritayı, askerleri, silah görünümünü ve silah dizisini oyunun
-kendi modülleriyle kurup her parçayı JSON'a yazıyor. `render.html` bunları
+kendi modülleriyle kurup her parçayı ve arazi doldurma çağrısını JSON'a
+yazıyor. `render.html` bunları
 three.js ile çiziyor. HUD katmanı `src/client/Hud.luau`'daki konumlarla
 elle çizildi.

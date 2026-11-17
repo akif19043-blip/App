@@ -273,7 +273,8 @@ local function intermission(nextMode, seconds)
 	rebalance()
 
 	local preset = MapBuilder.Lighting[rng:NextInteger(1, #MapBuilder.Lighting)]
-	MapBuilder.applyLighting(Lighting, preset)
+	MapBuilder.applyLighting(Lighting, preset, workspace.Terrain)
+	workspace.GlobalWind = Vector3.new(9, 0, 5)
 
 	resetPoints()
 	mapData.pointsFolder.Parent = mode.id == "dom" and workspace or nil

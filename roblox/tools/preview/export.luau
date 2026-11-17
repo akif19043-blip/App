@@ -55,6 +55,12 @@ local function dump(root, list)
 			local shape = "Block"
 			if part.ClassName == "Part" then
 				shape = part.Shape.Name
+			elseif part.ClassName == "WedgePart" then
+				shape = "Wedge"
+			end
+			local mesh = part:FindFirstChildOfClass("SpecialMesh")
+			if mesh and mesh.MeshType == Enum.MeshType.Sphere then
+				shape = "Ellipsoid"
 			end
 			table.insert(list, {
 				n = part.Name,
@@ -91,6 +97,28 @@ for _, point in ipairs(data.points) do
 end
 local mapParts = dump(data.folder)
 dump(data.pointsFolder, mapParts)
+
+-- Arazi doldurma çağrıları (Roblox'ta voksel arazi olur, önizlemede düz şekiller)
+local terrain = {}
+for _, fill in ipairs(Harness.terrainFills) do
+	local entry = { k = fill.kind, m = fill.material }
+	if fill.cframe then
+		entry.f = cframeList(fill.cframe)
+	end
+	if fill.size then
+		entry.z = { round(fill.size.X), round(fill.size.Y), round(fill.size.Z) }
+	end
+	if fill.center then
+		entry.c = { round(fill.center.X), round(fill.center.Y), round(fill.center.Z) }
+	end
+	entry.r = fill.radius and round(fill.radius) or nil
+	entry.h = fill.height and round(fill.height) or nil
+	table.insert(terrain, entry)
+end
+local terrainColors = {}
+for name, color in pairs(MapBuilder.TerrainColors) do
+	terrainColors[name] = { round(color.R), round(color.G), round(color.B) }
+end
 
 -- Asker: oyundaki gibi giydirilir (kask, yelek, takım rengi); kollar silahı tutar
 local SKIN = Color3.fromRGB(204, 142, 105)
@@ -220,18 +248,26 @@ end
 
 local scene = {
 	map = mapParts,
+	terrain = terrain,
+	terrainColors = terrainColors,
 	actors = actors,
 	views = views,
 	lineup = { parts = lineup, labels = labels },
 	lighting = MapBuilder.Lighting[1],
 }
 -- Color3 değerleri JSON'a sayı olarak gider
-for _, preset in ipairs({ scene.lighting }) do
-	for key, value in pairs(preset) do
-		if typeof(value) == "Color3" then
-			preset[key] = { round(value.R), round(value.G), round(value.B) }
+local function plain(value)
+	if typeof(value) == "Color3" then
+		return { round(value.R), round(value.G), round(value.B) }
+	elseif type(value) == "table" then
+		local copy = {}
+		for key, item in pairs(value) do
+			copy[key] = plain(item)
 		end
+		return copy
 	end
+	return value
 end
+scene.lighting = plain(scene.lighting)
 fs.writeFile(process.args[2], serde.encode("json", scene))
 print(string.format("%d harita, %d asker parçası, %d silah parçası yazıldı", #mapParts, #actors, #lineup))

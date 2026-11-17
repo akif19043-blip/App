@@ -4,6 +4,7 @@
 -- "dead" (ölüm kamerası).
 
 local GuiService = game:GetService("GuiService")
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -68,8 +69,15 @@ local function canDeploy(now)
 	return phase() == "Playing" and not alive and now >= respawnAt and now - lastDeploy > 1.5
 end
 
+-- Menüde ve ölüm ekranında arka plan bulanıklaşır (yalnızca bu oyuncuda)
+local blur = Instance.new("BlurEffect")
+blur.Name = "MenuBlur"
+blur.Size = 0
+blur.Parent = Lighting
+
 local function setView(newView)
 	view = newView
+	blur.Size = newView == "menu" and 14 or (newView == "dead" and 5 or 0)
 	Hud.setVisible(newView == "playing")
 	Controls.setTouchVisible(newView == "playing")
 	Menu.setView(newView == "playing" and "hidden" or (newView == "dead" and "death" or "menu"))
