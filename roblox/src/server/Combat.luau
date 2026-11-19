@@ -68,6 +68,61 @@ function Combat.blocked(from, to)
 	return workspace:Raycast(from, offset.Unit * (distance - 1.5), losParams) ~= nil
 end
 
+-- Ragdoll: eklemler top-mafsala döner, gövde kurşun yönünde savrulur
+function Combat.ragdoll(character, push)
+	if not character or not character.Parent then
+		return
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		pcall(function()
+			humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+		end)
+	end
+	for _, motor in ipairs(character:GetDescendants()) do
+		if motor:IsA("Motor6D") and motor.Name ~= "Root" and motor.Part0 and motor.Part1 and motor.Enabled then
+			local a0 = Instance.new("Attachment")
+			a0.Name = "RagdollA"
+			a0.CFrame = motor.C0
+			a0.Parent = motor.Part0
+			local a1 = Instance.new("Attachment")
+			a1.Name = "RagdollB"
+			a1.CFrame = motor.C1
+			a1.Parent = motor.Part1
+			local socket = Instance.new("BallSocketConstraint")
+			socket.Name = "Ragdoll"
+			socket.Attachment0 = a0
+			socket.Attachment1 = a1
+			socket.LimitsEnabled = true
+			socket.UpperAngle = 50
+			socket.TwistLimitsEnabled = true
+			socket.TwistLowerAngle = -35
+			socket.TwistUpperAngle = 35
+			socket.MaxFrictionTorque = 5
+			socket.Parent = motor.Part1
+			motor.Enabled = false
+		end
+	end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	for _, part in ipairs(character:GetChildren()) do
+		if part:IsA("BasePart") then
+			if part == root then
+				part.CanCollide = false
+			elseif not part.Massless then
+				part.CanCollide = true
+			end
+			if push then
+				part.AssemblyLinearVelocity += push
+			end
+		end
+	end
+	if root then
+		pcall(function()
+			root:SetNetworkOwner(nil)
+		end)
+	end
+end
+
 function Combat.kill(victim, attacker, info)
 	if not victim.alive then
 		return
@@ -200,8 +255,22 @@ function Combat.kill(victim, attacker, info)
 		melee = info.melee == true,
 	})
 
-	-- Ceset bir süre sonra kaldırılır
+	-- Ceset yığılır ve kurşun (ya da patlama) yönünde savrulur
 	local character = victim.character
+	local corpseRoot = character and character:FindFirstChild("HumanoidRootPart")
+	local from = info.position or (attacker and Entities.position(attacker))
+	local push
+	if corpseRoot and from then
+		local away = corpseRoot.Position - from
+		away = Vector3.new(away.X, 0, away.Z)
+		if away.Magnitude > 0.1 then
+			local blast = info.position ~= nil
+			push = away.Unit * (blast and 38 or (info.headshot and 20 or 13)) + Vector3.new(0, blast and 28 or 6, 0)
+		end
+	end
+	Combat.ragdoll(character, push)
+
+	-- Ceset bir süre sonra kaldırılır
 	task.delay(Config.RespawnDelay + 2, function()
 		if not character then
 			return

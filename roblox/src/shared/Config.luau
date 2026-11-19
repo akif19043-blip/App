@@ -29,6 +29,16 @@ for _, team in ipairs(Config.Teams) do
 	Config.TeamById[team.id] = team
 end
 
+-- Görünüm: true ise oyuncular kendi avatar kıyafetleri yerine takım üniforması giyer
+-- (botlarla aynı görünür, vuruş kutuları da eşit olur)
+Config.UniformAvatars = true
+Config.SkinTones = {
+	Color3.fromRGB(234, 184, 146),
+	Color3.fromRGB(204, 142, 105),
+	Color3.fromRGB(160, 110, 80),
+	Color3.fromRGB(110, 76, 56),
+}
+
 -- Can
 Config.MaxHealth = 100
 Config.RegenDelay = 5 -- son hasardan kaç saniye sonra can dolmaya başlar

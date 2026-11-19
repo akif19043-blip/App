@@ -155,6 +155,134 @@ function MapBuilder.build(parent)
 		terrain:FillCylinder(CFrame.new(center), depth, radius, material)
 	end
 
+	-- Bir parçanın yüzüne yazı (SurfaceGui). opts: face, font, color, background,
+	-- rotation, size (yazının yüzdeki oranı), position
+	local function writing(part, text, opts)
+		opts = opts or {}
+		local gui = Instance.new("SurfaceGui")
+		gui.Name = "Writing"
+		gui.Face = opts.face or Enum.NormalId.Front
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = opts.pps or 30
+		gui.LightInfluence = 1
+		gui.MaxDistance = 350
+		local label = Instance.new("TextLabel")
+		label.AnchorPoint = Vector2.new(0.5, 0.5)
+		label.Position = opts.position or UDim2.fromScale(0.5, 0.5)
+		label.Size = opts.size or UDim2.fromScale(0.92, 0.82)
+		label.BackgroundTransparency = opts.background and 0 or 1
+		label.BackgroundColor3 = opts.background or Color3.new(0, 0, 0)
+		label.BorderSizePixel = 0
+		label.Rotation = opts.rotation or 0
+		label.Text = text
+		label.TextScaled = true
+		label.Font = opts.font or Enum.Font.GothamBlack
+		label.TextColor3 = opts.color or Color3.fromRGB(36, 36, 36)
+		label.TextTransparency = opts.transparency or 0
+		label.Parent = gui
+		gui.Parent = part
+		return gui
+	end
+
+	-- Tabela levhası: cframe'in -Z yönü (ön yüz) okunan yüzdür
+	local function signBoard(name, size, cframe, text, opts)
+		opts = opts or {}
+		local board = deco(
+			block(name, size, cframe, opts.board or Color3.fromRGB(232, 226, 206), Enum.Material.SmoothPlastic),
+			false
+		)
+		writing(board, text, opts)
+		if opts.back then
+			writing(board, opts.back, {
+				face = Enum.NormalId.Back,
+				font = opts.font,
+				color = opts.color,
+				size = opts.size,
+			})
+		end
+		-- Kenar çerçevesi
+		deco(
+			block(
+				name .. "Frame",
+				-- Levhadan biraz büyük ama ince: kenarda çerçeve görünür, iki yüzdeki yazı açık kalır
+				Vector3.new(size.X + 0.2, size.Y + 0.2, size.Z * 0.5),
+				cframe,
+				opts.frame or Color3.fromRGB(70, 70, 72),
+				Enum.Material.Metal
+			),
+			false
+		)
+		return board
+	end
+
+	-- Duvar yazısı: duvarın önünde görünmez ince bir yüzey
+	local function graffiti(cframe, width, height, text, color, rotation)
+		local surface = deco(
+			block(
+				"Graffiti",
+				Vector3.new(width, height, 0.05),
+				cframe,
+				Color3.new(1, 1, 1),
+				Enum.Material.SmoothPlastic
+			),
+			false
+		)
+		surface.Transparency = 1
+		writing(surface, text, {
+			font = Enum.Font.PermanentMarker,
+			color = color,
+			rotation = rotation or rng:NextNumber(-6, 6),
+			transparency = 0.12,
+			size = UDim2.fromScale(0.95, 0.95),
+		})
+	end
+
+	-- Ateş ve duman (Roblox'un kendi alev ve duman efektleri)
+	local function flames(part, size, light)
+		local fire = Instance.new("Fire")
+		fire.Size = size
+		fire.Heat = size * 1.5
+		fire.Color = Color3.fromRGB(255, 140, 60)
+		fire.SecondaryColor = Color3.fromRGB(255, 220, 120)
+		fire.Parent = part
+		if light then
+			local glow = Instance.new("PointLight")
+			glow.Color = Color3.fromRGB(255, 150, 70)
+			glow.Range = size * 4
+			glow.Brightness = 0
+			glow.Shadows = true
+			glow.Parent = part
+			table.insert(MapBuilder.lamps, { light = glow, glow = nil, power = 1.6, always = 0.6 })
+		end
+		return fire
+	end
+
+	local function smoke(part, size, opacity, rise, color)
+		local plume = Instance.new("Smoke")
+		plume.Size = size
+		plume.Opacity = opacity
+		plume.RiseVelocity = rise
+		plume.Color = color or Color3.fromRGB(70, 66, 62)
+		plume.Parent = part
+		return plume
+	end
+
+	-- Evin içinde tavan lambası: akşam ve sisli sabah yanar, pencerelerden ışık taşar
+	local function roomLight(cframe, range)
+		local holder = deco(
+			block("RoomLamp", Vector3.new(0.6, 0.6, 0.6), cframe, Color3.fromRGB(255, 226, 170), Enum.Material.Glass),
+			false
+		)
+		holder.Shape = Enum.PartType.Ball
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 204, 140)
+		light.Range = range
+		light.Brightness = 0
+		light.Shadows = true
+		light.Parent = holder
+		table.insert(MapBuilder.lamps, { light = light, glow = holder, power = 1.3 })
+	end
+
 	-- Yerel X ekseni boyunca uzanan duvar; "openings" kapı ve pencere boşluklarıdır:
 	-- { x = duvar ortasına göre konum, w = genişlik, y0 = alt, y1 = üst }
 	local function wall(base, length, height, thickness, color, material, openings, trim)
@@ -355,6 +483,31 @@ function MapBuilder.build(parent)
 				Enum.Material.ClayRoofTiles
 			).CanQuery =
 				false
+		end
+		-- Her katta tavan lambası
+		for floor = 1, floors do
+			roomLight(origin * CFrame.new(0, (floor - 1) * h + h - 1.2, 0), math.max(w, d) * 0.9)
+		end
+		-- Dükkân tabelası
+		if spec.sign then
+			local sign = spec.sign
+			signBoard(
+				"ShopSign",
+				Vector3.new(sign.w, sign.h, 0.25),
+				origin * CFrame.new(sign.x, sign.y, d / 2 + 0.7) * CFrame.Angles(0, math.pi, 0),
+				sign.text,
+				{ board = sign.board, color = sign.color, font = sign.font }
+			)
+		end
+		if spec.graffiti then
+			local g = spec.graffiti
+			graffiti(
+				origin * CFrame.new(w / 2 + 0.55, g.y, g.z) * CFrame.Angles(0, math.rad(-90), 0),
+				g.w,
+				g.h,
+				g.text,
+				g.color
+			)
 		end
 		-- Çatıda su deposu
 		if not spec.parapet then
@@ -603,6 +756,37 @@ function MapBuilder.build(parent)
 					false
 				)
 			end
+		end
+		-- Yan yüzlerde şirket adı ve konteyner numarası (yazı için görünmez yüzey)
+		for _, side in ipairs({ -1, 1 }) do
+			local panel = deco(
+				block(
+					"ContainerText",
+					Vector3.new(0.05, 8, 20),
+					origin * CFrame.new(side * 4.72, 4.9, 0),
+					color,
+					Enum.Material.SmoothPlastic
+				),
+				false
+			)
+			panel.Transparency = 1
+			local face = side > 0 and Enum.NormalId.Right or Enum.NormalId.Left
+			writing(panel, "BOZKIR LOJİSTİK", {
+				face = face,
+				font = Enum.Font.Oswald,
+				color = Color3.fromRGB(236, 232, 220),
+				size = UDim2.fromScale(0.7, 0.22),
+				position = UDim2.fromScale(0.5, 0.42),
+				transparency = 0.15,
+			})
+			writing(panel, string.format("BZKU %06d 4", rng:NextInteger(100000, 999999)), {
+				face = face,
+				font = Enum.Font.RobotoMono,
+				color = Color3.fromRGB(236, 232, 220),
+				size = UDim2.fromScale(0.34, 0.08),
+				position = UDim2.fromScale(0.22, 0.12),
+				transparency = 0.2,
+			})
 		end
 		-- Yan yüzlerde oluklar
 		local ribColor = color:Lerp(Color3.new(0, 0, 0), 0.2)
@@ -856,6 +1040,18 @@ function MapBuilder.build(parent)
 				)
 			end
 		else
+			local ember = deco(
+				block(
+					"Ember",
+					Vector3.new(2, 1, 2),
+					origin * CFrame.new(0, 7.2, -7),
+					Color3.fromRGB(40, 30, 24),
+					Enum.Material.Slate
+				),
+				false
+			)
+			flames(ember, 3, true)
+			smoke(ember, 6, 0.25, 4)
 			deco(
 				block(
 					"Soot",
@@ -1284,7 +1480,14 @@ function MapBuilder.build(parent)
 	-- Terk edilmiş araba
 	local function wreck(x, z, yaw, color)
 		local origin = at(x, 0, z, yaw)
-		block("Wreck", Vector3.new(6.2, 2.2, 13), origin * CFrame.new(0, 1.7, 0), color, Enum.Material.CorrodedMetal)
+		local body = block(
+			"Wreck",
+			Vector3.new(6.2, 2.2, 13),
+			origin * CFrame.new(0, 1.7, 0),
+			color,
+			Enum.Material.CorrodedMetal
+		)
+		smoke(body, 3, 0.12, 2, Color3.fromRGB(90, 86, 80))
 		block(
 			"WreckCabin",
 			Vector3.new(5.6, 2, 6.5),
@@ -1507,6 +1710,63 @@ function MapBuilder.build(parent)
 		barrels(-120, 206, 3)
 		pallet(-128, 194, 15, true)
 		baseFlag(6, 213, Config_teamColor(teamId))
+		-- Üs kapısı: iki direk ve üstünde tabela (merkeze bakar)
+		for _, xPost in ipairs({ -9.5, 9.5 }) do
+			column("GatePost", 10, 0.8, CFrame.new(xPost, 5, 165), Color3.fromRGB(80, 82, 84), Enum.Material.Metal)
+		end
+		signBoard(
+			"GateSign",
+			Vector3.new(19.2, 2.4, 0.3),
+			CFrame.new(0, 9, 165),
+			(firstPass and "ŞAHİN" or "EJDER") .. " BİRLİĞİ KARARGÂHI",
+			{
+				board = Config_teamColor(teamId):Lerp(Color3.new(0, 0, 0), 0.45),
+				color = Color3.fromRGB(240, 236, 224),
+				back = "GÖREVE HAZIR OL",
+			}
+		)
+		-- Ateş başı: yanan varil ve oturmak için kütükler
+		cylinder(
+			"FireBarrel",
+			3,
+			2.2,
+			CFrame.new(40, 1.5, 210) * CFrame.Angles(0, 0, math.rad(90)),
+			RUST,
+			Enum.Material.CorrodedMetal
+		)
+		local emberTop = deco(
+			block(
+				"Ember",
+				Vector3.new(1.6, 0.3, 1.6),
+				CFrame.new(40, 3.1, 210),
+				Color3.fromRGB(60, 30, 20),
+				Enum.Material.Slate
+			),
+			false
+		)
+		flames(emberTop, 2.5, true)
+		smoke(emberTop, 2, 0.1, 3)
+		for _, log in ipairs({ { 35.5, 210, 0 }, { 44.5, 210, 0 }, { 40, 214.5, 90 } }) do
+			cylinder(
+				"Log",
+				3.6,
+				1,
+				CFrame.new(log[1], 0.5, log[2]) * CFrame.Angles(0, math.rad(log[3] + 90), 0),
+				Color3.fromRGB(110, 80, 52),
+				Enum.Material.Wood
+			)
+		end
+		-- Mayın uyarıları
+		for _, xSign in ipairs({ -125, 125 }) do
+			column("SignPost", 3.4, 0.25, CFrame.new(xSign, 1.7, 157), METAL, Enum.Material.Metal)
+			signBoard(
+				"MineSign",
+				Vector3.new(3.4, 1.6, 0.12),
+				CFrame.new(xSign, 3.2, 156.9),
+				"DİKKAT! MAYINLI ALAN",
+				{ board = Color3.fromRGB(236, 196, 40), color = Color3.fromRGB(170, 24, 20) }
+			)
+		end
 		barbedWire(-152, -98, 159)
 		barbedWire(98, 152, 159)
 		patch(-104, 192, 11, Enum.Material.Mud)
@@ -1535,6 +1795,23 @@ function MapBuilder.build(parent)
 
 		-- Ön hat: çatısına çıkılan ev
 		house(56, 126, 26, 20, 0, {
+			sign = {
+				text = firstPass and "KARAKOL" or "MUHTARLIK",
+				x = 6,
+				y = 6.4,
+				w = 8,
+				h = 2,
+				board = Color3.fromRGB(20, 40, 90),
+				color = Color3.fromRGB(240, 240, 240),
+			},
+			graffiti = {
+				text = firstPass and "KÖY 24" or "KÖY 12",
+				y = 3.2,
+				z = 6,
+				w = 6,
+				h = 2.2,
+				color = Color3.fromRGB(40, 60, 120),
+			},
 			height = 10,
 			parapet = true,
 			ladder = 7,
@@ -1578,6 +1855,15 @@ function MapBuilder.build(parent)
 
 		-- Orta: iki katlı bina (güney-batı köşe)
 		house(-46, 46, 30, 24, 0, {
+			sign = {
+				text = firstPass and "BAKKAL" or "FIRIN",
+				x = -9,
+				y = 6.5,
+				w = 9,
+				h = 2.1,
+				board = Color3.fromRGB(190, 40, 34),
+				color = Color3.fromRGB(250, 244, 230),
+			},
 			height = 10,
 			floors = 2,
 			ramp = true,
@@ -1598,6 +1884,16 @@ function MapBuilder.build(parent)
 
 		-- Orta: tek katlı ev (güney-doğu köşe)
 		house(46, 40, 22, 18, 0, {
+			sign = {
+				text = firstPass and "ÇAY OCAĞI" or "BERBER",
+				x = -7,
+				y = 6,
+				w = 7,
+				h = 1.8,
+				board = Color3.fromRGB(236, 226, 196),
+				color = Color3.fromRGB(120, 40, 30),
+				font = Enum.Font.Fondamento,
+			},
 			height = 10,
 			color = PLASTER,
 			sides = {
@@ -1647,6 +1943,24 @@ function MapBuilder.build(parent)
 		bush(92, 70)
 		barrels(113, 31, 2)
 		patch(124, 53, 22, Enum.Material.Pavement)
+
+		-- Kavşağa bakan yol levhası
+		column("SignPost", 7, 0.3, CFrame.new(12, 3.5, 40), METAL, Enum.Material.Metal)
+		signBoard(
+			"RoadSign",
+			Vector3.new(6, 1.6, 0.15),
+			CFrame.new(12, 6.4, 39.9),
+			(firstPass and "ŞAHİN" or "EJDER") .. " ÜSSÜ  ↑",
+			{ board = Color3.fromRGB(16, 70, 140), color = Color3.fromRGB(240, 240, 240), back = "KÖY MEYDANI  ↑" }
+		)
+		-- Depo duvarına yazı
+		graffiti(
+			CFrame.new(103.35, 2.6, 52) * CFrame.Angles(0, math.rad(90), 0),
+			14,
+			3,
+			"BOZKIR",
+			Color3.fromRGB(170, 40, 36)
+		)
 
 		-- Yol boyunca lambalar ve elektrik hattı
 		streetLamp(-11, 150, -90)
@@ -1938,8 +2252,9 @@ function MapBuilder.applyLighting(lighting, preset, terrain)
 
 	-- Sokak lambaları ve gözetleme projektörleri
 	for _, lamp in ipairs(MapBuilder.lamps) do
-		lamp.light.Brightness = preset.lamps and lamp.power or 0
-		lamp.light.Enabled = preset.lamps == true
+		local power = preset.lamps and lamp.power or (lamp.always or 0)
+		lamp.light.Brightness = power
+		lamp.light.Enabled = power > 0
 		if lamp.glow then
 			lamp.glow.Material = preset.lamps and Enum.Material.Neon or Enum.Material.Glass
 		end

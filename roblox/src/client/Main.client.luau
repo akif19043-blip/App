@@ -15,6 +15,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Util = require(Shared.Util)
 
+local Ambience = require(script.Parent.Ambience)
 local Arsenal = require(script.Parent.Arsenal)
 local Controls = require(script.Parent.Controls)
 local Effects = require(script.Parent.Effects)
@@ -74,6 +75,22 @@ local blur = Instance.new("BlurEffect")
 blur.Name = "MenuBlur"
 blur.Size = 0
 blur.Parent = Lighting
+
+-- Can azaldıkça renkler solar, hasar anında ekran kızarır, ölünce gri olur
+local hurtGrade = Instance.new("ColorCorrectionEffect")
+hurtGrade.Name = "HurtGrade"
+hurtGrade.Parent = Lighting
+local hurtFlash = 0
+
+local function gradeScreen(dt, health, maxHealth, dead)
+	hurtFlash = math.max(0, hurtFlash - dt * 4)
+	local hurt = dead and 1 or math.clamp(1 - health / math.max(maxHealth, 1), 0, 1)
+	local fade = math.clamp((hurt - 0.45) / 0.55, 0, 1)
+	hurtGrade.Saturation = dead and -0.75 or -0.65 * fade
+	hurtGrade.Contrast = 0.12 * fade
+	local red = math.max(hurtFlash, fade * 0.25)
+	hurtGrade.TintColor = Color3.new(1, 1 - red * 0.35, 1 - red * 0.4)
+end
 
 local function setView(newView)
 	view = newView
@@ -153,6 +170,7 @@ remotes.HitConfirm.OnClientEvent:Connect(function(info)
 end)
 
 remotes.Damaged.OnClientEvent:Connect(function(from)
+	hurtFlash = 1
 	Hud.damageFrom(from)
 	Sfx.play2D("hurt", 0.2)
 end)
@@ -191,6 +209,7 @@ end)
 -- Kurulum ----------------------------------------------------------------
 
 Effects.init(remotes)
+Ambience.init()
 Arsenal.init(remotes)
 Hud.build(playerGui, camera)
 Scoreboard.build(playerGui, camera)
@@ -395,6 +414,7 @@ local function hudData(dt)
 	return {
 		alive = alive,
 		weapon = weaponData,
+		weaponStats = weapon and weapon.stats or nil,
 		aim = Arsenal.aimAlpha,
 		scoped = Arsenal.scoped,
 		spread = Arsenal.spread(),
@@ -552,13 +572,16 @@ RunService:BindToRenderStep("BozkirArsenal", Enum.RenderPriority.Camera.Value + 
 		Movement.update(dt, camera)
 		Arsenal.update(dt)
 		Hud.update(hudData(dt))
+		gradeScreen(dt, humanoid and humanoid.Health or 100, humanoid and humanoid.MaxHealth or 100, false)
 		if now - lastLook > 0.12 then
 			lastLook = now
 			remotes.Look:FireServer(math.asin(math.clamp(camera.CFrame.LookVector.Y, -1, 1)))
 		end
 	elseif view == "dead" then
 		deathCamera(now)
+		gradeScreen(dt, 0, 100, true)
 	else
+		gradeScreen(dt, 100, 100, false)
 		menuCamera(now)
 		Menu.update(menuData(now))
 	end

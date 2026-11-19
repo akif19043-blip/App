@@ -86,6 +86,7 @@ function Entities.create(props)
 		protectedUntil = 0,
 		respawnAt = 0,
 		lastKiller = nil,
+		skinTone = math.random(1, 4),
 	}
 
 	local row = Instance.new("Configuration")

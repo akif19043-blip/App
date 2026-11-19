@@ -119,7 +119,7 @@ local function emitter(at, color, count, speed, size, lifetime, options)
 	e.Lifetime = NumberRange.new(lifetime * 0.5, lifetime)
 	e.Speed = NumberRange.new(speed * 0.4, speed)
 	e.SpreadAngle = Vector2.new(options.spread or 60, options.spread or 60)
-	e.Acceleration = Vector3.new(0, options.gravity or -30, 0)
+	e.Acceleration = options.accel or Vector3.new(0, options.gravity or -30, 0)
 	e.Drag = options.drag or 0
 	e.LightEmission = options.light or 0.2
 	e.LightInfluence = options.light and options.light > 0.5 and 0 or 1
@@ -219,6 +219,43 @@ function Effects.shell(position, right, up, shotgun)
 	end)
 end
 
+-- Yerde rüzgârla savrulan toz bulutu
+function Effects.gust(position, wind)
+	local flat = Vector3.new(wind.X, 0, wind.Z)
+	emitter(position, DUST.Sand, 3, 3, 3.2, 3, {
+		texture = SMOKE_TEXTURE,
+		direction = flat.Magnitude > 0 and flat or nil,
+		spread = 25,
+		accel = flat * 0.35 + Vector3.new(0, 0.3, 0),
+		grow = 2.4,
+		fadeFrom = 0.8,
+		drag = 0.4,
+		rotate = 20,
+	})
+end
+
+-- Boş şarjör: görünümdeki şarjör parçalarının kopyası yere düşer
+function Effects.dropMag(parts, push)
+	for _, source in ipairs(parts) do
+		local piece = source:Clone()
+		piece.Name = "DroppedMag"
+		piece.Anchored = false
+		piece.CanCollide = true
+		piece.CanQuery = false
+		piece.LocalTransparencyModifier = 0
+		piece.Transparency = 0
+		piece.CFrame = source.CFrame
+		piece.Parent = folder
+		piece.AssemblyLinearVelocity = push or Vector3.new(0, -4, 0)
+		piece.AssemblyAngularVelocity = Vector3.new(math.random() * 4, math.random() * 4, math.random() * 4)
+		task.delay(4, function()
+			if piece.Parent then
+				piece:Destroy()
+			end
+		end)
+	end
+end
+
 function Effects.addShake(amount)
 	shake = math.min(1.5, shake + amount)
 end
@@ -276,14 +313,27 @@ function Effects.impact(position, normal, hitCharacter, material, color)
 		{ direction = direction, spread = 45, gravity = -50 }
 	)
 	if normal then
+		-- Yuvarlak delik ve çevresinde kararmış halka (silindirin ekseni yüzey normali)
+		local facing = CFrame.lookAt(position + normal * 0.02, position + normal * 2)
+			* CFrame.Angles(0, math.rad(90), 0)
 		local hole = part({
-			Size = Vector3.new(0.32, 0.32, 0.05),
-			Color = Color3.fromRGB(26, 24, 22),
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.04, 0.26, 0.26),
+			Color = Color3.fromRGB(18, 16, 14),
 			Material = Enum.Material.SmoothPlastic,
-			CFrame = CFrame.lookAt(position + normal * 0.02, position + normal * 2),
+			CFrame = facing,
+		})
+		local scorch = part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.03, 0.55, 0.55),
+			Color = (color or Color3.fromRGB(120, 110, 96)):Lerp(Color3.new(0, 0, 0), 0.55),
+			Material = Enum.Material.SmoothPlastic,
+			Transparency = 0.45,
+			CFrame = facing * CFrame.new(-0.005, 0, 0),
 		})
 		table.insert(holes, hole)
-		if #holes > MAX_HOLES then
+		table.insert(holes, scorch)
+		while #holes > MAX_HOLES * 2 do
 			table.remove(holes, 1):Destroy()
 		end
 	end

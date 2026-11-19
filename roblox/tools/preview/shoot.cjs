@@ -11,7 +11,7 @@ const server = spawn("python3", ["-m", "http.server", "8765", "--bind", "127.0.0
 await sleep(800);
 const browser = await chromium.launch({ args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 try {
-  for (const view of (process.env.VIEWS || "overview,village,hip,ads,lineup").split(",")) {
+  for (const view of (process.env.VIEWS || "overview,village,street,hip,ads,lineup").split(",")) {
     const page = await browser.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: 2 });
     page.on("pageerror", (e) => console.error(view, e.message));
     page.on("console", (m) => {

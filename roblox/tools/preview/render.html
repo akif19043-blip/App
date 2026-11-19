@@ -188,6 +188,46 @@ function addTerrain(fills, colors) {
   });
 }
 
+// Tabela yazıları: parçanın ilgili yüzüne yazılı bir düzlem
+const FONTS = {
+  GothamBlack: "900 {s}px 'DejaVu Sans'", Oswald: "bold {s}px 'DejaVu Sans Condensed', 'DejaVu Sans'",
+  RobotoMono: "bold {s}px 'DejaVu Sans Mono'", PermanentMarker: "italic bold {s}px 'DejaVu Serif'",
+  Fondamento: "italic {s}px 'DejaVu Serif'",
+};
+function addWritings(list) {
+  for (const w of list) {
+    const [sx, sy, sz] = w.z;
+    const side = { Front: [sx, sy], Back: [sx, sy], Right: [sz, sy], Left: [sz, sy], Top: [sx, sz], Bottom: [sx, sz] }[w.face];
+    const ppu = Math.min(48, 1400 / Math.max(side[0], side[1]));
+    const c = document.createElement("canvas"); c.width = Math.max(8, Math.round(side[0] * ppu)); c.height = Math.max(8, Math.round(side[1] * ppu));
+    const g = c.getContext("2d");
+    const bw = w.size[0] * c.width, bh = w.size[1] * c.height;
+    g.translate(w.pos[0] * c.width, w.pos[1] * c.height); g.rotate((w.rot || 0) * Math.PI / 180);
+    if (w.bg) { g.fillStyle = `rgb(${w.bg.map((v) => v * 255).join(",")})`; g.fillRect(-bw / 2, -bh / 2, bw, bh); }
+    const font = FONTS[w.font] || FONTS.GothamBlack;
+    let size = bh * 0.9;
+    g.font = font.replace("{s}", size);
+    while (size > 4 && g.measureText(w.text).width > bw * 0.96) { size *= 0.92; g.font = font.replace("{s}", size); }
+    g.fillStyle = `rgba(${w.color.map((v) => v * 255).join(",")},${w.alpha})`; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(w.text, 0, size * 0.04);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(side[0], side[1]), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.8, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+    const f = w.f;
+    const m = new THREE.Matrix4().set(f[3], f[4], f[5], f[0], f[6], f[7], f[8], f[1], f[9], f[10], f[11], f[2], 0, 0, 0, 1);
+    const local = new THREE.Matrix4();
+    const e = 0.02;
+    if (w.face === "Front") local.makeRotationY(Math.PI).setPosition(0, 0, -sz / 2 - e);
+    else if (w.face === "Back") local.makeTranslation(0, 0, sz / 2 + e);
+    else if (w.face === "Right") local.makeRotationY(Math.PI / 2).setPosition(sx / 2 + e, 0, 0);
+    else if (w.face === "Left") local.makeRotationY(-Math.PI / 2).setPosition(-sx / 2 - e, 0, 0);
+    else if (w.face === "Top") local.makeRotationX(-Math.PI / 2).setPosition(0, sy / 2 + e, 0);
+    else local.makeRotationX(Math.PI / 2).setPosition(0, -sy / 2 - e, 0);
+    mesh.matrixAutoUpdate = false; mesh.matrix.copy(m.multiply(local));
+    mesh.renderOrder = 5;
+    world.add(mesh);
+  }
+}
+
 function placeCamera(camera, f) {
   const m = new THREE.Matrix4().set(f[3], f[4], f[5], f[0], f[6], f[7], f[8], f[1], f[9], f[10], f[11], f[2], 0, 0, 0, 1);
   const pos = new THREE.Vector3(), quat = new THREE.Quaternion(), scale = new THREE.Vector3();
@@ -222,6 +262,7 @@ if (view === "lineup") {
   const L = scene.lighting;
   addTerrain(scene.terrain || [], scene.terrainColors || {});
   add(scene.map);
+  addWritings(scene.writings || []);
   add(scene.actors);
   const haze = new THREE.Color().setRGB(0.84, 0.79, 0.66, THREE.SRGBColorSpace);
   const close = view === "hip" || view === "ads";

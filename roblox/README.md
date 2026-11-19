@@ -11,7 +11,8 @@ hazır model kullanılmadı.
 | | |
 |---|---|
 | ![Nişan](docs/ads.png) | ![Köy meydanı](docs/village.png) |
-| ![Harita](docs/overview.png) | ![Silahlar](docs/lineup.png) |
+| ![Köy sokağı ve tabelalar](docs/street.png) | ![Harita](docs/overview.png) |
+| ![Silahlar](docs/lineup.png) | |
 
 > **Bu resimler hakkında:** Roblox Studio'dan alınmış ekran görüntüleri
 > değiller. Haritayı, askerleri ve silahları oyunun kendi kodu kuruyor, her
@@ -20,8 +21,9 @@ hazır model kullanılmadı.
 > dokuları (kum, beton, tahta, metal) farklı görünecek. HUD da oyundaki
 > yerleşime göre ayrıca çizildi; yazı tipi farklı. Arazi (zemin ve kenardaki
 > tepeler) Roblox'ta pürüzsüz voksel arazidir; önizlemede küre ve disklerle
-> yaklaşık çizildi. Bulutlar, güneş ışınları, parçacık efektleri ve akşam
-> yanan lambalar önizlemede yok. Nasıl üretildiği aşağıda.
+> yaklaşık çizildi. Bulutlar, güneş ışınları, parçacık efektleri, ateş ve
+> duman, akşam yanan lambalar, ragdoll, kuşlar ve dalgalanan bayraklar
+> önizlemede yok. Nasıl üretildiği aşağıda.
 
 ## Neye bakarak yapıldı
 
@@ -121,11 +123,29 @@ asist, uzak atış, intikam, seri, bölge alma ve tur sonucundan geliyor.
   kafesli siperler, varil ve lastik yığınları, paletler, kamuflaj ağları,
   dikenli tel, elektrik hattı, enkaz arabalar, pazar tezgâhı, kavaklar ve
   dallı ağaçlar, takım bayrakları.
-- **Askerler:** yuvarlak kask, gözlük, cepli yelek, sırt çantası, telsiz
-  anteni, takım kol bandı ve dizlik. Botların eldiven ve botları koyu.
+- **Askerler:** herkes takım üniforması giyer (oyuncuların avatar kıyafeti ve
+  şapkaları çıkarılır). Kask, gözlük, cepli yelek, sırt çantası, telsiz
+  anteni, takım kol bandı, dizlik, eldiven ve bot. Kendi avatarlarıyla
+  oynamalarını istersen `Config.UniformAvatars = false` yap.
+- **Ölüm:** vurulan asker parçalara ayrılmaz; eklemleri gevşer (ragdoll) ve
+  kurşunun ya da patlamanın yönünde savrulur.
+- **Tabelalar ve yazılar:** dükkân tabelaları (BAKKAL, ÇAY OCAĞI, KARAKOL,
+  FIRIN, BERBER, MUHTARLIK), üs kapısında birlik tabelası, kavşakta yol
+  levhaları, mayın uyarıları, konteynerlerde şirket adı ve numara, duvar
+  yazıları.
+- **Ateş ve ışık:** üslerde yanan varil, meydandaki enkaz kamyonlarda alev ve
+  duman, enkaz arabalarda tütme. Akşam evlerin içinde lamba yanar,
+  pencerelerden ışık taşar.
+- **Canlılık:** bayraklar rüzgârda dalgalanır, çalı topları yuvarlanarak
+  geçer, tepede kuşlar döner, yerde toz savrulur.
 - **Silahlar:** ray dişleri, atım penceresi, kurma kolu, tetik, havalandırma
   delikleri, alev gizleyici, kavisli şarjör, dürbün camları, tabanca kayar
   parça tırtıkları.
+- **Birinci şahıs:** parmaklı eldivenler, kol ağzı ve kol saati. Dolumda sol
+  el şarjöre uzanır, boş şarjör yere düşer, el cepten yenisini getirir.
+- **Ekran:** can azaldıkça renkler solar, hasar anında ekran kısa bir an
+  kızarır, ölünce görüntü griye döner. HUD'da elindeki silahın küçük 3B
+  simgesi var. Kurşun izleri yuvarlak ve çevresi kararmış.
 - **Efektler:** parçacıklı namlu ateşi ve duman, fırlayan kovanlar (pompalıda
   kırmızı fişek), yüzeyin malzemesine göre isabet tozu ya da metalde
   kıvılcım, ateş topu, yükselen duman ve toz halkasıyla patlama, yakın
@@ -262,15 +282,17 @@ Bu komut sırayla şunları yapıyor:
    - `shared`: silah tanımları, eklentiler, rütbeler, teçhizat doğrulama,
      balistik, bütün silah×eklenti modelleri (96 adet), denge tablosu ve
      haritada doğuş noktalarının ve bölgelerin bir nesnenin içine düşmediği.
-   - `server`: bir oyuncu bağlanır; tur akışı, botların doğup ateş etmesi,
+   - `server`: bir oyuncu bağlanır; üniforma, ragdoll, tur akışı, botların doğup ateş etmesi,
      sahte atışların reddi, kafa/gövde hasarı, leş, puan ve rütbe, atış hızı
      sınırı, dolum, bıçak, el bombası, tur sonu, bölge ele geçirme, Silah
      Yarışı'nda seviye atlama ve ayrılınca kayıt.
    - `client`: menü, kilitli/açık silah ve eklenti seçimi, 3B silah
-     önizlemesi, sahaya iniş, silah görünümü, otomatik ateş, nişan, dolum,
+     önizlemesi, sahaya iniş, silah görünümü ve HUD silah simgesi, otomatik
+     ateş, nişan, dolum (sol elin şarjöre uzanması, boş şarjörün düşmesi),
      silah değiştirme, bıçak, el bombası, koşma/kayma/eğilme, HUD mesajları,
-     radar ve isim etiketleri, skor tablosu, isabet/kovan/patlama efektleri,
-     dokunmatik düğmeler, ölüm ekranı ve tur sonucu.
+     hasarda ekranın kızarması, radar ve isim etiketleri, skor tablosu,
+     isabet/kovan/patlama efektleri, bayrak, kuş ve çalı topları, dokunmatik
+     düğmeler, ölüm ekranı ve tur sonucu.
 
 Testlerin göremediği şeyler var: fizik (karakterler testte yürümüyor, bu
 yüzden botların yol bulması sınanmıyor), Roblox'un gerçek görüntüsü ve

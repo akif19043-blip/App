@@ -502,6 +502,10 @@ function Arsenal.update(dt)
 		airborne = Movement.airborne,
 		mouseDelta = UserInputService:GetMouseDelta(),
 	}, dt)
+	local dropping = Viewmodel.takeDrop(weapon.vm)
+	if dropping and stats.class ~= "Shotgun" then
+		Effects.dropMag(dropping, cam.CFrame.UpVector * -3 + cam.CFrame.RightVector * -1)
+	end
 end
 
 function Arsenal.init(remoteFolder)

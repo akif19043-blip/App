@@ -61,6 +61,17 @@ for index, name in ipairs({ "Deneme", "Demir", "Kaya" }) do
 	row.Parent = board
 end
 
+-- Haritadan bir bayrak (ortam modülü dalgalandırır)
+local testMap = roblox.Instance.new("Folder")
+testMap.Name = "Map"
+local testFlag = roblox.Instance.new("Part")
+testFlag.Name = "BaseFlag"
+testFlag.Size = Vector3.new(6, 3.6, 0.12)
+testFlag.CFrame = CFrame.new(10, 16, 150)
+testFlag.Position = Vector3.new(10, 16, 150)
+testFlag.Parent = testMap
+testMap.Parent = workspace
+
 local function serverSends(name, ...)
 	Harness.signal(Remotes:FindFirstChild(name), "OnClientEvent"):Fire(...)
 	task.wait(0.02)
@@ -230,6 +241,10 @@ local ok, problem = pcall(function()
 		return item:IsA("TextLabel") and item.Text == "Bora-5"
 	end)
 	check("HUD silah adını gösteriyor", weaponName ~= nil)
+	local iconModel = find(gui.Hud, function(item)
+		return item.Name == "WeaponIcon"
+	end):FindFirstChildOfClass("WorldModel"):FindFirstChildOfClass("Model")
+	check("HUD'da 3B silah simgesi", iconModel ~= nil)
 
 	print("\nAteş")
 	Harness.clearOutbox()
@@ -257,7 +272,18 @@ local ok, problem = pcall(function()
 	Harness.clearOutbox()
 	key(Enum.KeyCode.R, true)
 	check("dolum isteği gönderildi", #Harness.sent("Reload") == 1)
-	frames(90, 1 / 30)
+	local leftHand = camera.Viewmodel:FindFirstChild("LeftHand")
+	local restHand = leftHand and leftHand.CFrame.Position
+	frames(12, 1 / 30)
+	check("dolumda sol el şarjöre uzandı", leftHand and (leftHand.CFrame.Position - restHand).Magnitude > 0.05)
+	frames(78, 1 / 30)
+	check("boş şarjör yere düştü", find(workspace, function(item)
+		return item.Name == "DroppedMag"
+	end) ~= nil)
+	check(
+		"görünümde parmaklar ve saat var",
+		camera.Viewmodel:FindFirstChild("Finger") ~= nil and camera.Viewmodel:FindFirstChild("Watch") ~= nil
+	)
 	key(Enum.KeyCode.Two, true)
 	frames(5)
 	local equips = Harness.sent("Equip")
@@ -293,6 +319,8 @@ local ok, problem = pcall(function()
 	serverSends("HitConfirm", { damage = 42, headshot = true, killed = false })
 	serverSends("HitConfirm", { damage = 28, headshot = false, killed = true })
 	serverSends("Damaged", Vector3.new(30, 3, 150), 20)
+	frame()
+	check("hasarda ekran kızardı", game:GetService("Lighting").HurtGrade.TintColor.G < 0.9)
 	serverSends("KillFeed", {
 		killer = "Deneme",
 		killerTeam = "Sahin",
@@ -375,6 +403,13 @@ local ok, problem = pcall(function()
 	serverSends("Blast", Vector3.new(0, 3, 146))
 	local shakeA, shakeB = Effects.takeShake(1 / 60)
 	check("yakındaki patlama kamerayı sarstı", shakeA ~= 0 or shakeB ~= 0)
+	check("bayrak dalgalanıyor", (testFlag.CFrame.LookVector - Vector3.new(0, 0, -1)).Magnitude > 0.001)
+	check("tepede kuşlar uçuyor", find(workspace, function(item)
+		return item.Name == "Bird"
+	end) ~= nil)
+	check("çalı topu yuvarlandı", find(workspace, function(item)
+		return item.Name == "Tumbleweed"
+	end) ~= nil)
 	check("HUD'da bulanıklık yok", game:GetService("Lighting"):FindFirstChild("MenuBlur").Size == 0)
 
 	print("\nDokunmatik düzen")

@@ -19,6 +19,15 @@ local Server = game:GetService("ServerScriptService"):FindFirstChild("Server")
 local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
 local State = ReplicatedStorage:FindFirstChild("State")
 
+local function find(root, predicate)
+	for _, item in ipairs(root:GetDescendants()) do
+		if predicate(item) then
+			return item
+		end
+	end
+	return nil
+end
+
 local function remote(name)
 	return Harness.signal(Remotes:FindFirstChild(name), "OnServerEvent")
 end
@@ -110,6 +119,12 @@ local ok, problem = pcall(function()
 	check("elinde silah var", character:FindFirstChild("WorldGun") ~= nil)
 	check("karakter takım özniteliği", character:GetAttribute("Team") == me.team)
 	check("koruma kalkanı", character:FindFirstChildOfClass("ForceField") ~= nil)
+	check(
+		"oyuncu üniforma giydi",
+		character.UpperTorso.Color == Harness.roblox.Color3.fromRGB(86, 98, 74)
+			or character.UpperTorso.Color == Harness.roblox.Color3.fromRGB(132, 112, 82)
+	)
+	check("avatar görünümü kapalı", game:GetService("StarterPlayer").LoadCharacterAppearance == false)
 	local root = character.HumanoidRootPart
 	check("üs doğuş noktasında", math.abs(root.CFrame.Position.Z) > 150, root.CFrame.Position)
 
@@ -213,6 +228,14 @@ local ok, problem = pcall(function()
 	remote("Fire"):Fire(player, "bora", origin, { shot(head) })
 	task.wait(0.15)
 	check("hedef öldü", not target.alive)
+	local corpse = target.character
+	check("ceset ragdoll oldu (eklemler mafsala döndü)", corpse ~= nil and find(corpse, function(item)
+		return item:IsA("BallSocketConstraint")
+	end) ~= nil)
+	check("eklem motorları kapandı", corpse ~= nil and find(corpse, function(item)
+		return item:IsA("Motor6D") and item.Name == "Waist" and item.Enabled == false
+	end) ~= nil)
+	check("ceset savruldu", corpse ~= nil and corpse.UpperTorso.AssemblyLinearVelocity.Magnitude > 5)
 	check("leş sayıldı", me.kills == 1, me.kills)
 	check("öldürme akışı yayınlandı", #Harness.sent("KillFeed") == 1)
 	check("takım skoru arttı", (State:GetAttribute("Score" .. me.team) or 0) >= 1)

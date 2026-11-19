@@ -241,6 +241,10 @@ roblox.implementMethod("Humanoid", "MoveTo", function(self, position)
 	self:SetAttribute("TestMoveTo", position)
 end)
 
+roblox.implementMethod("Humanoid", "ChangeState", function(self, state)
+	self:SetAttribute("TestState", state.Name)
+end)
+
 roblox.implementMethod("Animator", "LoadAnimation", function(_, animation)
 	return {
 		Animation = animation,

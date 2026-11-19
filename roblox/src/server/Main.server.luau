@@ -18,6 +18,9 @@ local Spawner = require(script.Parent.Spawner)
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
+-- Tek tip askerler: avatar kıyafetleri yüklenmez, Spawner.paint üniforma giydirir
+game:GetService("StarterPlayer").LoadCharacterAppearance = not Config.UniformAvatars
+
 Entities.init()
 local mapData = MapBuilder.build(workspace)
 Spawner.setMap(mapData)

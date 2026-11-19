@@ -248,6 +248,8 @@ local function buildLong(model, stats, layout, info)
 		for _, part in ipairs({ upper, lower, plate }) do
 			part:SetAttribute("Mag", true)
 		end
+		-- Dolumda sol elin tuttuğu yer
+		info.magPoint = Vector3.new(0, -mh * 0.45, zMag)
 	end
 
 	if layout.bolt then
@@ -403,6 +405,7 @@ local function buildLong(model, stats, layout, info)
 	end
 
 	info.aim = buildSight(model, atts.sight, stats, zRecvRear, zGuardFront, railY, color)
+	info.magPoint = info.magPoint or Vector3.new(0.06, 0.02, zRecvFront + recvLen * 0.4)
 	info.muzzle = Vector3.new(0, muzzleY, zMuzzle)
 	info.leftHand = Vector3.new(0, axisY - 0.2, zGuardMid)
 	info.rightHand = Vector3.new(0, -0.2, 0.12)
@@ -489,6 +492,7 @@ local function buildPistol(model, stats, info)
 	end
 
 	info.muzzle = Vector3.new(0, 0.22, zMuzzle)
+	info.magPoint = Vector3.new(0, -0.55, 0.22)
 	info.leftHand = Vector3.new(-0.08, -0.3, 0.1)
 	info.rightHand = Vector3.new(0, -0.2, 0.14)
 end

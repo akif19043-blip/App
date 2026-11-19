@@ -18,6 +18,12 @@ local EYE_DISTANCE = 0.8
 local SKIN = Color3.fromRGB(214, 168, 130)
 local GLOVE = Color3.fromRGB(40, 38, 34)
 
+local WATCH = Color3.fromRGB(26, 26, 28)
+local CUFF = 0.82 -- kol ağzı, kolun rengine göre koyuluk
+
+local RIGHT_SHOULDER = Vector3.new(0.85, -1.5, 2.4)
+local LEFT_SHOULDER = Vector3.new(-1.1, -1.6, 1.6)
+
 local function armPart(model, name, size, cframe, color, material)
 	local p = Instance.new("Part")
 	p.Name = name
@@ -34,7 +40,9 @@ local function armPart(model, name, size, cframe, color, material)
 	return p
 end
 
-local function addArm(model, hand, shoulder, sleeve)
+-- Sağ kol: kabzayı tutar, silahla birlikte sabit durur
+local function addRightArm(model, info, sleeve)
+	local hand, shoulder = info.rightHand, RIGHT_SHOULDER
 	local offset = shoulder - hand
 	local length = offset.Magnitude
 	local direction = offset / length
@@ -46,6 +54,14 @@ local function addArm(model, hand, shoulder, sleeve)
 		Vector3.new(0.46, 0.46, sleeveLength),
 		CFrame.lookAt(mid, shoulder),
 		sleeve,
+		Enum.Material.Fabric
+	)
+	armPart(
+		model,
+		"Cuff",
+		Vector3.new(0.52, 0.52, 0.14),
+		CFrame.lookAt(hand + direction * 0.36, shoulder),
+		sleeve:Lerp(Color3.new(0, 0, 0), 1 - CUFF),
 		Enum.Material.Fabric
 	)
 	armPart(
@@ -64,13 +80,131 @@ local function addArm(model, hand, shoulder, sleeve)
 		SKIN,
 		Enum.Material.SmoothPlastic
 	)
+
+	-- Parmaklar: üçü kabzayı sarar, işaret parmağı tetik korkuluğunun yanında
+	-- düz durur, başparmak gövdenin sol yanında
+	if info.style == "knife" then
+		for index = 0, 3 do
+			armPart(
+				model,
+				"Finger",
+				Vector3.new(0.22, 0.08, 0.08),
+				CFrame.new(0.02, -0.11, -0.12 + index * 0.1),
+				GLOVE,
+				Enum.Material.Fabric
+			)
+		end
+		armPart(
+			model,
+			"Thumb",
+			Vector3.new(0.07, 0.07, 0.2),
+			CFrame.new(-0.1, 0.06, -0.08),
+			GLOVE,
+			Enum.Material.Fabric
+		)
+		return
+	end
+	local tilt = CFrame.Angles(math.rad(info.style == "pistol" and -12 or -14), 0, 0)
+	local grip = CFrame.new(hand.X, hand.Y, hand.Z) * tilt
+	for index = 0, 2 do
+		armPart(
+			model,
+			"Finger",
+			Vector3.new(0.25, 0.085, 0.11),
+			grip * CFrame.new(0.02, 0.02 - index * 0.105, -0.17),
+			GLOVE,
+			Enum.Material.Fabric
+		)
+	end
+	armPart(
+		model,
+		"Finger",
+		Vector3.new(0.07, 0.07, 0.24),
+		CFrame.new(0.115, -0.02, hand.Z - 0.3),
+		GLOVE,
+		Enum.Material.Fabric
+	)
+	armPart(
+		model,
+		"Thumb",
+		Vector3.new(0.07, 0.075, 0.24),
+		CFrame.new(-0.125, hand.Y + 0.26, hand.Z - 0.08),
+		GLOVE,
+		Enum.Material.Fabric
+	)
+end
+
+-- Sol kol her karede yeniden yerleştirilir (dolumda şarjöre uzanır)
+local function buildLeftArm(model, sleeve)
+	local arm = {
+		sleeve = armPart(model, "LeftSleeve", Vector3.new(0.46, 0.46, 1), CFrame.new(), sleeve, Enum.Material.Fabric),
+		cuff = armPart(
+			model,
+			"LeftCuff",
+			Vector3.new(0.52, 0.52, 0.14),
+			CFrame.new(),
+			sleeve:Lerp(Color3.new(0, 0, 0), 1 - CUFF),
+			Enum.Material.Fabric
+		),
+		wrist = armPart(
+			model,
+			"LeftWrist",
+			Vector3.new(0.3, 0.3, 0.16),
+			CFrame.new(),
+			SKIN,
+			Enum.Material.SmoothPlastic
+		),
+		watch = armPart(model, "Watch", Vector3.new(0.34, 0.34, 0.09), CFrame.new(), WATCH, Enum.Material.Plastic),
+		face = armPart(
+			model,
+			"WatchFace",
+			Vector3.new(0.14, 0.04, 0.12),
+			CFrame.new(),
+			Color3.fromRGB(150, 170, 160),
+			Enum.Material.Glass
+		),
+		hand = armPart(model, "LeftHand", Vector3.new(0.34, 0.3, 0.44), CFrame.new(), GLOVE, Enum.Material.Fabric),
+		fingers = {},
+		thumb = armPart(model, "LeftThumb", Vector3.new(0.07, 0.07, 0.22), CFrame.new(), GLOVE, Enum.Material.Fabric),
+	}
+	for index = 1, 4 do
+		arm.fingers[index] =
+			armPart(model, "LeftFinger", Vector3.new(0.07, 0.16, 0.08), CFrame.new(), GLOVE, Enum.Material.Fabric)
+	end
+	return arm
+end
+
+local function placeLeftArm(vm, handleCFrame, handPoint)
+	local arm = vm.left
+	local s = SCALE
+	local shoulder = handleCFrame * vm.leftShoulder
+	local hand = handleCFrame * handPoint
+	local offset = shoulder - hand
+	local length = math.max(offset.Magnitude, 0.05)
+	local direction = offset / length
+	local sleeveLength = math.max(length - 0.3 * s, 0.05)
+	arm.sleeve.Size = Vector3.new(0.46 * s, 0.46 * s, sleeveLength)
+	arm.sleeve.CFrame = CFrame.lookAt(hand + direction * (0.3 * s + sleeveLength / 2), shoulder)
+	local wristFrame = CFrame.lookAt(hand + direction * 0.3 * s, shoulder)
+	arm.cuff.CFrame = CFrame.lookAt(hand + direction * 0.4 * s, shoulder)
+	arm.wrist.CFrame = wristFrame
+	arm.watch.CFrame = wristFrame * CFrame.new(0, 0, -0.02 * s)
+	arm.face.CFrame = wristFrame * CFrame.new(0, 0.18 * s, -0.02 * s)
+	-- El silahın yönünde durur; parmaklar el kundağının sağ yanını sarar
+	local handFrame = CFrame.new(hand) * (handleCFrame - handleCFrame.Position)
+	arm.hand.CFrame = handFrame
+	for index, finger in ipairs(arm.fingers) do
+		finger.CFrame = handFrame * CFrame.new(0.15 * s, 0.1 * s, (-0.15 + (index - 1) * 0.1) * s)
+	end
+	arm.thumb.CFrame = handFrame * CFrame.new(-0.15 * s, 0.12 * s, 0)
 end
 
 function Viewmodel.build(stats, sleeveColor)
 	local model, info = GunModels.build(stats, { name = "Viewmodel" })
-	addArm(model, info.rightHand, Vector3.new(0.85, -1.5, 2.4), sleeveColor)
+	addRightArm(model, info, sleeveColor)
+	local left
 	if info.leftHand then
-		addArm(model, info.leftHand, Vector3.new(-1.1, -1.6, 1.6), sleeveColor)
+		left = buildLeftArm(model, sleeveColor)
 	end
 	for _, item in ipairs(model:GetDescendants()) do
 		if item:IsA("BasePart") then
@@ -87,8 +221,14 @@ function Viewmodel.build(stats, sleeveColor)
 			table.insert(mags, item)
 		end
 	end
+	if left then
+		-- ScaleTo boyutları küçülttü; sol kolun parçaları her karede yeniden yerleşir
+		for _, finger in ipairs(left.fingers) do
+			finger.Size = Vector3.new(0.07, 0.16, 0.08) * SCALE
+		end
+	end
 
-	return {
+	local vm = {
 		model = model,
 		handle = handle,
 		aim = handle:WaitForChild("Aim").Position,
@@ -99,6 +239,10 @@ function Viewmodel.build(stats, sleeveColor)
 		mags = mags,
 		stats = stats,
 		melee = stats.melee == true,
+		left = left,
+		leftRest = info.leftHand and info.leftHand * SCALE or nil,
+		magPoint = (info.magPoint or info.leftHand or Vector3.zero) * SCALE,
+		leftShoulder = LEFT_SHOULDER * SCALE,
 		-- canlı durum
 		kickZ = 0,
 		kickPitch = 0,
@@ -107,7 +251,36 @@ function Viewmodel.build(stats, sleeveColor)
 		swayY = 0,
 		bobTime = 0,
 		slash = 0,
+		dropped = false,
 	}
+	if left then
+		placeLeftArm(vm, handle.CFrame, vm.leftRest)
+	end
+	return vm
+end
+
+local function smoothstep(t)
+	t = math.clamp(t, 0, 1)
+	return t * t * (3 - 2 * t)
+end
+
+-- Dolum boyunca sol elin silaha göre yeri: el kundağı → şarjör → cep → şarjör → el kundağı
+local function reloadHand(vm, t)
+	local rest, mag = vm.leftRest, vm.magPoint
+	local pouch = mag + Vector3.new(-0.1, -0.75, 0.3) * SCALE
+	local seat = mag + Vector3.new(0, 0.08, 0) * SCALE
+	if t < 0.15 then
+		return rest:Lerp(mag, smoothstep(t / 0.15))
+	elseif t < 0.3 then
+		return mag:Lerp(mag + Vector3.new(0, -0.15, 0) * SCALE, smoothstep((t - 0.15) / 0.15))
+	elseif t < 0.48 then
+		return (mag + Vector3.new(0, -0.15, 0) * SCALE):Lerp(pouch, smoothstep((t - 0.3) / 0.18))
+	elseif t < 0.66 then
+		return pouch:Lerp(seat, smoothstep((t - 0.48) / 0.18))
+	elseif t < 0.8 then
+		return seat:Lerp(mag, smoothstep((t - 0.66) / 0.14))
+	end
+	return mag:Lerp(rest, smoothstep((t - 0.8) / 0.2))
 end
 
 function Viewmodel.kick(vm, strength)
@@ -162,9 +335,19 @@ function Viewmodel.update(vm, cameraCFrame, s, dt)
 		base = base
 			* CFrame.new(0, -0.18 * r, 0.1 * r)
 			* CFrame.Angles(math.rad(-18) * r, math.rad(-20) * r, math.rad(38) * r)
-		local hidden = s.reload > 0.3 and s.reload < 0.62
+		-- Boş şarjör çekilince düşer, yenisi takılınca görünür
+		local hidden = s.reload > 0.28 and s.reload < 0.64
+		if hidden and not vm.dropped then
+			vm.dropped = true
+			vm.dropNow = true
+		end
 		for _, mag in ipairs(vm.mags) do
 			mag.LocalTransparencyModifier = hidden and 1 or 0
+		end
+	elseif vm.dropped then
+		vm.dropped = false
+		for _, mag in ipairs(vm.mags) do
+			mag.LocalTransparencyModifier = 0
 		end
 	end
 
@@ -180,6 +363,18 @@ function Viewmodel.update(vm, cameraCFrame, s, dt)
 	local kick = CFrame.new(0, 0, vm.kickZ * (1 - aim * 0.4))
 		* CFrame.Angles(vm.kickPitch * (1 - aim * 0.5), 0, vm.kickRoll)
 	vm.model:PivotTo(cameraCFrame * sway * bob * base * kick)
+	if vm.left then
+		placeLeftArm(vm, vm.handle.CFrame, s.reload and reloadHand(vm, s.reload) or vm.leftRest)
+	end
+end
+
+-- Dolumda düşecek şarjörün parçaları (Arsenal, Effects.dropMag'e verir)
+function Viewmodel.takeDrop(vm)
+	if vm.dropNow then
+		vm.dropNow = false
+		return vm.mags
+	end
+	return nil
 end
 
 function Viewmodel.muzzleCFrame(vm)

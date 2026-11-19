@@ -3,6 +3,9 @@
 --
 -- Hud yalnızca çizer; neyi göstereceğini Main her karede update() ile verir.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local GunModels = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GunModels"))
 local Ui = require(script.Parent.Ui)
 
 local Hud = {}
@@ -192,6 +195,20 @@ local function buildVitals()
 		Parent = canvas,
 	})
 	refs.ammoPanel = ammo
+	-- Elindeki silahın küçük 3B simgesi
+	local icon = make("ViewportFrame", {
+		Name = "WeaponIcon",
+		Position = UDim2.fromOffset(0, 18),
+		Size = UDim2.fromOffset(100, 46),
+		BackgroundTransparency = 1,
+		Ambient = Color3.fromRGB(170, 168, 160),
+		LightColor = Color3.fromRGB(255, 246, 230),
+		LightDirection = Vector3.new(-0.5, -1, -0.6),
+		Parent = ammo,
+	})
+	local iconCamera = make("Camera", { FieldOfView = 28, Parent = icon })
+	icon.CurrentCamera = iconCamera
+	refs.icon = { frame = icon, world = make("WorldModel", { Parent = icon }), camera = iconCamera }
 	refs.weaponName = label({
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.fromScale(1, 0),
@@ -823,6 +840,28 @@ local function fadeLists(now)
 	end
 end
 
+-- Silah simgesini elindeki silaha göre yeniden kurar (silah değişince)
+function Hud.setWeaponIcon(stats)
+	local icon = refs.icon
+	if not icon or icon.stats == stats then
+		return
+	end
+	icon.stats = stats
+	if icon.model then
+		icon.model:Destroy()
+		icon.model = nil
+	end
+	if not stats then
+		return
+	end
+	local model = GunModels.build(stats, { name = "Icon" })
+	local length = stats.model.length
+	model:PivotTo(CFrame.Angles(0, math.rad(90), 0) * CFrame.new(0, 0, -(0.45 - length * 0.42)))
+	model.Parent = icon.world
+	icon.model = model
+	icon.camera.CFrame = CFrame.lookAt(Vector3.new(0, 0.1, math.max(1.5, length * 1.05)), Vector3.new(0, 0.05, 0))
+end
+
 -- d: Main'in her kare topladığı durum
 function Hud.update(d)
 	if not gui or not gui.Enabled then
@@ -851,6 +890,7 @@ function Hud.update(d)
 
 	-- Cephane
 	local weapon = d.weapon
+	Hud.setWeaponIcon(d.weaponStats)
 	if weapon then
 		refs.weaponName.Text = weapon.name
 		if weapon.melee then

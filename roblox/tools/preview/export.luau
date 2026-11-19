@@ -98,6 +98,33 @@ end
 local mapParts = dump(data.folder)
 dump(data.pointsFolder, mapParts)
 
+-- Tabela ve duvar yazıları (SurfaceGui): parça, yüz ve yazı bilgisi
+local function rgbList(color)
+	return { round(color.R), round(color.G), round(color.B) }
+end
+local writings = {}
+for _, gui in ipairs(workspace:GetDescendants()) do
+	if gui:IsA("SurfaceGui") and gui.Parent and gui.Parent:IsA("BasePart") then
+		local part = gui.Parent
+		local label = gui:FindFirstChildOfClass("TextLabel")
+		if label then
+			table.insert(writings, {
+				f = cframeList(part.CFrame),
+				z = { round(part.Size.X), round(part.Size.Y), round(part.Size.Z) },
+				face = gui.Face.Name,
+				text = label.Text,
+				font = label.Font.Name,
+				color = rgbList(label.TextColor3),
+				bg = label.BackgroundTransparency < 1 and rgbList(label.BackgroundColor3) or nil,
+				size = { label.Size.X.Scale, label.Size.Y.Scale },
+				pos = { label.Position.X.Scale, label.Position.Y.Scale },
+				rot = label.Rotation,
+				alpha = 1 - label.TextTransparency,
+			})
+		end
+	end
+end
+
 -- Arazi doldurma çağrıları (Roblox'ta voksel arazi olur, önizlemede düz şekiller)
 local terrain = {}
 for _, fill in ipairs(Harness.terrainFills) do
@@ -213,6 +240,7 @@ local views = {
 		46
 	),
 	overview = { camera = cframeList(CFrame.lookAt(Vector3.new(250, 210, 300), Vector3.new(0, -10, 10))), fov = 45 },
+	street = { camera = cframeList(CFrame.lookAt(Vector3.new(0, 7, 98), Vector3.new(-4, 4, 40))), fov = 70 },
 	village = { camera = cframeList(CFrame.lookAt(Vector3.new(-120, 70, 140), Vector3.new(0, 0, 0))), fov = 50 },
 }
 
@@ -249,6 +277,7 @@ end
 local scene = {
 	map = mapParts,
 	terrain = terrain,
+	writings = writings,
 	terrainColors = terrainColors,
 	actors = actors,
 	views = views,

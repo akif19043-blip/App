@@ -53,6 +53,42 @@ local function gear(character, target, name, size, offset, color, material, shap
 	return part
 end
 
+local GLOVE = Color3.fromRGB(44, 42, 38)
+local BOOT = Color3.fromRGB(46, 38, 30)
+local CLOTHES =
+	{ Accessory = true, Shirt = true, Pants = true, ShirtGraphic = true, BodyColors = true, CharacterMesh = true }
+
+-- Üniforma: avatar kıyafetleri ve aksesuarları çıkar, gövdeyi takım rengine boya
+function Spawner.paint(entity, character)
+	for _, item in ipairs(character:GetChildren()) do
+		if CLOTHES[item.ClassName] then
+			item:Destroy()
+		end
+	end
+	local team = Config.TeamById[entity.team]
+	local skin = Config.SkinTones[entity.skinTone or 1] or Config.SkinTones[1]
+	local trousers = team.uniform:Lerp(Color3.new(0, 0, 0), 0.25)
+	for _, part in ipairs(character:GetChildren()) do
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			local name = part.Name
+			if name == "Head" then
+				part.Color = skin
+			elseif string.find(name, "Hand") then
+				part.Color = GLOVE
+			elseif string.find(name, "Foot") then
+				part.Color = BOOT
+				part.Material = Enum.Material.Leather
+			elseif string.find(name, "Leg") or name == "LowerTorso" then
+				part.Color = trousers
+				part.Material = Enum.Material.Fabric
+			else
+				part.Color = team.uniform
+				part.Material = Enum.Material.Fabric
+			end
+		end
+	end
+end
+
 local GOGGLE = Color3.fromRGB(40, 60, 70)
 local STRAP = Color3.fromRGB(36, 34, 30)
 local POUCH_OFFSETS = { -0.62, -0.2, 0.22 }
@@ -67,6 +103,8 @@ function Spawner.dress(entity, character)
 		humanoid.Health = Config.MaxHealth
 		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+		-- Ölünce parçalara ayrılmasın: Combat.ragdoll eklemleri mafsala çevirir
+		humanoid.BreakJointsOnDeath = false
 	end
 
 	local team = Config.TeamById[entity.team]
@@ -448,6 +486,9 @@ function Spawner.place(entity, character)
 		return false
 	end
 	character:PivotTo(Spawner.pickSpawn(entity))
+	if entity.isBot or Config.UniformAvatars then
+		Spawner.paint(entity, character)
+	end
 	Spawner.dress(entity, character)
 	Spawner.pose(character)
 	Entities.setCharacter(entity, character, humanoid)

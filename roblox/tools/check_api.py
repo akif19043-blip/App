@@ -60,7 +60,7 @@ Hud Menu TouchControls A B C Config Ui Util Signal Sounds Weapons Attachments
 Ranks Modes Ballistics Loadout GunModels Defs Primaries Secondaries Slots
 SlotNames BySlot Colors Font FontMedium FontBlack DesignWidth DesignHeight Max Names
 Order Teams TeamById Xp Lighting Default Order Health Death AR SMG LMG DMR Sniper
-Shotgun Pistol
+Shotgun Pistol BaseFlag BaseFlagStripe
 """
 ours = set(OURS.split())
 

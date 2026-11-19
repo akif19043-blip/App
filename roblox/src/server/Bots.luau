@@ -56,13 +56,6 @@ local ANIMATIONS = {
 	run = "rbxassetid://507767714",
 }
 
-local SKIN = {
-	Color3.fromRGB(234, 184, 146),
-	Color3.fromRGB(204, 142, 105),
-	Color3.fromRGB(160, 110, 80),
-	Color3.fromRGB(110, 76, 56),
-}
-
 local bots = {}
 local mapData
 local template
@@ -484,26 +477,6 @@ local function spawnBot(bot)
 
 	local character = source:Clone()
 	character.Name = entity.name
-	local team = Config.TeamById[entity.team]
-	local skin = SKIN[bot.skin]
-	for _, part in ipairs(character:GetDescendants()) do
-		if part:IsA("BasePart") then
-			local name = part.Name
-			if name == "Head" then
-				part.Color = skin
-			elseif name == "LeftHand" or name == "RightHand" then
-				part.Color = Color3.fromRGB(44, 42, 38) -- eldiven
-			elseif string.find(name, "Foot") then
-				part.Color = Color3.fromRGB(46, 38, 30) -- bot
-				part.Material = Enum.Material.Leather
-			elseif string.find(name, "Leg") or name == "LowerTorso" then
-				part.Color = team.uniform:Lerp(Color3.new(0, 0, 0), 0.25)
-			else
-				part.Color = team.uniform
-			end
-		end
-	end
-
 	if not (Bots.mode and Bots.mode.tiers) then
 		local primary = Weapons.Primaries[rng:NextInteger(1, #Weapons.Primaries)]
 		entity.loadout = { primary = primary, secondary = "akrep", attachments = {} }
@@ -557,7 +530,6 @@ local function addBot(teamId)
 	local bot = {
 		entity = entity,
 		skill = rng:NextNumber(0.7, 1.15),
-		skin = rng:NextInteger(1, #SKIN),
 		spawning = false,
 		alertUntil = 0,
 	}
